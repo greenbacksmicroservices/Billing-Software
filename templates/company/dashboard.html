@@ -9,115 +9,139 @@
 
 {% block content %}
 <!-- Dashboard Header -->
-<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-    <div>
-        <h1 class="page-title" style="margin: 0;">Dashboard</h1>
-        <small style="color: var(--muted); font-size: 0.8rem;">
-            <i class="fa-solid fa-sync fa-spin" id="realtime-spinner" style="display: none; margin-right: 0.25rem;"></i>
-            Realtime DB Status: <span id="last-updated-time">Just updated</span>
-        </small>
-    </div>
+<div class="page-header">
+    <h1 class="page-title" style="margin: 0;">Dashboard</h1>
     <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button id="btn-manual-refresh" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Refresh Graphs Realtime">
+        <button id="btn-manual-refresh" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;" title="Refresh Graphs Realtime">
             <i class="fa-solid fa-rotate"></i> Refresh Data
         </button>
-        <a href="{% url 'invoice_add' %}" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i> Create Invoice
-        </a>
-        <a href="{% url 'purchase_bill_add' %}" class="btn btn-secondary">
-            <i class="fa-solid fa-cart-flatbed"></i> Purchase Bill
-        </a>
+        <span id="realtime-spinner" style="display: none;"><i class="fa-solid fa-sync fa-spin"></i></span>
+        <span id="last-updated-time" style="display: none;">Just updated</span>
     </div>
 </div>
 
 <!-- KPI Cards Row 1 -->
 <div class="dashboard-grid">
-    <a href="{% url 'invoice_list' %}" class="stat-card kpi-sales" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'invoice_list' %}" class="stat-card kpi-sales">
         <div class="stat-card-header">
             <span>Today's Sales</span>
-            <i class="fa-solid fa-money-bill-wave" style="color: var(--primary); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
         </div>
-        <div class="stat-card-value">{{ today_sales|indian_currency }}</div>
+        <div class="stat-card-value" id="kpi-today-sales">{{ today_sales|indian_currency }}</div>
         <div class="stat-card-footer">
             <span class="stat-card-trend {% if sales_trend >= 0 %}up{% else %}down{% endif %}">
                 <i class="fa-solid {% if sales_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                {{ sales_trend|floatformat:1 }}%
+                <span id="kpi-sales-trend-text">{{ sales_trend|floatformat:1 }}%</span>
             </span>
-            <span>from yesterday</span>
+            <span class="stat-card-subtext">from yesterday</span>
         </div>
     </a>
 
-    <a href="{% url 'purchase_bill_list' %}" class="stat-card kpi-purchases" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'purchase_bill_list' %}" class="stat-card kpi-purchases">
         <div class="stat-card-header">
             <span>Today's Purchases</span>
-            <i class="fa-solid fa-basket-shopping" style="color: #10b981; font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-cart-shopping"></i>
+            </div>
         </div>
-        <div class="stat-card-value">{{ today_purchase|indian_currency }}</div>
+        <div class="stat-card-value" id="kpi-today-purchase">{{ today_purchase|indian_currency }}</div>
         <div class="stat-card-footer">
             <span class="stat-card-trend {% if purchase_trend >= 0 %}up{% else %}down{% endif %}">
                 <i class="fa-solid {% if purchase_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                {{ purchase_trend|floatformat:1 }}%
+                <span id="kpi-purchase-trend-text">{{ purchase_trend|floatformat:1 }}%</span>
             </span>
-            <span>from yesterday</span>
+            <span class="stat-card-subtext">from yesterday</span>
         </div>
     </a>
 
-    <a href="{% url 'payment_list' %}" class="stat-card kpi-collections" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'payment_list' %}" class="stat-card kpi-collections">
         <div class="stat-card-header">
             <span>Today's Collections</span>
-            <i class="fa-solid fa-hand-holding-dollar" style="color: #8b5cf6; font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
         </div>
-        <div class="stat-card-value">{{ today_collection|indian_currency }}</div>
+        <div class="stat-card-value" id="kpi-today-collection">{{ today_collection|indian_currency }}</div>
         <div class="stat-card-footer">
             <span class="stat-card-trend {% if collection_trend >= 0 %}up{% else %}down{% endif %}">
                 <i class="fa-solid {% if collection_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                {{ collection_trend|floatformat:1 }}%
+                <span id="kpi-collection-trend-text">{{ collection_trend|floatformat:1 }}%</span>
             </span>
-            <span>from yesterday</span>
+            <span class="stat-card-subtext">from yesterday</span>
         </div>
     </a>
 
-    <a href="{% url 'product_list' %}" class="stat-card kpi-alerts" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'product_list' %}" class="stat-card kpi-alerts">
         <div class="stat-card-header">
             <span>Low Stock Alerts</span>
-            <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
         </div>
-        <div class="stat-card-value" style="color: {% if low_stock_items > 0 %}var(--warning){% else %}var(--foreground){% endif %};">{{ low_stock_items }}</div>
+        <div class="stat-card-value" id="kpi-low-stock-items">{{ low_stock_items }}</div>
         <div class="stat-card-footer">
-            <span>Items require re-ordering</span>
+            <span class="stat-card-subtext">Items require re-ordering</span>
         </div>
     </a>
 </div>
 
 <!-- KPI Cards Row 2 -->
-<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-    <a href="{% url 'customer_list' %}" class="stat-card kpi-receivable" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">Total Outstanding Receivables</div>
-        <div class="stat-card-value" style="color: var(--primary);">{{ receivable|indian_currency }}</div>
-        <div class="stat-card-footer">Due from customers</div>
+<div class="dashboard-grid">
+    <a href="{% url 'customer_list' %}" class="stat-card kpi-receivable">
+        <div class="stat-card-header">
+            <span>Total Outstanding Receivables</span>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-users"></i>
+            </div>
+        </div>
+        <div class="stat-card-value" id="kpi-receivable">{{ receivable|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Due from customers</span>
+        </div>
     </a>
 
-    <a href="{% url 'supplier_list' %}" class="stat-card kpi-payable" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">Total Outstanding Payables</div>
-        <div class="stat-card-value" style="color: var(--danger);">{{ payable|indian_currency }}</div>
-        <div class="stat-card-footer">Due to suppliers</div>
+    <a href="{% url 'supplier_list' %}" class="stat-card kpi-payable">
+        <div class="stat-card-header">
+            <span>Total Outstanding Payables</span>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-credit-card"></i>
+            </div>
+        </div>
+        <div class="stat-card-value" id="kpi-payable">{{ payable|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Due to suppliers</span>
+        </div>
     </a>
 
-    <a href="{% url 'product_list' %}" class="stat-card kpi-stock" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">Estimated Stock Value</div>
-        <div class="stat-card-value" style="color: var(--success);">{{ total_stock_value|indian_currency }}</div>
-        <div class="stat-card-footer">At current selling rates</div>
+    <a href="{% url 'product_list' %}" class="stat-card kpi-stock">
+        <div class="stat-card-header">
+            <span>Estimated Stock Value</span>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-warehouse"></i>
+            </div>
+        </div>
+        <div class="stat-card-value" id="kpi-total-stock-value">{{ total_stock_value|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">At current selling rates</span>
+        </div>
     </a>
 
-    <a href="{% url 'report_profit_loss' %}" class="stat-card kpi-profit" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">Total Profit (MTD)</div>
-        <div class="stat-card-value" style="color: #06b6d4;">{{ profit_mtd|indian_currency }}</div>
+    <a href="{% url 'report_profit_loss' %}" class="stat-card kpi-profit">
+        <div class="stat-card-header">
+            <span>Total Profit (MTD)</span>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+        </div>
+        <div class="stat-card-value" id="kpi-profit-mtd">{{ profit_mtd|indian_currency }}</div>
         <div class="stat-card-footer">
             <span class="stat-card-trend {% if profit_trend >= 0 %}up{% else %}down{% endif %}">
                 <i class="fa-solid {% if profit_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
-                {{ profit_trend|floatformat:1 }}%
+                <span id="kpi-profit-trend-text">{{ profit_trend|floatformat:1 }}%</span>
             </span>
-            <span>vs last month</span>
+            <span class="stat-card-subtext">vs last month</span>
         </div>
     </a>
 </div>
@@ -538,6 +562,26 @@
             const spinner = document.getElementById('realtime-spinner');
             if (spinner) spinner.style.display = 'inline-block';
             
+            // Fetch KPI cards realtime metrics
+            fetch('/company/dashboard/data/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        const fmt = (v) => '₹' + parseFloat(v || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        const setT = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+                        if (data.today_sales !== undefined) setT('kpi-today-sales', fmt(data.today_sales));
+                        if (data.today_purchase !== undefined) setT('kpi-today-purchase', fmt(data.today_purchase));
+                        if (data.today_collection !== undefined) setT('kpi-today-collection', fmt(data.today_collection));
+                        if (data.low_stock_items !== undefined) setT('kpi-low-stock-items', data.low_stock_items);
+                        if (data.receivable !== undefined) setT('kpi-receivable', fmt(data.receivable));
+                        if (data.payable !== undefined) setT('kpi-payable', fmt(data.payable));
+                        if (data.total_stock_value !== undefined) setT('kpi-total-stock-value', fmt(data.total_stock_value));
+                        if (data.profit_mtd !== undefined) setT('kpi-profit-mtd', fmt(data.profit_mtd));
+                    }
+                })
+                .catch(err => console.warn('KPI data fetch skipped:', err));
+
             fetchChartData(chartPeriods.sales, currentStatusEntity).then(data => {
                 if (data) {
                     renderSalesChart(data);

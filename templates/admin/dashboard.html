@@ -8,60 +8,69 @@
 
 {% block content %}
 <!-- Admin Dashboard Header -->
-<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-    <div>
-        <h1 class="page-title" style="margin: 0;">Admin Dashboard</h1>
-        <small style="color: var(--muted); font-size: 0.8rem;">
-            <i class="fa-solid fa-sync fa-spin" id="admin-realtime-spinner" style="display: none; margin-right: 0.25rem;"></i>
-            Realtime System Status: <span id="admin-last-updated-time">Just updated</span>
-        </small>
-    </div>
+<div class="page-header">
+    <h1 class="page-title" style="margin: 0;">Admin Dashboard</h1>
     <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button id="btn-admin-refresh" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Refresh SaaS Metrics Realtime">
+        <button id="btn-admin-refresh" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;" title="Refresh SaaS Metrics Realtime">
             <i class="fa-solid fa-rotate"></i> Refresh Data
         </button>
-        <a href="{% url 'admin_company_add' %}" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i> Add New Company
-        </a>
+        <span id="admin-realtime-spinner" style="display: none;"><i class="fa-solid fa-sync fa-spin"></i></span>
+        <span id="admin-last-updated-time" style="display: none;">Just updated</span>
     </div>
 </div>
 
 <!-- SaaS KPI Cards -->
 <div class="dashboard-grid">
-    <a href="{% url 'admin_companies_list' %}" class="stat-card kpi-sales" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'admin_companies_list' %}" class="stat-card kpi-admin-companies">
         <div class="stat-card-header">
             <span>Total Companies</span>
-            <i class="fa-solid fa-building" style="color: var(--primary); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-building"></i>
+            </div>
         </div>
-        <div class="stat-card-value">{{ total_companies }}</div>
-        <div class="stat-card-footer">Registered accounts</div>
+        <div class="stat-card-value" id="admin-kpi-total-companies">{{ total_companies }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Registered accounts</span>
+        </div>
     </a>
     
-    <a href="{% url 'admin_companies_list' %}?status=ACTIVE" class="stat-card kpi-purchases" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'admin_companies_list' %}?status=ACTIVE" class="stat-card kpi-admin-active">
         <div class="stat-card-header">
             <span>Active Businesses</span>
-            <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
         </div>
-        <div class="stat-card-value" style="color: var(--success);">{{ active_companies }}</div>
-        <div class="stat-card-footer">Paying subscribers</div>
+        <div class="stat-card-value" id="admin-kpi-active-companies">{{ active_companies }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Paying subscribers</span>
+        </div>
     </a>
     
-    <a href="{% url 'admin_companies_list' %}?status=TRIAL" class="stat-card kpi-alerts" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'admin_companies_list' %}?status=TRIAL" class="stat-card kpi-admin-trial">
         <div class="stat-card-header">
             <span>Free Trials</span>
-            <i class="fa-solid fa-clock" style="color: var(--warning); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-clock"></i>
+            </div>
         </div>
-        <div class="stat-card-value" style="color: var(--warning);">{{ trial_companies }}</div>
-        <div class="stat-card-footer">Evaluation accounts</div>
+        <div class="stat-card-value" id="admin-kpi-trial-companies">{{ trial_companies }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Evaluation accounts</span>
+        </div>
     </a>
 
-    <a href="{% url 'admin_companies_list' %}?status=SUSPENDED" class="stat-card kpi-payable" style="text-decoration: none; color: inherit;">
+    <a href="{% url 'admin_companies_list' %}?status=SUSPENDED" class="stat-card kpi-admin-suspended">
         <div class="stat-card-header">
             <span>Suspended / Expired</span>
-            <i class="fa-solid fa-circle-exclamation" style="color: var(--danger); font-size: 1.1rem;"></i>
+            <div class="stat-card-icon-wrapper">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
         </div>
-        <div class="stat-card-value" style="color: var(--danger);">{{ expired_companies|add:suspended_companies }}</div>
-        <div class="stat-card-footer">Require attention</div>
+        <div class="stat-card-value" id="admin-kpi-suspended-expired">{{ expired_companies|add:suspended_companies }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-subtext">Require attention</span>
+        </div>
     </a>
 </div>
 
@@ -442,6 +451,23 @@
         function reloadAllAdminCharts() {
             const spinner = document.getElementById('admin-realtime-spinner');
             if (spinner) spinner.style.display = 'inline-block';
+
+            // Fetch Admin KPI realtime metrics
+            fetch('/admin/dashboard/data/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        const setT = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+                        if (data.total_companies !== undefined) setT('admin-kpi-total-companies', data.total_companies);
+                        if (data.active_companies !== undefined) setT('admin-kpi-active-companies', data.active_companies);
+                        if (data.trial_companies !== undefined) setT('admin-kpi-trial-companies', data.trial_companies);
+                        if (data.suspended_companies !== undefined || data.expired_companies !== undefined) {
+                            const totalSE = (data.suspended_companies || 0) + (data.expired_companies || 0);
+                            setT('admin-kpi-suspended-expired', totalSE);
+                        }
+                    }
+                })
+                .catch(err => console.warn('Admin KPI fetch skipped:', err));
 
             initRegistrationsChart(adminPeriods.registrations);
             initRevenueChart(adminPeriods.revenue);
