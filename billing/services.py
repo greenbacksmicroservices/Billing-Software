@@ -18,11 +18,11 @@ class QuotationService:
             errors['customer'] = 'Customer is required.'
         else:
             try:
-                customer = Customer.objects.get(id=customer_id, company=company, is_active=True)
+                customer_id_int = int(str(customer_id).strip())
+                customer = Customer.objects.get(id=customer_id_int, company=company, is_active=True)
                 cleaned_data['customer'] = customer
-            except Customer.DoesNotExist:
+            except (Customer.DoesNotExist, ValueError, TypeError):
                 errors['customer'] = 'Selected customer does not exist or is inactive.'
-
 
         # 2. Quotation Number Validation
         q_no = str(data.get('quotation_number') or '').strip()
@@ -68,7 +68,22 @@ class QuotationService:
         cleaned_data['terms'] = (data.get('terms') or '').strip()
 
         # 6. Items Validation
-        items_data = data.get('items', [])
+        items_data = data.get('items')
+        if isinstance(items_data, str):
+            try:
+                import json
+                items_data = json.loads(items_data)
+            except Exception:
+                items_data = []
+        if not items_data:
+            items_raw_json = data.get('items_json')
+            if items_raw_json:
+                try:
+                    import json
+                    items_data = json.loads(items_raw_json)
+                except Exception:
+                    items_data = []
+
         if not items_data or not isinstance(items_data, list):
             errors['items'] = {'_non_field_': 'At least one valid item is required in the quotation.'}
         else:
@@ -84,8 +99,9 @@ class QuotationService:
                     prod = None
                 else:
                     try:
-                        prod = Product.objects.get(id=prod_id, company=company, is_active=True)
-                    except Product.DoesNotExist:
+                        prod_id_int = int(str(prod_id).strip())
+                        prod = Product.objects.get(id=prod_id_int, company=company, is_active=True)
+                    except (Product.DoesNotExist, ValueError, TypeError):
                         row_errs['product'] = 'Selected product does not exist.'
                         prod = None
 

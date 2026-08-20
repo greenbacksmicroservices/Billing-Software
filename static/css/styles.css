@@ -265,7 +265,7 @@ button, input, select, textarea {
 }
 
 .sidebar-item.dropdown.open > .dropdown-toggle .chevron {
-    transform: rotate(90deg);
+    transform: rotate(180deg);
 }
 
 .sidebar-sub-menu {

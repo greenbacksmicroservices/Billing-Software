@@ -11,8 +11,9 @@
     </a>
 </div>
 
-<form id="sales-order-form" method="POST" onsubmit="submitOrder(event)" class="card-container" novalidate>
+<form id="sales-order-form" method="POST" action="{% url 'sales_order_add' %}" onsubmit="submitOrder(event)" class="card-container" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="items_json" id="items-json-input">
     <div class="card-header"><h3 class="card-title">Order Information</h3></div>
     <div class="card-body">
         
@@ -21,7 +22,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="customer">Customer *</label>
-                <select id="customer" class="form-control" onchange="recalculateAll()">
+                <select id="customer" name="customer" class="form-control" onchange="recalculateAll()">
                     <option value="">-- Select Customer --</option>
                     {% for c in customers %}
                         <option value="{{ c.id }}" data-state-code="{{ c.billing_state_code }}">{{ c.name }}</option>
@@ -30,15 +31,15 @@
             </div>
             <div class="form-group">
                 <label class="form-label" for="order-number">Order Number *</label>
-                <input type="text" id="order-number" class="form-control" value="{{ order_number }}">
+                <input type="text" id="order-number" name="order_number" class="form-control" value="{{ order_number }}">
             </div>
             <div class="form-group">
                 <label class="form-label" for="order-date">Order Date *</label>
-                <input type="date" id="order-date" class="form-control" value="2026-08-14">
+                <input type="date" id="order-date" name="date" class="form-control" value="2026-08-14">
             </div>
             <div class="form-group">
                 <label class="form-label" for="expected-delivery">Expected Delivery *</label>
-                <input type="date" id="expected-delivery" class="form-control" value="2026-08-28">
+                <input type="date" id="expected-delivery" name="expected_delivery" class="form-control" value="2026-08-28">
             </div>
         </div>
 
@@ -160,12 +161,12 @@
             <tr id="${rowId}" class="item-row">
                 <td><select class="form-control prod-select" onchange="onProductSelect('${rowId}')">${options}</select></td>
                 <td><input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC"></td>
-                <td><input type="number" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control gst-input" value="0.00" readonly></td>
+                <td><input type="text" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control gst-input" value="0.00" readonly></td>
                 <td style="text-align: right; font-weight:600;" class="row-total">₹0.00</td>
-                <td style="text-align: right;"><button class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
+                <td style="text-align: right;"><button type="button" class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', html);
@@ -216,17 +217,17 @@
         const isSameState = (posCode === companyStateCodeNormalized);
         
         rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
-            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value) || 0;
+            const rate = window.parseMoney(row.querySelector('.rate-input').value) || 0;
+            const disc = window.parseMoney(row.querySelector('.disc-input').value) || 0;
+            const gstRate = window.parseMoney(row.querySelector('.gst-input').value) || 0;
             
             const prodId = row.querySelector('.prod-select').value;
             const prod = products.find(p => p.id == prodId);
-            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            const taxable_item = gross - disc;
+            const taxable_item = Math.max(0, gross - disc);
             const rowGst = taxable_item * (gstRate / 100);
             const rowCess = taxable_item * (cessRate / 100);
             const rowTotal = taxable_item + rowGst + rowCess;
@@ -268,7 +269,7 @@
         error.style.display = 'none';
         
         const customerId = document.getElementById('customer').value;
-        const soNo = document.getElementById('order-number').value;
+        const soNo = document.getElementById('order-number').value.trim();
         const soDate = document.getElementById('order-date').value;
         const expected = document.getElementById('expected-delivery').value;
         
@@ -276,6 +277,7 @@
             const msg = "Please complete all sales order fields.";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -286,12 +288,12 @@
 
         rows.forEach(row => {
             const pId = row.querySelector('.prod-select').value;
-            const qty = parseFloat(row.querySelector('.qty-input').value);
-            const rate = parseFloat(row.querySelector('.rate-input').value);
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value);
+            const rate = window.parseMoney(row.querySelector('.rate-input').value);
+            const disc = window.parseMoney(row.querySelector('.disc-input').value);
             
             if (pId) {
-                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                if (qty <= 0 || rate < 0) {
                     hasIncompleteRow = true;
                 } else {
                     items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc });
@@ -303,6 +305,7 @@
             const msg = "Please select at least one valid product in the items grid (quantity > 0).";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -311,18 +314,28 @@
             const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
+        }
+
+        const hiddenItemsInput = document.getElementById('items-json-input');
+        if (hiddenItemsInput) {
+            hiddenItemsInput.value = JSON.stringify(items);
         }
 
         const submitBtn = document.getElementById('submit-btn');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Order...';
 
         fetch('{% url "sales_order_add" %}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: JSON.stringify({ customer_id: parseInt(customerId), order_number: soNo, date: soDate, expected_delivery: expected, items: items })
         })
         .then(res => res.json())
@@ -331,11 +344,12 @@
                 if (typeof window.showToast === 'function') {
                     window.showToast('success', data.message || 'Sales order saved successfully');
                 }
-                window.location.href = data.redirect_url || '/company/sales-orders/';
+                window.location.href = data.redirect_url || '{% url "sales_order_list" %}';
             } else {
                 const msg = data.message || "Unable to save sales order.";
-                error.innerText = "Error: " + msg;
+                error.innerText = msg;
                 error.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
@@ -345,10 +359,12 @@
         })
         .catch(err => {
             console.error(err);
-            error.innerText = "Server connection lost. Try saving again.";
+            const msg = "Something went wrong while communicating with the server. Please check your connection.";
+            error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
-                window.showToast('error', 'Server connection lost. Try saving again.');
+                window.showToast('error', msg);
             }
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;

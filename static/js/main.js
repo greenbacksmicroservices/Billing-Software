@@ -123,7 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
             parent.classList.add('open');
             toggle.setAttribute('aria-expanded', 'true');
             if (subMenu) {
-                subMenu.style.maxHeight = subMenu.scrollHeight + 'px';
+                subMenu.style.maxHeight = 'none';
+                const trueHeight = subMenu.scrollHeight;
+                subMenu.style.maxHeight = '0px';
+                subMenu.offsetHeight; // Force reflow
+                subMenu.style.maxHeight = trueHeight + 'px';
             }
         }
     });
@@ -152,7 +156,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item === activeParent) {
                 item.classList.add('open');
                 if (toggle) toggle.setAttribute('aria-expanded', 'true');
-                if (subMenu) subMenu.style.maxHeight = subMenu.scrollHeight + 'px';
+                if (subMenu) {
+                    subMenu.style.maxHeight = 'none';
+                    const trueHeight = subMenu.scrollHeight;
+                    subMenu.style.maxHeight = trueHeight + 'px';
+                }
             } else {
                 item.classList.remove('open');
                 if (toggle) toggle.setAttribute('aria-expanded', 'false');
@@ -312,4 +320,41 @@ document.addEventListener('submit', (e) => {
         }
     }
 });
+
+// --- GLOBAL INDIAN MONEY PARSER & FORMATTER ---
+window.parseMoney = function(val) {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    let s = String(val).trim()
+        .replace(/[₹$€£\u20B9\u00A0]/g, '')
+        .replace(/\b(inr|rupees?)\b/gi, '')
+        .replace(/rs\.?/gi, '')
+        .replace(/,/g, '')
+        .replace(/\s+/g, '');
+    if (s === '' || s === '-') return 0;
+    let num = parseFloat(s);
+    return isNaN(num) ? 0 : num;
+};
+
+window.formatIndianCurrency = function(num) {
+    if (num === null || num === undefined || isNaN(num)) return '₹0.00';
+    let isNeg = num < 0;
+    let absNum = Math.abs(num);
+    let fixed = absNum.toFixed(2);
+    let parts = fixed.split('.');
+    let intPart = parts[0];
+    let decPart = '.' + parts[1];
+    if (intPart.length > 3) {
+        let last3 = intPart.substring(intPart.length - 3);
+        let other = intPart.substring(0, intPart.length - 3);
+        let groups = [];
+        while (other.length > 2) {
+            groups.unshift(other.substring(other.length - 2));
+            other = other.substring(0, other.length - 2);
+        }
+        if (other.length > 0) groups.unshift(other);
+        intPart = groups.join(',') + ',' + last3;
+    }
+    return (isNeg ? '-₹' : '₹') + intPart + decPart;
+};
 

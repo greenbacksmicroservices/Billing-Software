@@ -26,6 +26,7 @@
                     <th>Reason</th>
                     <th>Total Refund</th>
                     <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,10 +42,15 @@
                                 {{ note.status }}
                             </span>
                         </td>
+                        <td style="text-align: right;">
+                            <a href="{% url 'credit_note_view' note.id %}" class="btn btn-secondary btn-sm" title="View Credit Note">
+                                <i class="fa-solid fa-eye"></i> View
+                            </a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No credit notes recorded.</td>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No credit notes recorded.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -104,7 +110,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Taxable Value (Subtotal) *</label>
-                    <input type="number" id="cn-subtotal" class="form-control" name="subtotal" step="0.01" placeholder="Max: ₹0.00" required>
+                    <input type="text" id="cn-subtotal" class="form-control" name="subtotal" placeholder="Max: ₹0.00" required>
                 </div>
             </div>
 
@@ -155,14 +161,14 @@
         const selected = select.options[select.selectedIndex];
         if (selected && selected.value) {
             const customer = selected.getAttribute('data-customer');
-            const taxable = parseFloat(selected.getAttribute('data-taxable')) || 0;
+            const taxable = window.parseMoney(selected.getAttribute('data-taxable')) || 0;
             document.getElementById('cn-customer-name').value = customer;
-            document.getElementById('cn-subtotal').placeholder = `Max: ₹${taxable.toFixed(2)}`;
-            document.getElementById('cn-subtotal').max = taxable;
+            document.getElementById('cn-subtotal').placeholder = `Max: ${window.formatIndianCurrency(taxable)}`;
+            document.getElementById('cn-subtotal').dataset.max = taxable;
         } else {
             document.getElementById('cn-customer-name').value = '';
             document.getElementById('cn-subtotal').placeholder = 'Max: ₹0.00';
-            document.getElementById('cn-subtotal').removeAttribute('max');
+            delete document.getElementById('cn-subtotal').dataset.max;
         }
     }
 
@@ -171,21 +177,27 @@
         errorMsg.style.display = 'none';
 
         const invoiceId = document.getElementById('cn-invoice').value;
-        const noteNo = document.getElementById('cn-note_number').value;
+        const noteNo = document.getElementById('cn-note_number').value.trim();
         const noteDate = document.getElementById('cn-note_date').value;
         const reason = document.getElementById('cn-reason').value;
-        const subtotal = parseFloat(document.getElementById('cn-subtotal').value);
+        const subtotal = window.parseMoney(document.getElementById('cn-subtotal').value);
         const notes = document.getElementById('cn-notes').value;
 
-        if (!invoiceId || !noteNo || !noteDate || !reason || isNaN(subtotal)) {
-            errorMsg.innerText = "Please fill in all required fields marked with *.";
+        if (!invoiceId) {
+            errorMsg.innerText = "Please select a sales invoice reference.";
             errorMsg.style.display = 'block';
             return;
         }
 
-        const maxTaxable = parseFloat(document.getElementById('cn-subtotal').max) || 0;
-        if (subtotal > maxTaxable) {
-            errorMsg.innerText = `Credit note taxable value (₹${subtotal.toFixed(2)}) cannot exceed original invoice taxable value (₹${maxTaxable.toFixed(2)}).`;
+        if (!noteNo || !noteDate || !reason || subtotal <= 0) {
+            errorMsg.innerText = "Please fill in all required fields and provide a valid taxable value greater than 0.";
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        const maxTaxable = window.parseMoney(document.getElementById('cn-subtotal').dataset.max) || 0;
+        if (maxTaxable > 0 && subtotal > maxTaxable) {
+            errorMsg.innerText = `Credit note taxable value (${window.formatIndianCurrency(subtotal)}) cannot exceed original invoice taxable value (${window.formatIndianCurrency(maxTaxable)}).`;
             errorMsg.style.display = 'block';
             return;
         }
@@ -208,18 +220,21 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
         })
         .then(res => res.json())
         .then(data => {
-            if (data.status === 'success') {
+            if (data.status === 'success' || data.success) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Credit note issued successfully.');
+                }
                 closeCreditNoteModal();
                 window.location.reload();
             } else {
-                errorMsg.innerText = data.message;
+                errorMsg.innerText = data.message || "Unable to issue credit note.";
                 errorMsg.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;

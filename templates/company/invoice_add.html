@@ -11,8 +11,9 @@
     </a>
 </div>
 
-<form id="invoice-form" method="POST" onsubmit="submitInvoice(event)" class="card-container" novalidate>
+<form id="invoice-form" method="POST" action="{% url 'invoice_add' %}" onsubmit="submitInvoice(event)" class="card-container" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="items_json" id="items-json-input">
     <div class="card-header"><h3 class="card-title">Tax Invoice Billing Form</h3></div>
     <div class="card-body">
         
@@ -22,7 +23,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="customer">Select Customer *</label>
-                <select id="customer" class="form-control" onchange="onCustomerChange()" required>
+                <select id="customer" name="customer" class="form-control" onchange="onCustomerChange()" required>
                     <option value="">-- Select Customer --</option>
                     {% for c in customers %}
                         <option value="{{ c.id }}" data-state="{{ c.billing_state }}" data-state-code="{{ c.billing_state_code }}" data-type="{{ c.customer_type }}">
@@ -34,30 +35,30 @@
             
             <div class="form-group">
                 <label class="form-label" for="invoice-number">Invoice Number *</label>
-                <input type="text" id="invoice-number" class="form-control" value="{{ invoice_number }}" required>
+                <input type="text" id="invoice-number" name="invoice_number" class="form-control" value="{{ invoice_number }}" required>
             </div>
             
             <div class="form-group">
                 <label class="form-label" for="invoice-date">Invoice Date *</label>
-                <input type="date" id="invoice-date" class="form-control" value="2026-08-14" required>
+                <input type="date" id="invoice-date" name="invoice_date" class="form-control" value="2026-08-14" required>
             </div>
             
             <div class="form-group">
                 <label class="form-label" for="due-date">Due Date *</label>
-                <input type="date" id="due-date" class="form-control" value="2026-09-13" required>
+                <input type="date" id="due-date" name="due_date" class="form-control" value="2026-09-13" required>
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="place-of-supply">Place of Supply (State) *</label>
-                <input type="text" id="place-of-supply" class="form-control" placeholder="Select customer..." readonly required>
-                <input type="hidden" id="place-of-supply-code" value="">
+                <input type="text" id="place-of-supply" name="place_of_supply" class="form-control" placeholder="Select customer..." readonly required>
+                <input type="hidden" id="place-of-supply-code" name="place_of_supply_code" value="">
             </div>
             
             <div class="form-group">
                 <label class="form-label" for="warehouse">Dispatch Warehouse</label>
-                <select id="warehouse" class="form-control">
+                <select id="warehouse" name="warehouse_id" class="form-control">
                     {% for w in warehouses %}
                         <option value="{{ w.id }}">{{ w.name }} (Code: {{ w.code }})</option>
                     {% endfor %}
@@ -66,7 +67,7 @@
             
             <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem;">
                 <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
-                    <input type="checkbox" id="reverse-charge"> Enable Reverse Charge (RCM)
+                    <input type="checkbox" id="reverse-charge" name="reverse_charge" value="true"> Enable Reverse Charge (RCM)
                 </label>
             </div>
         </div>
@@ -239,22 +240,22 @@
                     <input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC">
                 </td>
                 <td>
-                    <input type="number" class="form-control qty-input" value="1" min="1" step="any" oninput="recalculateAll()" required>
+                    <input type="text" class="form-control qty-input" value="1" oninput="recalculateAll()" required>
                 </td>
                 <td>
-                    <input type="number" class="form-control rate-input" value="0.00" min="0" step="any" oninput="recalculateAll()" required>
+                    <input type="text" class="form-control rate-input" value="0.00" oninput="recalculateAll()" required>
                 </td>
                 <td>
-                    <input type="number" class="form-control disc-input" value="0.00" min="0" step="any" oninput="recalculateAll()">
+                    <input type="text" class="form-control disc-input" value="0.00" oninput="recalculateAll()">
                 </td>
                 <td>
-                    <input type="number" class="form-control gst-input" value="0.00" min="0" max="100" step="any" readonly>
+                    <input type="text" class="form-control gst-input" value="0.00" readonly>
                 </td>
                 <td style="text-align: right; font-weight: 600;" class="row-total">
                     ₹0.00
                 </td>
                 <td style="text-align: right;">
-                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
+                    <button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
                         <i class="fa-regular fa-trash-can"></i>
                     </button>
                 </td>
@@ -312,20 +313,20 @@
         const isSameState = (posCode === companyStateCodeNormalized);
         
         rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
-            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value) || 0;
+            const rate = window.parseMoney(row.querySelector('.rate-input').value) || 0;
+            const disc = window.parseMoney(row.querySelector('.disc-input').value) || 0;
+            const gstRate = window.parseMoney(row.querySelector('.gst-input').value) || 0;
             
             const prodId = row.querySelector('.prod-select').value;
             const prod = products.find(p => p.id == prodId);
-            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            let taxable = gross - disc;
+            let taxable = Math.max(0, gross - disc);
             
             if (prod && prod.tax_inclusive) {
-                taxable = gross / (1.00 + (gstRate / 100.00)) - disc;
+                taxable = Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc);
             }
             
             let rowGst = taxable * (gstRate / 100.00);
@@ -369,7 +370,7 @@
         errorToast.style.display = 'none';
         
         const customerId = document.getElementById('customer').value;
-        const invNo = document.getElementById('invoice-number').value;
+        const invNo = document.getElementById('invoice-number').value.trim();
         const invDate = document.getElementById('invoice-date').value;
         const dueDate = document.getElementById('due-date').value;
         const pos = document.getElementById('place-of-supply').value;
@@ -382,6 +383,7 @@
             const msg = "Please fill in all required fields marked with * (Customer, Invoice No, Dates, Place of Supply).";
             errorToast.innerText = msg;
             errorToast.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -392,12 +394,12 @@
         
         rows.forEach(row => {
             const prodId = row.querySelector('.prod-select').value;
-            const qty = parseFloat(row.querySelector('.qty-input').value);
-            const rate = parseFloat(row.querySelector('.rate-input').value);
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value);
+            const rate = window.parseMoney(row.querySelector('.rate-input').value);
+            const disc = window.parseMoney(row.querySelector('.disc-input').value);
             
             if (prodId) {
-                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                if (qty <= 0 || rate < 0) {
                     hasIncompleteRow = true;
                 } else {
                     items.push({
@@ -414,6 +416,7 @@
             const msg = "Please select at least one valid product in the items grid (quantity > 0).";
             errorToast.innerText = msg;
             errorToast.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -422,8 +425,14 @@
             const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
             errorToast.innerText = msg;
             errorToast.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
+        }
+
+        const hiddenItemsInput = document.getElementById('items-json-input');
+        if (hiddenItemsInput) {
+            hiddenItemsInput.value = JSON.stringify(items);
         }
 
         const payload = {
@@ -442,13 +451,14 @@
         const submitBtn = document.getElementById('submit-btn');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Posting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Invoice...';
 
         fetch('{% url "invoice_add" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
         })
@@ -458,11 +468,12 @@
                 if (typeof window.showToast === 'function') {
                     window.showToast('success', data.message || 'Invoice posted and saved successfully');
                 }
-                window.location.href = data.redirect_url || '/company/invoices/';
+                window.location.href = data.redirect_url || '{% url "invoice_list" %}';
             } else {
                 const msg = data.message || "Unable to post and save invoice.";
-                errorToast.innerText = "Error: " + msg;
+                errorToast.innerText = msg;
                 errorToast.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
@@ -472,10 +483,12 @@
         })
         .catch(err => {
             console.error(err);
-            errorToast.innerText = "Server connection lost. Try saving again.";
+            const msg = "Something went wrong while communicating with the server. Please check your connection.";
+            errorToast.innerText = msg;
             errorToast.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
-                window.showToast('error', 'Server connection lost. Try saving again.');
+                window.showToast('error', msg);
             }
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;

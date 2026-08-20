@@ -11,8 +11,9 @@
     </a>
 </div>
 
-<form id="quotation-form" method="POST" onsubmit="submitQuotation(event)" class="card-container" novalidate>
+<form id="quotation-form" method="POST" action="{% url 'quotation_edit' quotation.id %}" onsubmit="submitQuotation(event)" class="card-container" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="items_json" id="items-json-input">
     <div class="card-header"><h3 class="card-title">Quotation Parameters</h3></div>
     <div class="card-body">
         
@@ -39,15 +40,15 @@
 
             <div class="form-group">
                 <label class="form-label" for="quotation-number">Quotation Number *</label>
-                <input type="text" id="quotation-number" class="form-control" value="{{ quotation.quotation_number }}" required>
+                <input type="text" id="quotation-number" name="quotation_number" class="form-control" value="{{ quotation.quotation_number }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label" for="quotation-date">Quotation Date *</label>
-                <input type="date" id="quotation-date" class="form-control" value="{{ quotation.date|date:'Y-m-d' }}" required>
+                <input type="date" id="quotation-date" name="date" class="form-control" value="{{ quotation.date|date:'Y-m-d' }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label" for="valid-until">Valid Until *</label>
-                <input type="date" id="valid-until" class="form-control" value="{{ quotation.valid_until|date:'Y-m-d' }}" required>
+                <input type="date" id="valid-until" name="valid_until" class="form-control" value="{{ quotation.valid_until|date:'Y-m-d' }}" required>
             </div>
         </div>
 
@@ -77,7 +78,7 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
             <div>
-                <textarea id="notes" class="form-control" rows="3" placeholder="Enter comments...">{{ quotation.notes }}</textarea>
+                <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Enter comments...">{{ quotation.notes }}</textarea>
             </div>
             <div style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div style="display: flex; justify-content: space-between;">
@@ -505,12 +506,12 @@
             <tr id="${rowId}" class="item-row">
                 <td><select class="form-control prod-select" onchange="onProductSelect('${rowId}')">${options}</select></td>
                 <td><input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC"></td>
-                <td><input type="number" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control gst-input" value="0.00" readonly></td>
+                <td><input type="text" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control gst-input" value="0.00" readonly></td>
                 <td style="text-align: right; font-weight:600;" class="row-total">₹0.00</td>
-                <td style="text-align: right;"><button class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
+                <td style="text-align: right;"><button type="button" class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', html);
@@ -528,12 +529,12 @@
             <tr id="${rowId}" class="item-row">
                 <td><select class="form-control prod-select" onchange="onProductSelect('${rowId}')">${options}</select></td>
                 <td><input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC" value="${item.hsn_sac_code || ''}"></td>
-                <td><input type="number" class="form-control qty-input" value="${item.quantity}" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control rate-input" value="${item.rate.toFixed(2)}" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control disc-input" value="${item.discount.toFixed(2)}" oninput="recalculateAll()"></td>
-                <td><input type="number" class="form-control gst-input" value="${item.gst_rate.toFixed(2)}" readonly></td>
+                <td><input type="text" class="form-control qty-input" value="${item.quantity}" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control rate-input" value="${item.rate.toFixed(2)}" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control disc-input" value="${item.discount.toFixed(2)}" oninput="recalculateAll()"></td>
+                <td><input type="text" class="form-control gst-input" value="${item.gst_rate.toFixed(2)}" readonly></td>
                 <td style="text-align: right; font-weight:600;" class="row-total">₹${item.total_amount.toFixed(2)}</td>
-                <td style="text-align: right;"><button class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
+                <td style="text-align: right;"><button type="button" class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', html);
@@ -582,17 +583,17 @@
         const isSameState = (posCode === companyStateCodeNormalized);
         
         rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
-            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value) || 0;
+            const rate = window.parseMoney(row.querySelector('.rate-input').value) || 0;
+            const disc = window.parseMoney(row.querySelector('.disc-input').value) || 0;
+            const gstRate = window.parseMoney(row.querySelector('.gst-input').value) || 0;
             
             const prodId = row.querySelector('.prod-select').value;
             const prod = products.find(p => p.id == prodId);
-            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            const taxable_item = gross - disc;
+            const taxable_item = Math.max(0, gross - disc);
             const rowGst = taxable_item * (gstRate / 100);
             const rowCess = taxable_item * (cessRate / 100);
             const rowTotal = taxable_item + rowGst + rowCess;
@@ -634,23 +635,25 @@
         error.style.display = 'none';
         
         const customerId = document.getElementById('customer').value;
-        const qNo = document.getElementById('quotation-number').value;
+        const qNo = document.getElementById('quotation-number').value.trim();
         const qDate = document.getElementById('quotation-date').value;
         const valid = document.getElementById('valid-until').value;
         const notes = document.getElementById('notes').value;
         
         if (!customerId) {
-            const msg = "Please select a customer.";
+            const msg = "Unable to update quotation. Please select a customer.";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
 
         if (!qNo || !qDate || !valid) {
-            const msg = "Please complete all quotation fields.";
+            const msg = "Please complete all required quotation fields (Number, Date, Valid Until).";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -661,12 +664,12 @@
 
         rows.forEach(row => {
             const pId = row.querySelector('.prod-select').value;
-            const qty = parseFloat(row.querySelector('.qty-input').value);
-            const rate = parseFloat(row.querySelector('.rate-input').value);
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value);
+            const rate = window.parseMoney(row.querySelector('.rate-input').value);
+            const disc = window.parseMoney(row.querySelector('.disc-input').value);
             
             if (pId) {
-                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                if (qty <= 0 || rate < 0) {
                     hasIncompleteRow = true;
                 } else {
                     items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc });
@@ -675,9 +678,10 @@
         });
 
         if (items.length === 0) {
-            const msg = "Please select at least one valid product in the items grid (quantity > 0).";
+            const msg = "Please select at least one product in the items grid with quantity greater than 0.";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
@@ -686,31 +690,42 @@
             const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
             error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
+        }
+
+        const hiddenItemsInput = document.getElementById('items-json-input');
+        if (hiddenItemsInput) {
+            hiddenItemsInput.value = JSON.stringify(items);
         }
 
         const submitBtn = document.getElementById('submit-btn');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Quotation...';
 
         fetch('{% url "quotation_edit" quotation.id %}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: JSON.stringify({ customer_id: parseInt(customerId), quotation_number: qNo, date: qDate, valid_until: valid, notes: notes, items: items })
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success' || data.success) {
                 if (typeof window.showToast === 'function') {
-                    window.showToast('success', data.message || 'Sales quotation updated successfully');
+                    window.showToast('success', data.message || 'Quotation updated successfully.');
                 }
-                window.location.href = data.redirect_url || '/company/quotations/';
+                window.location.href = data.redirect_url || '{% url "quotation_list" %}';
             } else {
-                const msg = data.message || "Unable to save sales quotation.";
-                error.innerText = "Error: " + msg;
+                const msg = data.message || "Unable to save sales quotation. Please check the entered data.";
+                error.innerText = msg;
                 error.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
@@ -720,10 +735,12 @@
         })
         .catch(err => {
             console.error(err);
-            error.innerText = "Server connection lost. Try saving again.";
+            const msg = "Something went wrong while communicating with the server. Please check your network and try again.";
+            error.innerText = msg;
             error.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
-                window.showToast('error', 'Server connection lost. Try saving again.');
+                window.showToast('error', msg);
             }
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;

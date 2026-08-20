@@ -6,7 +6,7 @@ from .models import AuditLog, StockMovement, Product, HSNSACMaster
 def parse_money(value):
     """
     Central money parser that safely converts any monetary representation into a Decimal.
-    Handles: None, Decimal, int, float, string ('₹64,900.00', '64,900.00', '64900.00', '₹ 64,900.50', etc.)
+    Handles: None, Decimal, int, float, string ('5,000', '₹5,00,000.00', ' ₹ 5,00,000.00 ', '-₹500.00', 'Rs. 5,000', 'INR 50000', etc.)
     """
     if value is None:
         return Decimal('0.00')
@@ -24,12 +24,33 @@ def parse_money(value):
     if not s_val:
         return Decimal('0.00')
 
-    clean_val = s_val.replace('₹', '').replace(',', '').replace(' ', '').strip()
+    # Handle parenthesis format for negative numbers like (500.00) or (₹500.00)
+    is_neg = False
+    if s_val.startswith('(') and s_val.endswith(')'):
+        is_neg = True
+        s_val = s_val[1:-1].strip()
+    elif s_val.startswith('-'):
+        is_neg = True
+        s_val = s_val[1:].strip()
+
+    import re
+    # Strip currency symbols (₹, $, €, £), currency abbreviations (INR, Rs., Rs, Rupees), commas, NBSP, and whitespace
+    clean_val = re.sub(r'(?i)\b(inr|rupees?)\b', '', s_val)
+    clean_val = re.sub(r'(?i)rs\.?', '', clean_val)
+    clean_val = re.sub(r'[₹$€£\u20B9\u00A0]', '', clean_val)
+    clean_val = clean_val.replace(',', '').replace(' ', '').strip()
+
+    # If minus sign was after currency symbol like ₹-500
+    if clean_val.startswith('-'):
+        is_neg = not is_neg
+        clean_val = clean_val[1:].strip()
+
     if not clean_val:
         return Decimal('0.00')
 
     try:
-        return Decimal(clean_val)
+        dec = Decimal(clean_val)
+        return -dec if is_neg else dec
     except (InvalidOperation, ValueError, TypeError):
         raise ValueError(f"Invalid monetary value: '{value}'")
 

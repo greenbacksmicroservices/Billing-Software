@@ -11,8 +11,9 @@
     </a>
 </div>
 
-<form id="purchase-bill-form" method="POST" onsubmit="submitBill(event)" class="card-container" novalidate>
+<form id="purchase-bill-form" method="POST" action="{% url 'purchase_bill_add' %}" onsubmit="submitBill(event)" class="card-container" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="items_json" id="items-json-input">
     <div class="card-header"><h3 class="card-title">Purchase Bill Details</h3></div>
     <div class="card-body">
         
@@ -22,7 +23,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="supplier">Select Supplier *</label>
-                <select id="supplier" class="form-control" onchange="onSupplierChange(this)" required>
+                <select id="supplier" name="supplier" class="form-control" onchange="onSupplierChange(this)" required>
                     <option value="">-- Select Supplier --</option>
                     {% for s in suppliers %}
                         <option value="{{ s.id }}" data-state-code="{{ s.state_code }}">{{ s.name }} {% if s.business_name %}({{ s.business_name }}){% endif %}</option>
@@ -43,24 +44,24 @@
             
             <div class="form-group">
                 <label class="form-label" for="bill-number">Supplier Bill Number *</label>
-                <input type="text" id="bill-number" class="form-control" placeholder="e.g. BILL-987" required>
+                <input type="text" id="bill-number" name="supplier_bill_no" class="form-control" placeholder="e.g. BILL-987" required>
             </div>
             
             <div class="form-group">
                 <label class="form-label" for="bill-date">Bill Date *</label>
-                <input type="date" id="bill-date" class="form-control" value="2026-08-14" required>
+                <input type="date" id="bill-date" name="bill_date" class="form-control" value="2026-08-14" required>
             </div>
             
             <div class="form-group">
                 <label class="form-label" for="due-date">Due Date *</label>
-                <input type="date" id="due-date" class="form-control" value="2026-09-13" required>
+                <input type="date" id="due-date" name="due_date" class="form-control" value="2026-09-13" required>
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="warehouse">Destination Warehouse *</label>
-                <select id="warehouse" class="form-control" required>
+                <select id="warehouse" name="warehouse_id" class="form-control" required>
                     {% for w in warehouses %}
                         <option value="{{ w.id }}">{{ w.name }}</option>
                     {% endfor %}
@@ -192,22 +193,22 @@
                     <input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC">
                 </td>
                 <td>
-                    <input type="number" class="form-control qty-input" value="1" min="1" step="any" oninput="recalculateAll()" required>
+                    <input type="text" class="form-control qty-input" value="1" oninput="recalculateAll()" required>
                 </td>
                 <td>
-                    <input type="number" class="form-control rate-input" value="0.00" min="0" step="any" oninput="recalculateAll()" required>
+                    <input type="text" class="form-control rate-input" value="0.00" oninput="recalculateAll()" required>
                 </td>
                 <td>
-                    <input type="number" class="form-control disc-input" value="0.00" min="0" step="any" oninput="recalculateAll()">
+                    <input type="text" class="form-control disc-input" value="0.00" oninput="recalculateAll()">
                 </td>
                 <td>
-                    <input type="number" class="form-control gst-input" value="0.00" min="0" max="100" step="any" readonly>
+                    <input type="text" class="form-control gst-input" value="0.00" readonly>
                 </td>
                 <td style="text-align: right; font-weight: 600;" class="row-total">
                     ₹0.00
                 </td>
                 <td style="text-align: right;">
-                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
+                    <button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
                         <i class="fa-regular fa-trash-can"></i>
                     </button>
                 </td>
@@ -266,17 +267,17 @@
         const isSameState = (posCode === companyStateCodeNormalized);
         
         rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
-            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value) || 0;
+            const rate = window.parseMoney(row.querySelector('.rate-input').value) || 0;
+            const disc = window.parseMoney(row.querySelector('.disc-input').value) || 0;
+            const gstRate = window.parseMoney(row.querySelector('.gst-input').value) || 0;
             
             const prodId = row.querySelector('.prod-select').value;
             const prod = products.find(p => p.id == prodId);
-            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            const taxable = gross - disc;
+            const taxable = Math.max(0, gross - disc);
             const rowGst = taxable * (gstRate / 100);
             const rowCess = taxable * (cessRate / 100);
             const rowTotal = taxable + rowGst + rowCess;
@@ -318,7 +319,7 @@
         errorToast.style.display = 'none';
         
         const supplierId = document.getElementById('supplier').value;
-        const billNo = document.getElementById('bill-number').value;
+        const billNo = document.getElementById('bill-number').value.trim();
         const billDate = document.getElementById('bill-date').value;
         const dueDate = document.getElementById('due-date').value;
         const whId = document.getElementById('warehouse').value;
@@ -338,12 +339,12 @@
         
         rows.forEach(row => {
             const prodId = row.querySelector('.prod-select').value;
-            const qty = parseFloat(row.querySelector('.qty-input').value);
-            const rate = parseFloat(row.querySelector('.rate-input').value);
-            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const qty = window.parseMoney(row.querySelector('.qty-input').value);
+            const rate = window.parseMoney(row.querySelector('.rate-input').value);
+            const disc = window.parseMoney(row.querySelector('.disc-input').value);
             
             if (prodId) {
-                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                if (qty <= 0 || rate < 0) {
                     hasIncompleteRow = true;
                 } else {
                     items.push({
@@ -371,6 +372,11 @@
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
+        
+        const hiddenItemsInput = document.getElementById('items-json-input');
+        if (hiddenItemsInput) {
+            hiddenItemsInput.value = JSON.stringify(items);
+        }
 
         const payload = {
             supplier_id: parseInt(supplierId),
@@ -385,13 +391,14 @@
         const submitBtn = document.getElementById('submit-btn');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Posting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Purchase Bill...';
 
         fetch('{% url "purchase_bill_add" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
         })
@@ -401,11 +408,12 @@
                 if (typeof window.showToast === 'function') {
                     window.showToast('success', data.message || 'Purchase bill posted successfully');
                 }
-                window.location.href = data.redirect_url || '/company/purchase-bills/';
+                window.location.href = data.redirect_url || '{% url "purchase_bill_list" %}';
             } else {
                 const msg = data.message || "Unable to post purchase bill.";
-                errorToast.innerText = "Error: " + msg;
+                errorToast.innerText = msg;
                 errorToast.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
@@ -415,10 +423,12 @@
         })
         .catch(err => {
             console.error(err);
-            errorToast.innerText = "Server connection lost. Try saving again.";
+            const msg = "Something went wrong while communicating with the server. Please check your connection.";
+            errorToast.innerText = msg;
             errorToast.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
-                window.showToast('error', 'Server connection lost. Try saving again.');
+                window.showToast('error', msg);
             }
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
@@ -465,7 +475,8 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ name: name })
         })

@@ -3515,16 +3515,43 @@ class QuotationCreateView(CompanyRequiredMixin, View):
 
     def post(self, request):
         company = request.user.company
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
         try:
-            data = json.loads(request.body)
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
         except Exception:
             data = request.POST.dict()
 
         result = QuotationService.create_quotation(company, request.user, data)
-        status_code = 200 if result.get('success') else 400
         if result.get('success'):
             messages.success(request, result.get('message', 'Sales quotation saved successfully!'))
-        return JsonResponse(result, status=status_code, encoder=DjangoJSONEncoder)
+            if is_ajax:
+                return JsonResponse(result, status=200, encoder=DjangoJSONEncoder)
+            return redirect('quotation_list')
+        else:
+            err_msg = result.get('message', 'Unable to save sales quotation. Please check the entered details.')
+            messages.error(request, err_msg)
+            if is_ajax:
+                return JsonResponse(result, status=400, encoder=DjangoJSONEncoder)
+            customers = Customer.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            return render(request, 'company/quotation_add.html', {
+                'customers': customers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'quotation_number': data.get('quotation_number', ''),
+                'form_data': data,
+                'errors': result.get('errors', {})
+            })
 
 
 class QuotationUpdateView(CompanyRequiredMixin, View):
@@ -3565,17 +3592,43 @@ class QuotationUpdateView(CompanyRequiredMixin, View):
     def post(self, request, pk):
         company = request.user.company
         quotation = get_object_or_404(Quotation, id=pk, company=company)
-        
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
         try:
-            data = json.loads(request.body)
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
         except Exception:
             data = request.POST.dict()
 
         result = QuotationService.update_quotation(company, request.user, quotation, data)
-        status_code = 200 if result.get('success') else 400
         if result.get('success'):
             messages.success(request, result.get('message', 'Sales quotation updated successfully!'))
-        return JsonResponse(result, status=status_code, encoder=DjangoJSONEncoder)
+            if is_ajax:
+                return JsonResponse(result, status=200, encoder=DjangoJSONEncoder)
+            return redirect('quotation_list')
+        else:
+            err_msg = result.get('message', 'Unable to update sales quotation. Please check the entered details.')
+            messages.error(request, err_msg)
+            if is_ajax:
+                return JsonResponse(result, status=400, encoder=DjangoJSONEncoder)
+            customers = Customer.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            return render(request, 'company/quotation_edit.html', {
+                'customers': customers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'quotation': quotation,
+                'form_data': data,
+                'errors': result.get('errors', {})
+            })
 
 
 class QuotationDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
@@ -3730,17 +3783,28 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
     @transaction.atomic
     def post(self, request):
         company = request.user.company
-        try:
-            try:
-                data = json.loads(request.body)
-            except Exception:
-                data = request.POST.dict()
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
 
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        try:
             cust_id = data.get('customer_id') or data.get('customer')
             if not cust_id:
-                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please select a customer.'}, status=400)
+                raise ValueError('Please select a customer.')
 
-            customer = get_object_or_404(Customer, id=cust_id, company=company)
+            customer = get_object_or_404(Customer, id=int(str(cust_id).strip()), company=company)
 
             so_no = (data.get('order_number') or '').strip()
             if not so_no:
@@ -3749,7 +3813,7 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
 
             # Duplicate check
             if SalesOrder.objects.filter(company=company, order_number=so_no).exists():
-                return JsonResponse({'success': False, 'status': 'error', 'message': f"Sales Order number {so_no} already exists!"}, status=400)
+                raise ValueError(f"Sales Order number {so_no} already exists!")
 
             so_date_raw = data.get('date') or data.get('order_date')
             try:
@@ -3764,8 +3828,14 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
                 delivery = so_date + timedelta(days=14)
 
             items_data = data.get('items', [])
+            if isinstance(items_data, str):
+                try:
+                    items_data = json.loads(items_data)
+                except Exception:
+                    items_data = []
+
             if not items_data:
-                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please select at least one valid product in the items grid.'}, status=400)
+                raise ValueError('Please select at least one valid product in the items grid.')
 
             so = SalesOrder.objects.create(
                 company=company, customer=customer, order_number=so_no,
@@ -3779,7 +3849,7 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
                 prod_id = item.get('product_id') or item.get('product')
                 if not prod_id:
                     continue
-                prod = get_object_or_404(Product, id=prod_id, company=company)
+                prod = get_object_or_404(Product, id=int(str(prod_id).strip()), company=company)
                 qty = parse_money(item.get('quantity', 1))
                 rate = parse_money(item.get('rate', 0))
                 disc = parse_money(item.get('discount', 0))
@@ -3803,21 +3873,34 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
                 created_items_count += 1
                 
             if created_items_count == 0:
-                raise ValueError("At least one valid item is required.")
+                raise ValueError("At least one valid item is required in the sales order.")
 
             so.grand_total = quantize_amount(grand)
             so.save()
             log_action(request.user, 'CREATE_SALES_ORDER', 'SALES_ORDER', so.id, request=request)
-            messages.success(request, "Sales order saved successfully!")
-            return JsonResponse({
-                'success': True,
-                'status': 'success',
-                'message': 'Sales order saved successfully',
-                'order_id': so.id,
-                'redirect_url': '/company/sales-orders/'
-            }, encoder=DjangoJSONEncoder)
+            messages.success(request, f"Sales Order {so.order_number} saved successfully!")
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'status': 'success',
+                    'message': f"Sales Order {so.order_number} saved successfully!",
+                    'order_id': so.id,
+                    'redirect_url': f"/company/sales-orders/{so.id}/"
+                }, encoder=DjangoJSONEncoder)
+            return redirect('sales_order_view', pk=so.id)
         except Exception as e:
-            return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            messages.error(request, str(e))
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            customers = Customer.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            return render(request, 'company/sales_order_add.html', {
+                'customers': customers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'order_number': data.get('order_number', ''),
+                'form_data': data
+            })
 
 
 class SalesOrderDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
@@ -3902,17 +3985,28 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
     @transaction.atomic
     def post(self, request):
         company = request.user.company
-        try:
-            try:
-                data = json.loads(request.body)
-            except Exception:
-                data = request.POST.dict()
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
 
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        try:
             cust_id = data.get('customer_id') or data.get('customer')
             if not cust_id:
-                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please select a customer.'}, status=400)
+                raise ValueError('Please select a customer.')
 
-            customer = get_object_or_404(Customer, id=cust_id, company=company)
+            customer = get_object_or_404(Customer, id=int(str(cust_id).strip()), company=company)
 
             inv_no = (data.get('invoice_number') or '').strip()
             if not inv_no:
@@ -3921,7 +4015,7 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
 
             # Duplicate check
             if Invoice.objects.filter(company=company, invoice_number=inv_no).exists():
-                return JsonResponse({'success': False, 'status': 'error', 'message': f"Invoice number {inv_no} already exists!"}, status=400)
+                raise ValueError(f"Invoice number {inv_no} already exists!")
 
             inv_date_raw = data.get('invoice_date') or data.get('date')
             try:
@@ -3939,10 +4033,16 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
             place_of_supply_code = (data.get('place_of_supply_code') or customer.billing_state_code or company.state_code or '27').strip().zfill(2)
             reverse_charge = bool(data.get('reverse_charge', False))
             notes = (data.get('notes') or '').strip()
+            
             items_data = data.get('items', [])
+            if isinstance(items_data, str):
+                try:
+                    items_data = json.loads(items_data)
+                except Exception:
+                    items_data = []
 
             if not items_data:
-                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please select at least one valid product in the items grid.'}, status=400)
+                raise ValueError('Please select at least one valid product in the items grid.')
 
             wh_id = data.get('warehouse_id')
             warehouse = None
@@ -3969,7 +4069,7 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
                 prod_id = item.get('product_id') or item.get('product')
                 if not prod_id:
                     continue
-                prod = get_object_or_404(Product, id=prod_id, company=company)
+                prod = get_object_or_404(Product, id=int(str(prod_id).strip()), company=company)
                 qty = parse_money(item.get('quantity', 1))
                 rate = parse_money(item.get('rate', 0))
                 disc = parse_money(item.get('discount', 0))
@@ -4012,17 +4112,31 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
             record_invoice_accounting(invoice)
             
             log_action(request.user, 'CREATE_INVOICE', 'INVOICE', invoice.id, new_values={'amount': str(invoice.grand_total)}, request=request)
-            messages.success(request, "Invoice posted and saved successfully!")
-            return JsonResponse({
-                'success': True,
-                'status': 'success',
-                'message': 'Invoice posted and saved successfully',
-                'invoice_id': invoice.id,
-                'redirect_url': f"/company/invoices/{invoice.id}/"
-            }, encoder=DjangoJSONEncoder)
+            messages.success(request, f"Invoice {invoice.invoice_number} saved and posted successfully!")
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'status': 'success',
+                    'message': f"Invoice {invoice.invoice_number} saved and posted successfully!",
+                    'invoice_id': invoice.id,
+                    'redirect_url': f"/company/invoices/{invoice.id}/"
+                }, encoder=DjangoJSONEncoder)
+            return redirect('invoice_view', pk=invoice.id)
         except Exception as e:
-            # Transaction block automatically rollbacks everything
-            return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            messages.error(request, str(e))
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            customers = Customer.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            warehouses = Warehouse.objects.filter(company=company, is_active=True)
+            return render(request, 'company/invoice_add.html', {
+                'customers': customers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'warehouses': warehouses,
+                'invoice_number': data.get('invoice_number', ''),
+                'form_data': data
+            })
 
 
 def add_invoice_hsn_summary_to_context(invoice, context):
@@ -4222,33 +4336,90 @@ class PurchaseBillCreateView(CompanyRequiredMixin, View):
     @transaction.atomic
     def post(self, request):
         company = request.user.company
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
         try:
-            data = json.loads(request.body)
-            supp_id = data.get('supplier_id')
-            bill_no = data.get('supplier_bill_no')
-            bill_date = data.get('bill_date')
-            due_date = data.get('due_date')
-            items_data = data.get('items', [])
-            wh_id = data.get('warehouse_id')
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        try:
+            supp_id = data.get('supplier_id') or data.get('supplier')
+            if not supp_id:
+                raise ValueError('Please select a supplier.')
+
+            bill_no = (data.get('supplier_bill_no') or '').strip()
+            if not bill_no:
+                raise ValueError('Supplier Bill / Invoice number is required.')
+
+            bill_date_raw = data.get('bill_date')
+            due_date_raw = data.get('due_date')
             
-            supplier = get_object_or_404(Supplier, id=supp_id, company=company)
-            warehouse = get_object_or_404(Warehouse, id=wh_id, company=company)
+            try:
+                bill_date = datetime.strptime(str(bill_date_raw).strip(), '%Y-%m-%d').date() if bill_date_raw else date.today()
+            except (ValueError, TypeError):
+                bill_date = date.today()
+
+            try:
+                due_date = datetime.strptime(str(due_date_raw).strip(), '%Y-%m-%d').date() if due_date_raw else (bill_date + timedelta(days=30))
+            except (ValueError, TypeError):
+                due_date = bill_date + timedelta(days=30)
+
+            items_data = data.get('items', [])
+            if isinstance(items_data, str):
+                try:
+                    items_data = json.loads(items_data)
+                except Exception:
+                    items_data = []
+
+            if not items_data:
+                raise ValueError('Please select at least one valid product in the items grid.')
+
+            wh_id = data.get('warehouse_id')
+            warehouse = None
+            if wh_id:
+                try:
+                    warehouse = Warehouse.objects.filter(id=int(wh_id), company=company).first()
+                except (ValueError, TypeError):
+                    pass
+            if not warehouse:
+                warehouse = Warehouse.objects.filter(company=company, is_active=True).first() or Warehouse.objects.filter(company=company).first()
+            if not warehouse:
+                warehouse = Warehouse.objects.create(company=company, name="Main Warehouse", code="WH-MAIN")
+
+            supplier = get_object_or_404(Supplier, id=int(str(supp_id).strip()), company=company)
             
             # Check duplicate purchase bill
             if PurchaseBill.objects.filter(company=company, supplier_bill_no=bill_no, supplier=supplier).exists():
-                return JsonResponse({'status': 'error', 'message': f"Purchase bill number {bill_no} already exists for supplier {supplier.name}!"}, status=400)
+                raise ValueError(f"Purchase bill number '{bill_no}' already exists for supplier '{supplier.name}'!")
                 
             bill = PurchaseBill.objects.create(
                 company=company, supplier=supplier, supplier_bill_no=bill_no,
                 bill_date=bill_date, due_date=due_date, status='POSTED'
             )
             
+            created_items_count = 0
             for item in items_data:
-                prod = get_object_or_404(Product, id=item.get('product_id'), company=company)
+                prod_id = item.get('product_id') or item.get('product')
+                if not prod_id:
+                    continue
+                prod = get_object_or_404(Product, id=int(str(prod_id).strip()), company=company)
                 qty = parse_money(item.get('quantity', 1))
                 rate = parse_money(item.get('rate', 0))
                 disc = parse_money(item.get('discount', 0))
                 
+                if qty <= Decimal('0.00'):
+                    continue
+
                 hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
                 gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
                 PurchaseBillItem.objects.create(
@@ -4265,7 +4436,11 @@ class PurchaseBillCreateView(CompanyRequiredMixin, View):
                         reference_no=bill.supplier_bill_no, created_by=request.user
                     )
                     update_product_stock(prod.id)
-                    
+                created_items_count += 1
+
+            if created_items_count == 0:
+                raise ValueError("At least one valid product item is required in the purchase bill.")
+
             recalculate_purchase_totals(bill)
             
             # Supplier outstanding payable
@@ -4275,16 +4450,30 @@ class PurchaseBillCreateView(CompanyRequiredMixin, View):
             record_purchase_accounting(bill)
             
             log_action(request.user, 'CREATE_PURCHASE_BILL', 'PURCHASE_BILL', bill.id, request=request)
-            messages.success(request, "Purchase bill posted successfully!")
-            return JsonResponse({
-                'success': True,
-                'status': 'success',
-                'message': 'Purchase bill posted successfully',
-                'bill_id': bill.id,
-                'redirect_url': f"/company/purchase-bills/{bill.id}/"
-            }, encoder=DjangoJSONEncoder)
+            messages.success(request, f"Purchase bill {bill.supplier_bill_no} posted successfully!")
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'status': 'success',
+                    'message': f"Purchase bill {bill.supplier_bill_no} posted successfully!",
+                    'bill_id': bill.id,
+                    'redirect_url': f"/company/purchase-bills/{bill.id}/"
+                }, encoder=DjangoJSONEncoder)
+            return redirect('purchase_bill_view', pk=bill.id)
         except Exception as e:
-            return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            messages.error(request, str(e))
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            suppliers = Supplier.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            warehouses = Warehouse.objects.filter(company=company, is_active=True)
+            return render(request, 'company/purchase_bill_add.html', {
+                'suppliers': suppliers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'warehouses': warehouses,
+                'form_data': data
+            })
 
 
 class PurchaseBillDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
@@ -4853,6 +5042,11 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
                     data['note_number'] = default_no
                 if not data.get('note_date'):
                     data['note_date'] = default_date
+                if 'subtotal' in data:
+                    try:
+                        data['subtotal'] = str(parse_money(data['subtotal']))
+                    except Exception:
+                        pass
                 kwargs['data'] = data
             except Exception:
                 pass
@@ -4862,6 +5056,11 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
                 post_data['note_number'] = default_no
             if not post_data.get('note_date'):
                 post_data['note_date'] = default_date
+            if 'subtotal' in post_data:
+                try:
+                    post_data['subtotal'] = str(parse_money(post_data['subtotal']))
+                except Exception:
+                    pass
             kwargs['data'] = post_data
         return kwargs
 

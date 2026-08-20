@@ -48,11 +48,6 @@
                     <button class="toggle-sidebar-btn" id="toggle-sidebar">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    {% if request.user.is_authenticated and request.user.company %}
-                    <div class="header-fy" title="Financial Year Context">
-                        FY: <strong>{{ request.user.company.financial_year }}</strong>
-                    </div>
-                    {% endif %}
                 </div>
 
                 <div class="header-right">
@@ -120,20 +115,22 @@
 
             <!-- Main Body -->
             <main class="content-body">
-                <!-- Toast Alerts / Messages -->
-                <div class="toast-wrapper" id="toast-wrapper">
+                <!-- Top Global Messages Banner -->
+                <div class="page-messages-container" id="page-messages-container" style="margin-bottom: 1.25rem;">
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="toast-item {{ message.tags }}">
+                            <div class="toast-item {{ message.tags }}" style="position: static; min-width: 100%; margin-bottom: 0.75rem; box-shadow: var(--shadow-sm); border-radius: 6px;">
                                 {% if message.tags == 'success' %}
-                                    <i class="fa-solid fa-circle-check"></i>
-                                {% elif message.tags == 'error' %}
-                                    <i class="fa-solid fa-circle-exclamation"></i>
+                                    <i class="fa-solid fa-circle-check" style="font-size: 1.1rem;"></i>
+                                {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                    <i class="fa-solid fa-circle-exclamation" style="font-size: 1.1rem;"></i>
+                                {% elif message.tags == 'warning' %}
+                                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.1rem;"></i>
                                 {% else %}
-                                    <i class="fa-solid fa-circle-info"></i>
+                                    <i class="fa-solid fa-circle-info" style="font-size: 1.1rem;"></i>
                                 {% endif %}
-                                <div class="toast-message">{{ message }}</div>
-                                <button class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
+                                <div class="toast-message" style="font-weight: 500; font-size: 0.9rem;">{{ message }}</div>
+                                <button type="button" class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
                             </div>
                         {% endfor %}
                     {% endif %}
