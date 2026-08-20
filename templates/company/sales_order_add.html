@@ -1,0 +1,358 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Create Sales Order{% endblock %}
+{% block sub_sales_orders %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">New Sales Order</h1>
+    <a href="{% url 'sales_order_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form id="sales-order-form" method="POST" onsubmit="submitOrder(event)" class="card-container" novalidate>
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Order Information</h3></div>
+    <div class="card-body">
+        
+        <div id="form-error-toast" class="message-item error" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="customer">Customer *</label>
+                <select id="customer" class="form-control" onchange="recalculateAll()">
+                    <option value="">-- Select Customer --</option>
+                    {% for c in customers %}
+                        <option value="{{ c.id }}" data-state-code="{{ c.billing_state_code }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="order-number">Order Number *</label>
+                <input type="text" id="order-number" class="form-control" value="{{ order_number }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="order-date">Order Date *</label>
+                <input type="date" id="order-date" class="form-control" value="2026-08-14">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="expected-delivery">Expected Delivery *</label>
+                <input type="date" id="expected-delivery" class="form-control" value="2026-08-28">
+            </div>
+        </div>
+
+        <h4 style="margin: 2rem 0 1rem 0; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--primary);">Items Grid</h4>
+        <div class="table-responsive">
+            <table class="custom-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Product Description *</th>
+                        <th style="width: 15%;">HSN/SAC</th>
+                        <th>Qty *</th>
+                        <th>Rate *</th>
+                        <th>Disc (INR)</th>
+                        <th>GST %</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right; width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody"></tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="addRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
+        </div>
+
+        <!-- Totals Breakdown Summary -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div></div>
+            <div style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gross Subtotal:</span>
+                    <strong id="summary-subtotal">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Taxable:</span>
+                    <strong id="summary-taxable">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cgst-row">
+                    <span>CGST:</span>
+                    <strong id="summary-cgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="sgst-row">
+                    <span>SGST:</span>
+                    <strong id="summary-sgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="igst-row">
+                    <span>IGST:</span>
+                    <strong id="summary-igst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cess-row">
+                    <span>Cess:</span>
+                    <strong id="summary-cess">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
+                    <span>Grand Total:</span>
+                    <strong id="summary-grand">₹0.00</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+            <a href="{% url 'sales_order_list' %}" class="btn btn-secondary" style="margin-right: 1rem;">Cancel</a>
+            <button type="submit" id="submit-btn" class="btn btn-primary">Save Sales Order</button>
+        </div>
+
+    </div>
+</form>
+
+<script id="products-data" type="application/json">
+{{ products_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let products = [];
+    try {
+        products = JSON.parse(document.getElementById('products-data').textContent || '[]');
+    } catch(e) { console.error('Error parsing products JSON:', e); products = []; }
+    const companyStateCode = "{{ request.user.company.state_code }}";
+
+    document.addEventListener('DOMContentLoaded', () => { 
+        const dateInput = document.getElementById('order-date');
+        const deliveryInput = document.getElementById('expected-delivery');
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        if (dateInput && !dateInput.value) {
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+        if (deliveryInput && !deliveryInput.value) {
+            const future = new Date(today);
+            future.setDate(future.getDate() + 14);
+            const f_yyyy = future.getFullYear();
+            const f_mm = String(future.getMonth() + 1).padStart(2, '0');
+            const f_dd = String(future.getDate()).padStart(2, '0');
+            deliveryInput.value = `${f_yyyy}-${f_mm}-${f_dd}`;
+        }
+        addRow(); 
+    });
+
+    function addRow() {
+        const tbody = document.getElementById('items-tbody');
+        const rowId = 'row-' + Date.now();
+        let options = '<option value="">-- Select Product --</option>';
+        products.forEach(p => { options += `<option value="${p.id}">${p.name}</option>`; });
+
+        const html = `
+            <tr id="${rowId}" class="item-row">
+                <td><select class="form-control prod-select" onchange="onProductSelect('${rowId}')">${options}</select></td>
+                <td><input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC"></td>
+                <td><input type="number" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control gst-input" value="0.00" readonly></td>
+                <td style="text-align: right; font-weight:600;" class="row-total">₹0.00</td>
+                <td style="text-align: right;"><button class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', html);
+    }
+
+    function removeRow(rowId) { 
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.remove();
+        }
+        recalculateAll(); 
+    }
+
+    function onProductSelect(rowId) {
+        const row = document.getElementById(rowId);
+        const pId = row.querySelector('.prod-select').value;
+        const p = products.find(prod => prod.id == pId);
+        
+        const oldWarning = row.querySelector('.hsn-warning');
+        if (oldWarning) oldWarning.remove();
+        
+        if (p) {
+            row.querySelector('.rate-input').value = p.price.toFixed(2);
+            row.querySelector('.gst-input').value = p.gst_rate.toFixed(2);
+            row.querySelector('.hsn-input').value = p.hsn_code || '';
+            
+            if (!p.hsn_code) {
+                row.querySelector('.hsn-input').insertAdjacentHTML('afterend', '<small class="hsn-warning" style="color: var(--destructive); display: block; font-size: 0.75rem; margin-top: 0.25rem;">GST rate is not configured.</small>');
+            }
+        } else {
+            row.querySelector('.rate-input').value = '0.00';
+            row.querySelector('.gst-input').value = '0.00';
+            row.querySelector('.hsn-input').value = '';
+        }
+        recalculateAll();
+    }
+
+    function recalculateAll() {
+        const rows = document.querySelectorAll('.item-row');
+        const customerSelect = document.getElementById('customer');
+        const selectedOption = customerSelect.options[customerSelect.selectedIndex];
+        const posCode = selectedOption && selectedOption.value ? (selectedOption.getAttribute('data-state-code') || '').trim().padStart(2, '0') : companyStateCode.trim().padStart(2, '0');
+        const companyStateCodeNormalized = companyStateCode.trim().padStart(2, '0');
+        
+        let subtotal = 0; let discTotal = 0; let taxable = 0;
+        let cgstTotal = 0; let sgstTotal = 0; let igstTotal = 0; let cessTotal = 0;
+        
+        const isSameState = (posCode === companyStateCodeNormalized);
+        
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            
+            const prodId = row.querySelector('.prod-select').value;
+            const prod = products.find(p => p.id == prodId);
+            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            
+            const gross = qty * rate;
+            const taxable_item = gross - disc;
+            const rowGst = taxable_item * (gstRate / 100);
+            const rowCess = taxable_item * (cessRate / 100);
+            const rowTotal = taxable_item + rowGst + rowCess;
+            
+            row.querySelector('.row-total').innerText = window.formatIndianCurrency(rowTotal);
+            
+            subtotal += gross;
+            discTotal += disc;
+            taxable += taxable_item;
+            cessTotal += rowCess;
+            
+            if (isSameState) {
+                cgstTotal += rowGst / 2;
+                sgstTotal += rowGst / 2;
+            } else {
+                igstTotal += rowGst;
+            }
+        });
+
+        const totalTaxableAndTax = taxable + cgstTotal + sgstTotal + igstTotal + cessTotal;
+        const roundedGrand = Math.round(totalTaxableAndTax);
+        const roundOff = roundedGrand - totalTaxableAndTax;
+
+        document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
+        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discTotal);
+        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxable);
+        
+        document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
+        document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
+        document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
+        document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
+        document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
+        document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+    }
+
+    function submitOrder(e) {
+        if (e) e.preventDefault();
+        const error = document.getElementById('form-error-toast');
+        error.style.display = 'none';
+        
+        const customerId = document.getElementById('customer').value;
+        const soNo = document.getElementById('order-number').value;
+        const soDate = document.getElementById('order-date').value;
+        const expected = document.getElementById('expected-delivery').value;
+        
+        if (!customerId || !soNo || !soDate || !expected) {
+            const msg = "Please complete all sales order fields.";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const rows = document.querySelectorAll('.item-row');
+        const items = [];
+        let hasIncompleteRow = false;
+
+        rows.forEach(row => {
+            const pId = row.querySelector('.prod-select').value;
+            const qty = parseFloat(row.querySelector('.qty-input').value);
+            const rate = parseFloat(row.querySelector('.rate-input').value);
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            
+            if (pId) {
+                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                    hasIncompleteRow = true;
+                } else {
+                    items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc });
+                }
+            }
+        });
+
+        if (items.length === 0) {
+            const msg = "Please select at least one valid product in the items grid (quantity > 0).";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (hasIncompleteRow) {
+            const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        fetch('{% url "sales_order_add" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ customer_id: parseInt(customerId), order_number: soNo, date: soDate, expected_delivery: expected, items: items })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Sales order saved successfully');
+                }
+                window.location.href = data.redirect_url || '/company/sales-orders/';
+            } else {
+                const msg = data.message || "Unable to save sales order.";
+                error.innerText = "Error: " + msg;
+                error.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', msg);
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            error.innerText = "Server connection lost. Try saving again.";
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Server connection lost. Try saving again.');
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+</script>
+{% endblock %}

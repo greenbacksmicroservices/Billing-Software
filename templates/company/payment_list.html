@@ -1,0 +1,512 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Payments Logs{% endblock %}
+
+{% block content %}
+<style>
+    .btn-customer-receipt {
+        background-color: #10b981;
+        color: #ffffff !important;
+        border: 1px solid #059669;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+    .btn-customer-receipt:hover, .btn-customer-receipt:focus {
+        background-color: #059669;
+        color: #ffffff !important;
+        border-color: #047857;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .btn-supplier-payment {
+        background-color: #2563eb;
+        color: #ffffff !important;
+        border: 1px solid #1d4ed8;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+    .btn-supplier-payment:hover, .btn-supplier-payment:focus {
+        background-color: #1d4ed8;
+        color: #ffffff !important;
+        border-color: #1e40af;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+</style>
+
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Payments & Receipts Logs</h1>
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        {% include 'common_table_search.html' with placeholder="Search payment, party, ref..." %}
+        <button type="button" onclick="openReceiptModal()" class="btn-customer-receipt">
+            Customer Receipt
+        </button>
+        <button type="button" onclick="openPaymentModal()" class="btn-supplier-payment">
+            Supplier Payment
+        </button>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Contact (Customer/Supplier)</th>
+                    <th>Reference Document</th>
+                    <th style="text-align: right;">Amount</th>
+                    <th>Method</th>
+                    <th>Ref Transaction #</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pm in payments %}
+                    <tr>
+                        <td>#{{ pm.id }}</td>
+                        <td>{{ pm.payment_date|date:"d M Y" }}</td>
+                        <td>
+                            <span class="badge {% if pm.payment_type == 'RECEIPT' %}badge-success{% else %}badge-danger{% endif %}">
+                                {{ pm.get_payment_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if pm.payment_type == 'RECEIPT' %}
+                                <strong>{{ pm.customer.name }}</strong>
+                            {% else %}
+                                <strong>{{ pm.supplier.name }}</strong>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pm.payment_type == 'RECEIPT' %}
+                                {{ pm.invoice.invoice_number|default:"On Account" }}
+                            {% else %}
+                                {{ pm.purchase_bill.supplier_bill_no|default:"On Account" }}
+                            {% endif %}
+                        </td>
+                        <td style="font-weight: 700; text-align: right; {% if pm.payment_type == 'RECEIPT' %}color: var(--success);{% else %}color: var(--destructive);{% endif %}">
+                            {{ pm.amount|indian_currency }}
+                        </td>
+                        <td>{{ pm.get_payment_method_display }}</td>
+                        <td>{{ pm.reference_no|default:"-" }}</td>
+                        <td style="text-align: right;">
+                            <button type="button" onclick="triggerGlobalDelete('/api/delete/payment/{{ pm.id }}/', 'Payment #{{ pm.id }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Payment">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No payment transactions logged.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+
+<!-- Customer Receipt Modal -->
+<div id="customerReceiptModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 540px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #10b981;">Log Customer Receipt</h3>
+            <button type="button" onclick="closeReceiptModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+        
+        <form id="customerReceiptForm" onsubmit="submitCustomerReceipt(event)">
+            {% csrf_token %}
+            <div id="receiptModalError" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600;">Select Customer *</label>
+                <select name="customer" id="rcpt_customer" class="form-control" onchange="onCustomerChange(this.value)" required>
+                    <option value="">-- Select Customer --</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600;">Against Invoice (Optional)</label>
+                <select name="invoice" id="rcpt_invoice" class="form-control" onchange="onInvoiceChange(this)">
+                    <option value="">-- On Account (General Credit) --</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Payment Date *</label>
+                    <input type="date" name="payment_date" id="rcpt_date" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Amount Received (INR) *</label>
+                    <input type="number" step="0.01" name="amount" id="rcpt_amount" class="form-control" placeholder="0.00" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Payment Method *</label>
+                    <select name="payment_method" id="rcpt_method" class="form-control" required>
+                        <option value="CASH">Cash</option>
+                        <option value="BANK">Bank Transfer / NEFT</option>
+                        <option value="UPI" selected>UPI Payment</option>
+                        <option value="CARD">Card</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Ref / Txn / Cheque #</label>
+                    <input type="text" name="reference_no" id="rcpt_ref" class="form-control" placeholder="TXN12345">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Notes</label>
+                <textarea name="notes" id="rcpt_notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closeReceiptModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="rcptSubmitBtn" class="btn-customer-receipt">Save Receipt</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Supplier Payment Modal -->
+<div id="supplierPaymentModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 540px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #2563eb;">Record Supplier Payment</h3>
+            <button type="button" onclick="closePaymentModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+        
+        <form id="supplierPaymentForm" onsubmit="submitSupplierPayment(event)">
+            {% csrf_token %}
+            <div id="paymentModalError" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600;">Select Supplier *</label>
+                <select name="supplier" id="pymt_supplier" class="form-control" onchange="onSupplierChange(this.value)" required>
+                    <option value="">-- Select Supplier --</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600;">Against Purchase Bill (Optional)</label>
+                <select name="purchase_bill" id="pymt_bill" class="form-control" onchange="onBillChange(this)">
+                    <option value="">-- On Account (General Debit) --</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Payment Date *</label>
+                    <input type="date" name="payment_date" id="pymt_date" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Amount Paid (INR) *</label>
+                    <input type="number" step="0.01" name="amount" id="pymt_amount" class="form-control" placeholder="0.00" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Payment Method *</label>
+                    <select name="payment_method" id="pymt_method" class="form-control" required>
+                        <option value="CASH">Cash</option>
+                        <option value="BANK" selected>Bank Transfer / NEFT</option>
+                        <option value="UPI">UPI Payment</option>
+                        <option value="CARD">Card</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Ref / Txn / Cheque #</label>
+                    <input type="text" name="reference_no" id="pymt_ref" class="form-control" placeholder="REF98765">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Notes</label>
+                <textarea name="notes" id="pymt_notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closePaymentModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="pymtSubmitBtn" class="btn-supplier-payment">Supplier Payment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize default dates to today
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Load Customer Options
+    function loadCustomers() {
+        const select = document.getElementById('rcpt_customer');
+        if (!select) return;
+        fetch('/company/customers/search/?q=')
+            .then(res => res.json())
+            .then(data => {
+                let html = '<option value="">-- Select Customer --</option>';
+                if (data.results) {
+                    data.results.forEach(c => {
+                        html += `<option value="${c.id}">${c.name} (Bal: ₹${c.balance})</option>`;
+                    });
+                }
+                select.innerHTML = html;
+            }).catch(e => console.error(e));
+    }
+
+    // Load Supplier Options
+    function loadSuppliers() {
+        const select = document.getElementById('pymt_supplier');
+        if (!select) return;
+        fetch('/company/suppliers/search/?q=')
+            .then(res => res.json())
+            .then(data => {
+                let html = '<option value="">-- Select Supplier --</option>';
+                if (data.results) {
+                    data.results.forEach(s => {
+                        html += `<option value="${s.id}">${s.name} (Bal: ₹${s.balance})</option>`;
+                    });
+                }
+                select.innerHTML = html;
+            }).catch(e => console.error(e));
+    }
+
+    function openReceiptModal() {
+        document.getElementById('rcpt_date').value = todayStr;
+        document.getElementById('receiptModalError').style.display = 'none';
+        document.getElementById('customerReceiptForm').reset();
+        document.getElementById('rcpt_date').value = todayStr;
+        loadCustomers();
+        document.getElementById('customerReceiptModal').style.display = 'flex';
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('customerReceiptModal').style.display = 'none';
+    }
+
+    function openPaymentModal() {
+        document.getElementById('pymt_date').value = todayStr;
+        document.getElementById('paymentModalError').style.display = 'none';
+        document.getElementById('supplierPaymentForm').reset();
+        document.getElementById('pymt_date').value = todayStr;
+        loadSuppliers();
+        document.getElementById('supplierPaymentModal').style.display = 'flex';
+    }
+
+    function closePaymentModal() {
+        document.getElementById('supplierPaymentModal').style.display = 'none';
+    }
+
+    function onCustomerChange(custId) {
+        const invSelect = document.getElementById('rcpt_invoice');
+        invSelect.innerHTML = '<option value="">-- On Account (General Credit) --</option>';
+        if (!custId) return;
+
+        fetch(`/api/company/customers/${custId}/unpaid-invoices/`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success' && d.invoices) {
+                    d.invoices.forEach(inv => {
+                        invSelect.innerHTML += `<option value="${inv.id}" data-due="${inv.outstanding_amount}">${inv.invoice_number} (Due: ₹${inv.outstanding_amount})</option>`;
+                    });
+                }
+            });
+    }
+
+    function onInvoiceChange(selectEl) {
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.due) {
+            document.getElementById('rcpt_amount').value = selectedOpt.dataset.due;
+        }
+    }
+
+    function onSupplierChange(suppId) {
+        const billSelect = document.getElementById('pymt_bill');
+        billSelect.innerHTML = '<option value="">-- On Account (General Debit) --</option>';
+        if (!suppId) return;
+
+        fetch(`/api/company/suppliers/${suppId}/unpaid-bills/`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success' && d.bills) {
+                    d.bills.forEach(b => {
+                        billSelect.innerHTML += `<option value="${b.id}" data-due="${b.outstanding_amount}">${b.bill_number} (Due: ₹${b.outstanding_amount})</option>`;
+                    });
+                }
+            });
+    }
+
+    function onBillChange(selectEl) {
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.due) {
+            document.getElementById('pymt_amount').value = selectedOpt.dataset.due;
+        }
+    }
+
+    function submitCustomerReceipt(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('receiptModalError');
+        const btn = document.getElementById('rcptSubmitBtn');
+        errBox.style.display = 'none';
+
+        const customer = document.getElementById('rcpt_customer').value;
+        const amount = document.getElementById('rcpt_amount').value;
+
+        if (!customer) {
+            errBox.innerText = 'Please select a customer.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        if (!amount || parseFloat(amount) <= 0) {
+            errBox.innerText = 'Please enter a valid amount greater than zero.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        const formData = new FormData(document.getElementById('customerReceiptForm'));
+
+        fetch('{% url "payment_receipt_add" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = 'Customer Receipt';
+
+            if (data.status === 'success' || data.success) {
+                closeReceiptModal();
+                showToast('success', data.message || 'Customer receipt logged successfully!');
+                if (typeof window.loadAjaxTable === 'function') {
+                    window.loadAjaxTable(window.location.href, 'table-container');
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                errBox.innerText = data.message || 'Error saving receipt.';
+                errBox.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', data.message || 'Error saving receipt.');
+                }
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = 'Customer Receipt';
+            errBox.innerText = 'Network error occurred. Please try again.';
+            errBox.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Network error occurred. Please try again.');
+            }
+        });
+    }
+
+    function submitSupplierPayment(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('paymentModalError');
+        const btn = document.getElementById('pymtSubmitBtn');
+        errBox.style.display = 'none';
+
+        const supplier = document.getElementById('pymt_supplier').value;
+        const amount = document.getElementById('pymt_amount').value;
+
+        if (!supplier) {
+            errBox.innerText = 'Please select a supplier.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        if (!amount || parseFloat(amount) <= 0) {
+            errBox.innerText = 'Please enter a valid amount greater than zero.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        const formData = new FormData(document.getElementById('supplierPaymentForm'));
+
+        fetch('{% url "payment_supplier_add" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = 'Supplier Payment';
+
+            if (data.status === 'success' || data.success) {
+                closePaymentModal();
+                showToast('success', data.message || 'Supplier payment saved successfully!');
+                if (typeof window.loadAjaxTable === 'function') {
+                    window.loadAjaxTable(window.location.href, 'table-container');
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                errBox.innerText = data.message || 'Error recording payment.';
+                errBox.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', data.message || 'Error recording payment.');
+                }
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = 'Supplier Payment';
+            errBox.innerText = 'Network error occurred. Please try again.';
+            errBox.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Network error occurred. Please try again.');
+            }
+        });
+    }
+</script>
+{% endblock %}

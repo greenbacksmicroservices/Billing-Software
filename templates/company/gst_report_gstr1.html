@@ -1,0 +1,129 @@
+{% extends 'base_company.html' %}
+
+{% block title %}GSTR-1 Preparation Report{% endblock %}
+{% block sub_gstr1 %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">GSTR-1 Preparation Ledger</h1>
+        <p style="color: var(--muted-foreground);">Details of Outward Supplies of Goods & Services</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- B2B summary -->
+    <div class="card-container">
+        <div class="card-header"><h3 class="card-title">B2B (Registered Businesses)</h3></div>
+        <div class="card-body">
+            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">
+                ₹{{ b2b_totals.taxable|default:"0.00" }} <small style="font-size: 0.8rem; font-weight: 400; color: var(--muted-foreground);">Taxable Value</small>
+            </div>
+            <p>Invoice count: <strong>{{ b2b_totals.count }}</strong></p>
+            <p>Total CGST: ₹{{ b2b_totals.cgst|default:"0.00" }}</p>
+            <p>Total SGST: ₹{{ b2b_totals.sgst|default:"0.00" }}</p>
+            <p>Total IGST: ₹{{ b2b_totals.igst|default:"0.00" }}</p>
+        </div>
+    </div>
+
+    <!-- B2C summary -->
+    <div class="card-container">
+        <div class="card-header"><h3 class="card-title">B2C (Unregistered Consumers)</h3></div>
+        <div class="card-body">
+            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">
+                ₹{{ b2c_totals.taxable|default:"0.00" }} <small style="font-size: 0.8rem; font-weight: 400; color: var(--muted-foreground);">Taxable Value</small>
+            </div>
+            <p>Invoice count: <strong>{{ b2c_totals.count }}</strong></p>
+            <p>Total CGST: ₹{{ b2c_totals.cgst|default:"0.00" }}</p>
+            <p>Total SGST: ₹{{ b2c_totals.sgst|default:"0.00" }}</p>
+            <p>Total IGST: ₹{{ b2c_totals.igst|default:"0.00" }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- B2B Invoices Detailed Table -->
+<div class="card-container">
+    <div class="card-header"><h3 class="card-title">B2B Invoices Detail (Filing Table 4A, 4B)</h3></div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer GSTIN</th>
+                    <th>Customer Name</th>
+                    <th>Invoice Number</th>
+                    <th>Invoice Date</th>
+                    <th style="text-align: right;">Taxable Value</th>
+                    <th style="text-align: right;">CGST</th>
+                    <th style="text-align: right;">SGST</th>
+                    <th style="text-align: right;">IGST</th>
+                    <th style="text-align: right;">Total GST</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in b2b_invoices %}
+                    <tr>
+                        <td><code>{{ inv.customer.gstin }}</code></td>
+                        <td>{{ inv.customer.name }}</td>
+                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                        <td>{{ inv.invoice_date|date:"d-m-Y" }}</td>
+                        <td style="text-align: right;">₹{{ inv.taxable_value }}</td>
+                        <td style="text-align: right;">₹{{ inv.cgst_total }}</td>
+                        <td style="text-align: right;">₹{{ inv.sgst_total }}</td>
+                        <td style="text-align: right;">₹{{ inv.igst_total }}</td>
+                        <td style="text-align: right; font-weight: 600;">
+                            ₹{{ inv.cgst_total|add:inv.sgst_total|add:inv.igst_total }}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No B2B sales registered in this cycle.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- HSN / SAC Summary Table (Filing Table 12) -->
+<div class="card-container" style="margin-top: 2rem;">
+    <div class="card-header"><h3 class="card-title">HSN / SAC Summary (Filing Table 12)</h3></div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>HSN/SAC Code</th>
+                    <th>UQC Unit</th>
+                    <th>GST %</th>
+                    <th style="text-align: right;">Total Quantity</th>
+                    <th style="text-align: right;">Taxable Value</th>
+                    <th style="text-align: right;">CGST</th>
+                    <th style="text-align: right;">SGST</th>
+                    <th style="text-align: right;">IGST</th>
+                    <th style="text-align: right;">Total Tax</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in hsn_summary %}
+                    <tr>
+                        <td><code>{{ h.hsn_sac_code|default:"N/A" }}</code></td>
+                        <td>{{ h.uqc_unit|default:"NOS" }}</td>
+                        <td>{{ h.gst_rate }}%</td>
+                        <td style="text-align: right;">{{ h.total_qty|floatformat:2 }}</td>
+                        <td style="text-align: right;">₹{{ h.total_taxable|floatformat:2 }}</td>
+                        <td style="text-align: right;">₹{{ h.total_cgst|floatformat:2 }}</td>
+                        <td style="text-align: right;">₹{{ h.total_sgst|floatformat:2 }}</td>
+                        <td style="text-align: right;">₹{{ h.total_igst|floatformat:2 }}</td>
+                        <td style="text-align: right; font-weight: 600;">
+                            ₹{{ h.total_cgst|add:h.total_sgst|add:h.total_igst|floatformat:2 }}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No HSN summary data recorded yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

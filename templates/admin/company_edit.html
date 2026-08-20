@@ -1,0 +1,468 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Edit Company Details{% endblock %}
+{% block nav_companies %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Edit Company Details</h1>
+        <p style="color: var(--muted-foreground); font-size: 0.9rem; margin-top: 0.25rem;">Update and manage company information</p>
+    </div>
+    <a href="{% url 'admin_company_view' object.id %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Profile
+    </a>
+</div>
+
+<form method="POST" enctype="multipart/form-data" onsubmit="submitCompanyEditForm(event)" class="card-container">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Modify Business Profile</h3></div>
+    <div class="card-body">
+        {% if form.non_field_errors %}
+            <div class="toast-item error" style="position: static; min-width: 100%; margin-bottom: 1.5rem; box-shadow: none;">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div class="toast-message">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            </div>
+        {% elif form.errors %}
+            <div class="toast-item error" style="position: static; min-width: 100%; margin-bottom: 1.5rem; box-shadow: none;">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div class="toast-message">
+                    Please correct the highlighted fields.
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="form-grid-2">
+            <!-- SECTION A: Basic Information -->
+            <div class="form-section-title">A. Basic Information</div>
+            
+            <div class="form-group {% if form.name.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}{% if form.name.field.required %} *{% endif %}</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <span class="field-error-message">{{ form.name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.trade_name.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.trade_name.id_for_label }}">{{ form.trade_name.label }}{% if form.trade_name.field.required %} *{% endif %}</label>
+                {{ form.trade_name }}
+                {% if form.trade_name.errors %}
+                    <span class="field-error-message">{{ form.trade_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.business_type.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.business_type.id_for_label }}">{{ form.business_type.label }}{% if form.business_type.field.required %} *{% endif %}</label>
+                {{ form.business_type }}
+                {% if form.business_type.errors %}
+                    <span class="field-error-message">{{ form.business_type.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.financial_year.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.financial_year.id_for_label }}">{{ form.financial_year.label }}{% if form.financial_year.field.required %} *{% endif %}</label>
+                {{ form.financial_year }}
+                {% if form.financial_year.errors %}
+                    <span class="field-error-message">{{ form.financial_year.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- SECTION B: Contact Information -->
+            <div class="form-section-title">B. Contact Information</div>
+
+            <div class="form-group {% if form.email.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}{% if form.email.field.required %} *{% endif %}</label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <span class="field-error-message">{{ form.email.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.mobile.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.mobile.id_for_label }}">{{ form.mobile.label }}{% if form.mobile.field.required %} *{% endif %}</label>
+                {{ form.mobile }}
+                {% if form.mobile.errors %}
+                    <span class="field-error-message">{{ form.mobile.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.website.errors %}has-error{% endif %} col-span-2">
+                <label class="form-label" for="{{ form.website.id_for_label }}">{{ form.website.label }}{% if form.website.field.required %} *{% endif %}</label>
+                {{ form.website }}
+                {% if form.website.errors %}
+                    <span class="field-error-message">{{ form.website.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- SECTION C: Address -->
+            <div class="form-section-title">C. Address</div>
+
+            <div class="form-group {% if form.address.errors %}has-error{% endif %} col-span-2">
+                <label class="form-label" for="{{ form.address.id_for_label }}">{{ form.address.label }}{% if form.address.field.required %} *{% endif %}</label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                    <span class="field-error-message">{{ form.address.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.city.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.city.id_for_label }}">{{ form.city.label }}{% if form.city.field.required %} *{% endif %}</label>
+                {{ form.city }}
+                {% if form.city.errors %}
+                    <span class="field-error-message">{{ form.city.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.state.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.state.id_for_label }}">{{ form.state.label }}{% if form.state.field.required %} *{% endif %}</label>
+                {{ form.state }}
+                {% if form.state.errors %}
+                    <span class="field-error-message">{{ form.state.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.state_code.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.state_code.id_for_label }}">{{ form.state_code.label }}{% if form.state_code.field.required %} *{% endif %}</label>
+                {{ form.state_code }}
+                {% if form.state_code.errors %}
+                    <span class="field-error-message">{{ form.state_code.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.pincode.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.pincode.id_for_label }}">{{ form.pincode.label }}{% if form.pincode.field.required %} *{% endif %}</label>
+                {{ form.pincode }}
+                {% if form.pincode.errors %}
+                    <span class="field-error-message">{{ form.pincode.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- SECTION D: Tax & Business Information -->
+            <div class="form-section-title">D. Tax & Business Information</div>
+
+            <div class="form-group {% if form.gst_status.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.gst_status.id_for_label }}">{{ form.gst_status.label }}{% if form.gst_status.field.required %} *{% endif %}</label>
+                {{ form.gst_status }}
+                {% if form.gst_status.errors %}
+                    <span class="field-error-message">{{ form.gst_status.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.gstin.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.gstin.id_for_label }}">{{ form.gstin.label }}{% if form.gstin.field.required %} *{% endif %}</label>
+                {{ form.gstin }}
+                {% if form.gstin.errors %}
+                    <span class="field-error-message">{{ form.gstin.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.pan.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.pan.id_for_label }}">{{ form.pan.label }}{% if form.pan.field.required %} *{% endif %}</label>
+                {{ form.pan }}
+                {% if form.pan.errors %}
+                    <span class="field-error-message">{{ form.pan.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.invoice_prefix.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.invoice_prefix.id_for_label }}">{{ form.invoice_prefix.label }}{% if form.invoice_prefix.field.required %} *{% endif %}</label>
+                {{ form.invoice_prefix }}
+                {% if form.invoice_prefix.errors %}
+                    <span class="field-error-message">{{ form.invoice_prefix.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.invoice_next_number.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.invoice_next_number.id_for_label }}">{{ form.invoice_next_number.label }}{% if form.invoice_next_number.field.required %} *{% endif %}</label>
+                {{ form.invoice_next_number }}
+                {% if form.invoice_next_number.errors %}
+                    <span class="field-error-message">{{ form.invoice_next_number.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.invoice_padding.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.invoice_padding.id_for_label }}">{{ form.invoice_padding.label }}{% if form.invoice_padding.field.required %} *{% endif %}</label>
+                {{ form.invoice_padding }}
+                {% if form.invoice_padding.errors %}
+                    <span class="field-error-message">{{ form.invoice_padding.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- SECTION E: Branding & Financials -->
+            <div class="form-section-title">E. Branding / Financials / Terms</div>
+
+            <div class="form-group {% if form.logo.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.logo.id_for_label }}">{{ form.logo.label }}</label>
+                {% if object.logo %}
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img src="{{ object.get_logo_url }}" alt="Logo" style="max-height: 50px; border-radius: 4px; border: 1px solid var(--border);">
+                        <span style="font-size: 0.8rem; color: var(--muted);">Currently: {{ object.get_logo_filename }}</span>
+                    </div>
+                {% endif %}
+                {{ form.logo }}
+                {% if form.logo.errors %}
+                    <span class="field-error-message">{{ form.logo.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.bank_name.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.bank_name.id_for_label }}">{{ form.bank_name.label }}{% if form.bank_name.field.required %} *{% endif %}</label>
+                {{ form.bank_name }}
+                {% if form.bank_name.errors %}
+                    <span class="field-error-message">{{ form.bank_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.account_holder.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.account_holder.id_for_label }}">{{ form.account_holder.label }}{% if form.account_holder.field.required %} *{% endif %}</label>
+                {{ form.account_holder }}
+                {% if form.account_holder.errors %}
+                    <span class="field-error-message">{{ form.account_holder.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.account_number.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.account_number.id_for_label }}">{{ form.account_number.label }}{% if form.account_number.field.required %} *{% endif %}</label>
+                {{ form.account_number }}
+                {% if form.account_number.errors %}
+                    <span class="field-error-message">{{ form.account_number.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.ifsc.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.ifsc.id_for_label }}">{{ form.ifsc.label }}{% if form.ifsc.field.required %} *{% endif %}</label>
+                {{ form.ifsc }}
+                {% if form.ifsc.errors %}
+                    <span class="field-error-message">{{ form.ifsc.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.branch.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.branch.id_for_label }}">{{ form.branch.label }}{% if form.branch.field.required %} *{% endif %}</label>
+                {{ form.branch }}
+                {% if form.branch.errors %}
+                    <span class="field-error-message">{{ form.branch.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.upi_id.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.upi_id.id_for_label }}">{{ form.upi_id.label }}{% if form.upi_id.field.required %} *{% endif %}</label>
+                {{ form.upi_id }}
+                {% if form.upi_id.errors %}
+                    <span class="field-error-message">{{ form.upi_id.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.authorized_signature_name.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.authorized_signature_name.id_for_label }}">{{ form.authorized_signature_name.label }}{% if form.authorized_signature_name.field.required %} *{% endif %}</label>
+                {{ form.authorized_signature_name }}
+                {% if form.authorized_signature_name.errors %}
+                    <span class="field-error-message">{{ form.authorized_signature_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.signature.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.signature.id_for_label }}">{{ form.signature.label }}</label>
+                {% if object.signature %}
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img src="{{ object.signature.url }}" alt="Signature" style="max-height: 50px; border-radius: 4px; border: 1px solid var(--border);">
+                        <span style="font-size: 0.8rem; color: var(--muted);">Currently: {{ object.signature.name }}</span>
+                    </div>
+                {% endif %}
+                {{ form.signature }}
+                {% if form.signature.errors %}
+                    <span class="field-error-message">{{ form.signature.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.stamp.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.stamp.id_for_label }}">{{ form.stamp.label }}</label>
+                {% if object.stamp %}
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img src="{{ object.stamp.url }}" alt="Stamp" style="max-height: 50px; border-radius: 4px; border: 1px solid var(--border);">
+                        <span style="font-size: 0.8rem; color: var(--muted);">Currently: {{ object.stamp.name }}</span>
+                    </div>
+                {% endif %}
+                {{ form.stamp }}
+                {% if form.stamp.errors %}
+                    <span class="field-error-message">{{ form.stamp.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.terms_and_conditions.errors %}has-error{% endif %} col-span-2">
+                <label class="form-label" for="{{ form.terms_and_conditions.id_for_label }}">{{ form.terms_and_conditions.label }}{% if form.terms_and_conditions.field.required %} *{% endif %}</label>
+                {{ form.terms_and_conditions }}
+                {% if form.terms_and_conditions.errors %}
+                    <span class="field-error-message">{{ form.terms_and_conditions.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <a href="{% url 'admin_company_view' object.id %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="saveChangesBtn" class="btn btn-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Save Changes
+            </button>
+        </div>
+    </div>
+</form>
+
+{% with company_admin=object.users.first %}
+{% if company_admin %}
+<div class="card-container" style="margin-top: 1.5rem;">
+    <!-- Collapsible Header -->
+    <div class="card-header" id="pwdToggleHeader" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+        <h3 class="card-title">
+            <i class="fa-solid fa-lock" style="margin-right: 0.5rem;"></i> Password Management
+            <span id="pwdStatusText" style="font-size: 0.85rem; color: var(--muted); font-weight: normal; margin-left: 0.25rem;">▾</span>
+        </h3>
+        <span id="pwdToggleChevron"><i class="fa-solid fa-chevron-down"></i></span>
+    </div>
+    
+    <!-- Collapsible Body -->
+    <div id="pwdCardBody" class="collapsible-card-body">
+        <form onsubmit="submitCompanyAdminPasswordChange(event, {{ company_admin.id }})">
+            <div style="margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--muted-foreground);">
+                Change password for Company Owner account: <strong style="color: var(--foreground);">{{ company_admin.username }}</strong> ({{ company_admin.email }})
+            </div>
+
+            <!-- Current Password (Optional layout field for Superadmin) -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Current Password</label>
+                <div class="password-input-container">
+                    <input type="password" id="comp_pass_current" class="form-control" placeholder="••••••••">
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('comp_pass_current')">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- New Password -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">New Password *</label>
+                <div class="password-input-container">
+                    <input type="password" id="comp_pass_new" class="form-control" placeholder="At least 6 characters" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('comp_pass_new')">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Confirm Password *</label>
+                <div class="password-input-container">
+                    <input type="password" id="comp_pass_confirm" class="form-control" placeholder="Re-enter new password" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('comp_pass_confirm')">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" id="compPassBtn" class="btn btn-primary"><i class="fa-solid fa-key" style="margin-right: 0.25rem;"></i> Change Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Collapsible password accordion toggler
+    document.addEventListener('DOMContentLoaded', () => {
+        const pwdHeader = document.getElementById('pwdToggleHeader');
+        const pwdBody = document.getElementById('pwdCardBody');
+        const pwdChevron = document.getElementById('pwdToggleChevron');
+        const pwdStatusText = document.getElementById('pwdStatusText');
+
+        if (pwdHeader && pwdBody) {
+            pwdHeader.addEventListener('click', () => {
+                const isOpen = pwdBody.classList.toggle('open');
+                if (isOpen) {
+                    pwdChevron.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+                    pwdStatusText.textContent = '▴';
+                } else {
+                    pwdChevron.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+                    pwdStatusText.textContent = '▾';
+                }
+            });
+        }
+    });
+
+    // Password visibility toggle handler
+    function togglePasswordVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const btn = input.nextElementSibling;
+        if (input && btn) {
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    }
+
+    // Submit form loading indicator
+    function submitCompanyEditForm(e) {
+        const btn = document.getElementById('saveChangesBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        }
+    }
+
+    // Change password submit handler
+    function submitCompanyAdminPasswordChange(e, userId) {
+        e.preventDefault();
+        const p1 = document.getElementById('comp_pass_new').value;
+        const p2 = document.getElementById('comp_pass_confirm').value;
+        if (p1 !== p2) {
+            showToast('error', 'New password and confirm password do not match.');
+            return;
+        }
+        const btn = document.getElementById('compPassBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Changing Password...';
+
+        fetch(`/admin/users/${userId}/change-password/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ new_password: p1, confirm_password: p2 })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-key" style="margin-right: 0.25rem;"></i> Change Password';
+            if (data.status === 'success') {
+                showToast('success', data.message);
+                document.getElementById('comp_pass_new').value = '';
+                document.getElementById('comp_pass_confirm').value = '';
+                if (document.getElementById('comp_pass_current')) {
+                    document.getElementById('comp_pass_current').value = '';
+                }
+            } else {
+                showToast('error', data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-key" style="margin-right: 0.25rem;"></i> Change Password';
+            showToast('error', 'Failed to change password.');
+        });
+    }
+</script>
+{% endif %}
+{% endwith %}
+{% endblock %}

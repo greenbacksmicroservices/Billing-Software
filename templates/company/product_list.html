@@ -1,0 +1,535 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Products Master{% endblock %}
+{% block sub_products %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Products Master</h1>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'product_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Add New Product
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openBulkUploadModal()">
+            <i class="fa-solid fa-file-import" style="margin-right: 0.35rem;"></i> Bulk Upload
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center; justify-content: space-between;">
+            <div>
+                {% include 'common_table_search.html' with placeholder="Search product, SKU, HSN..." %}
+            </div>
+            <a href="{% url 'product_list' %}" class="btn btn-secondary">Reset Filters</a>
+        </form>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>SKU / Barcode</th>
+                    <th>Category</th>
+                    <th>HSN/SAC</th>
+                    <th style="text-align: right;">Sale Price</th>
+                    <th style="text-align: right;">Stock Level</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prod in products %}
+                    <tr>
+                        <td>
+                            <strong>{{ prod.name }}</strong>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">Type: {{ prod.get_product_type_display }} | Unit: {{ prod.unit.name|default:"PCS" }}</div>
+                        </td>
+                        <td>
+                            <div><small>SKU: {{ prod.sku|default:"-" }}</small></div>
+                            <div><small>Barcode: {{ prod.barcode|default:"-" }}</small></div>
+                        </td>
+                        <td>{{ prod.category.name|default:"-" }}</td>
+                        <td><code>{{ prod.hsn_sac.code|default:"-" }}</code> ({{ prod.hsn_sac.gst_rate }}%)</td>
+                        <td style="text-align: right; font-weight: 500;">₹{{ prod.selling_price }}</td>
+                        <td style="text-align: right;">
+                            <span class="badge {% if prod.current_stock <= prod.min_stock and prod.track_inventory %}badge-danger{% else %}badge-success{% endif %}" style="font-weight: 700;">
+                                {{ prod.current_stock }} {{ prod.unit.name|default:"PCS" }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button onclick="openAdjustModal('{{ prod.id }}', '{{ prod.name }}', '{{ prod.current_stock }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Adjust Stock">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Adjust
+                                </button>
+                                <a href="{% url 'product_duplicate' prod.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Duplicate Product">
+                                    <i class="fa-regular fa-copy"></i>
+                                </a>
+                                <a href="{% url 'product_edit' prod.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
+                                    <i class="fa-regular fa-pen-to-square"></i>
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/product/{{ prod.id }}/', '{{ prod.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Product">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No products found. Click "Add New Product" to populate your inventory.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div id="adjust-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 400px; width: 100%; margin: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Adjust Stock Level</h3>
+            <button onclick="closeAdjustModal()" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <div class="card-body">
+            <p id="modal-product-name" style="font-weight: 600; margin-bottom: 0.5rem;"></p>
+            <p style="font-size: 0.85rem; color: var(--muted-foreground); margin-bottom: 1rem;">Current stock level: <strong id="modal-current-stock"></strong></p>
+            
+            <div class="form-group">
+                <label class="form-label" for="adjust-qty">Quantity Change (Inward/Outward) *</label>
+                <input type="number" id="adjust-qty" class="form-control" placeholder="Use negative values to deduct e.g. -5">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="adjust-reason">Reason for Adjustment</label>
+                <input type="text" id="adjust-reason" class="form-control" placeholder="e.g. Broken item, manual audit">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="adjust-warehouse">Select Warehouse</label>
+                <select id="adjust-warehouse" class="form-control">
+                    {% for wh in warehouses %}
+                        <option value="{{ wh.id }}">{{ wh.name }}</option>
+                    {% empty %}
+                        <option value="1">Main Warehouse</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button onclick="closeAdjustModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="submitAdjustment()" class="btn btn-primary">Post Adjustment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div id="bulk-upload-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 800px; width: 100%; margin: 0; max-height: 90vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Bulk Upload Inventory</h3>
+            <button onclick="closeBulkUploadModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            
+            <!-- Step 1: Upload File -->
+            <div id="bulk-step-upload">
+                <p style="font-size: 0.9rem; color: var(--muted-foreground); margin-bottom: 1.25rem;">
+                    Upload an Excel (.xlsx) or CSV file containing inventory records. Download the template below for reference.
+                </p>
+                
+                <form id="bulk-file-form" onsubmit="handleBulkUploadValidate(event)">
+                    <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 2.5rem 1.5rem; text-align: center; background: var(--background); margin-bottom: 1.25rem;">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                        <input type="file" id="bulk-excel-file" accept=".xlsx, .csv" style="display: none;" onchange="handleFileSelectChange(this)">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulk-excel-file').click()" style="margin-bottom: 0.75rem;">Choose Excel File</button>
+                        <div id="selected-file-name" style="font-weight: 600; font-size: 0.85rem; color: var(--foreground); margin-top: 0.5rem;">No file selected</div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.25rem;">
+                        <a href="{% url 'company_product_sample_template' %}" class="btn btn-secondary" style="font-size: 0.85rem;">
+                            <i class="fa-solid fa-download" style="margin-right: 0.35rem;"></i> Download Template
+                        </a>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button type="button" onclick="closeBulkUploadModal()" class="btn btn-secondary">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="btn-validate-upload"><i class="fa-solid fa-check-double" style="margin-right: 0.35rem;"></i> Upload & Validate</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Step 2: Preview & Import -->
+            <div id="bulk-step-preview" style="display: none;">
+                
+                <!-- Summary Metrics -->
+                <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem;">
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--primary); background: var(--card); border-radius: 6px; box-shadow: var(--shadow-sm);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); font-weight: 600;">Total Rows</div>
+                        <div id="metric-total-rows" style="font-size: 1.25rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--success); background: var(--card); border-radius: 6px; box-shadow: var(--shadow-sm);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); font-weight: 600;">Valid Rows</div>
+                        <div id="metric-valid-rows" style="font-size: 1.25rem; font-weight: 700; color: var(--success); margin-top: 0.25rem;">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--danger); background: var(--card); border-radius: 6px; box-shadow: var(--shadow-sm);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); font-weight: 600;">Invalid Rows</div>
+                        <div id="metric-invalid-rows" style="font-size: 1.25rem; font-weight: 700; color: var(--danger); margin-top: 0.25rem;">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--warning); background: var(--card); border-radius: 6px; box-shadow: var(--shadow-sm);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); font-weight: 600;">Duplicates</div>
+                        <div id="metric-duplicate-rows" style="font-size: 1.25rem; font-weight: 700; color: var(--warning); margin-top: 0.25rem;">0</div>
+                    </div>
+                </div>
+                
+                <!-- Import Settings -->
+                <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                    <div style="flex: 1; min-width: 220px; max-width: 300px;">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Duplicate Handling Mode</label>
+                        <select id="import-mode-select" class="form-control">
+                            <option value="add_update" selected>Add New + Update Existing</option>
+                            <option value="add_only">Add New Only</option>
+                            <option value="update_only">Update Existing Only</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 220px; max-width: 300px;">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Barcode Duplicate Handling</label>
+                        <select id="barcode-mode-select" class="form-control">
+                            <option value="update_existing" selected>Update Existing Product (Keep Last Row)</option>
+                            <option value="skip_duplicates">Skip Duplicate Rows (Keep First Row)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Preview Table -->
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 1.25rem;">
+                    <table class="custom-table" style="font-size: 0.8rem; min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>HSN/SAC</th>
+                                <th style="text-align: right;">Qty</th>
+                                <th style="text-align: right;">Purchase</th>
+                                <th style="text-align: right;">Selling</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-preview-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Actions -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <button type="button" id="btn-download-errors" class="btn btn-secondary" onclick="handleDownloadErrors()" style="display: none; color: var(--danger);">
+                            <i class="fa-solid fa-file-excel" style="margin-right: 0.35rem;"></i> Download Error Report
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button type="button" onclick="backToUploadStep()" class="btn btn-secondary">Back to Upload</button>
+                        <button type="button" id="btn-execute-import" class="btn btn-primary" onclick="handleExecuteImport()">Import Valid Records</button>
+                    </div>
+                </div>
+                
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let activeProductId = null;
+
+    function openAdjustModal(id, name, currentStock) {
+        activeProductId = id;
+        document.getElementById('modal-product-name').innerText = name;
+        document.getElementById('modal-current-stock').innerText = currentStock;
+        document.getElementById('adjust-qty').value = '';
+        document.getElementById('adjust-reason').value = '';
+        document.getElementById('adjust-modal').style.display = 'flex';
+    }
+
+    function closeAdjustModal() {
+        document.getElementById('adjust-modal').style.display = 'none';
+    }
+
+    function submitAdjustment() {
+        const qty = document.getElementById('adjust-qty').value;
+        const reason = document.getElementById('adjust-reason').value;
+        
+        if (!qty || isNaN(qty)) {
+            alert('Please enter a valid numeric quantity.');
+            return;
+        }
+
+        fetch(`/company/products/${activeProductId}/adjust-stock/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                quantity: parseFloat(qty),
+                reason: reason,
+                warehouse_id: document.getElementById('adjust-warehouse').value || 1
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeAdjustModal();
+                window.location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Connection error. Please try again.');
+        });
+    }
+
+    // --- BULK UPLOAD MODULE ---
+    let bulkParsedData = null;
+
+    function openBulkUploadModal() {
+        resetBulkStep();
+        document.getElementById('bulk-upload-modal').style.display = 'flex';
+    }
+
+    function closeBulkUploadModal() {
+        document.getElementById('bulk-upload-modal').style.display = 'none';
+    }
+
+    function resetBulkStep() {
+        document.getElementById('bulk-step-upload').style.display = 'block';
+        document.getElementById('bulk-step-preview').style.display = 'none';
+        document.getElementById('bulk-file-form').reset();
+        document.getElementById('selected-file-name').innerText = 'No file selected';
+        bulkParsedData = null;
+    }
+
+    function handleFileSelectChange(input) {
+        const display = document.getElementById('selected-file-name');
+        if (input.files && input.files[0]) {
+            display.innerText = input.files[0].name;
+        } else {
+            display.innerText = 'No file selected';
+        }
+    }
+
+    function backToUploadStep() {
+        document.getElementById('bulk-step-upload').style.display = 'block';
+        document.getElementById('bulk-step-preview').style.display = 'none';
+    }
+
+    function handleBulkUploadValidate(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('bulk-excel-file');
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Please select a file first.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const btn = document.getElementById('btn-validate-upload');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.35rem;"></i> Validating...';
+
+        fetch('/company/products/bulk-preview/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check-double" style="margin-right: 0.35rem;"></i> Upload & Validate';
+            if (data.status === 'success') {
+                bulkParsedData = data;
+                renderPreviewStep(data);
+            } else {
+                alert(data.message || 'Validation failed. Check file format.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check-double" style="margin-right: 0.35rem;"></i> Upload & Validate';
+            console.error(err);
+            alert('An error occurred while validating the file.');
+        });
+    }
+
+    function renderPreviewStep(data) {
+        document.getElementById('bulk-step-upload').style.display = 'none';
+        document.getElementById('bulk-step-preview').style.display = 'block';
+
+        const s = data.summary;
+        document.getElementById('metric-total-rows').innerText = s.total_rows;
+        document.getElementById('metric-valid-rows').innerText = s.valid_rows;
+        document.getElementById('metric-invalid-rows').innerText = s.invalid_rows;
+        document.getElementById('metric-duplicate-rows').innerText = s.duplicate_rows;
+
+        const tbody = document.getElementById('bulk-preview-tbody');
+        tbody.innerHTML = '';
+
+        data.rows.forEach(r => {
+            const tr = document.createElement('tr');
+            
+            let actionBadgeClass = 'badge-info';
+            if (r.action === 'DUPLICATE') actionBadgeClass = 'badge-warning';
+            if (r.action === 'ERROR') actionBadgeClass = 'badge-danger';
+            if (r.action === 'CONFLICT') actionBadgeClass = 'badge-danger';
+            if (r.action === 'NEW') actionBadgeClass = 'badge-success';
+            if (r.action === 'UPDATE') actionBadgeClass = 'badge-primary';
+            
+            let statusBadge = '';
+            if (r.is_valid) {
+                if (r.action === 'DUPLICATE') {
+                    statusBadge = `<span class="badge badge-warning" style="font-weight:700;">⚠ Duplicate: ${r.errors}</span>`;
+                } else {
+                    statusBadge = '<span class="badge badge-success" style="font-weight:700;">✓ Valid</span>';
+                }
+            } else {
+                let badgeText = r.action === 'CONFLICT' ? '✕ Conflict' : '✕ Error';
+                statusBadge = `<span class="badge badge-danger" style="font-weight:700; white-space:normal; text-align:left;">${badgeText}: ${r.errors}</span>`;
+            }
+
+            tr.innerHTML = `
+                <td>${r.row_num}</td>
+                <td>
+                    <strong>${r.name || '-'}</strong>
+                    <div style="font-size:0.75rem; color:var(--muted-foreground);">Category: ${r.category || '-'} | Unit: ${r.unit || 'PCS'}</div>
+                </td>
+                <td><small>${r.sku || '-'}</small></td>
+                <td><code>${r.hsn_sac || '-'}</code> ${r.gst_rate ? `(${r.gst_rate}%)` : ''}</td>
+                <td style="text-align: right;">${r.opening_stock || '0.00'}</td>
+                <td style="text-align: right;">₹${r.purchase_price || '0.00'}</td>
+                <td style="text-align: right;">₹${r.selling_price || '0.00'}</td>
+                <td><span class="badge ${actionBadgeClass}">${r.action}</span></td>
+                <td>${statusBadge}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('btn-download-errors').style.display = s.invalid_rows > 0 ? 'inline-block' : 'none';
+        document.getElementById('btn-execute-import').disabled = s.valid_rows === 0;
+    }
+
+    function handleExecuteImport() {
+        if (!bulkParsedData || !bulkParsedData.rows) return;
+
+        const validRows = bulkParsedData.rows.filter(r => r.is_valid);
+        if (validRows.length === 0) {
+            alert('No valid records to import.');
+            return;
+        }
+
+        const mode = document.getElementById('import-mode-select').value;
+        const barcodeMode = document.getElementById('barcode-mode-select').value;
+        const confirmBtn = document.getElementById('btn-execute-import');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.35rem;"></i> Importing...';
+
+        fetch('/company/products/bulk-import/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                valid_rows: validRows,
+                import_mode: mode,
+                barcode_mode: barcodeMode
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Import Valid Records';
+            if (data.status === 'success') {
+                closeBulkUploadModal();
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message);
+                } else {
+                    alert(data.message);
+                }
+                
+                if (typeof window.loadAjaxTable === 'function') {
+                    window.loadAjaxTable(window.location.href, 'table-container');
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                alert(data.message || 'Import failed.');
+            }
+        })
+        .catch(err => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Import Valid Records';
+            console.error(err);
+            alert('An error occurred during import.');
+        });
+    }
+
+    function handleDownloadErrors() {
+        if (!bulkParsedData || !bulkParsedData.rows) return;
+
+        const invalidRows = bulkParsedData.rows.filter(r => !r.is_valid);
+        if (invalidRows.length === 0) return;
+
+        const btn = document.getElementById('btn-download-errors');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+
+        fetch('/company/products/download-error-report/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ invalid_rows: invalidRows })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Download failed');
+            return res.blob();
+        })
+        .then(blob => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-excel" style="margin-right: 0.35rem;"></i> Download Error Report';
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Inventory_Upload_Error_Report.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-excel" style="margin-right: 0.35rem;"></i> Download Error Report';
+            console.error(err);
+            alert('Failed to download error report.');
+        });
+    }
+</script>
+{% endblock %}

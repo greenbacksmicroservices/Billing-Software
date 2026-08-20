@@ -1,0 +1,151 @@
+{% extends 'base_company.html' %}
+
+{% block title %}{% if object %}Edit Product - {{ object.name }}{% else %}Add Product{% endif %}{% endblock %}
+{% block sub_products %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{% if object %}Edit Product{% else %}Add New Product{% endif %}</h1>
+    <a href="{% url 'product_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" enctype="multipart/form-data" class="card-container">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Product Details</h3></div>
+    <div class="card-body">
+        {% if form.errors %}
+            <div class="message-item error">
+                <strong>Error saving form:</strong> Verify the fields below.
+                {{ form.errors }}
+            </div>
+        {% endif %}
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-bottom: 1rem;">1. Basic Details</h4>
+        <div class="form-row">
+            <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label">Product Name *</label>
+                {{ form.name }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Product Type</label>
+                {{ form.product_type }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">SKU (Stock Keeping Unit)</label>
+                {{ form.sku }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Barcode (for scanner lookup)</label>
+                {{ form.barcode }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                {{ form.category }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Brand</label>
+                {{ form.brand }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            {{ form.description }}
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">2. Tax & Code configuration</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">HSN/SAC Code Assignment</label>
+                {{ form.hsn_sac }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Unit of Measure (UQC)</label>
+                {{ form.unit }}
+            </div>
+            <div class="form-group" style="padding-top: 2rem;">
+                <label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    {{ form.tax_inclusive }} Prices are Tax Inclusive
+                </label>
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">3. Pricing Details</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Purchase Price (INR)</label>
+                {{ form.purchase_price }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Selling Price (INR) *</label>
+                {{ form.selling_price }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">MRP (Max Retail Price)</label>
+                {{ form.mrp }}
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Wholesale Price</label>
+                {{ form.wholesale_price }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Retail Price</label>
+                {{ form.retail_price }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Selling Price</label>
+                {{ form.min_selling_price }}
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">4. Inventory & Alerts</h4>
+        <div class="form-row" style="align-items: center;">
+            <div class="form-group">
+                <label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    {{ form.track_inventory }} Track Stock Level
+                </label>
+            </div>
+            <div class="form-group">
+                <label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    {{ form.allow_negative_stock }} Allow Negative Stock Sales
+                </label>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Min Stock (for alerts)</label>
+                {{ form.min_stock }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max Stock Limit</label>
+                {{ form.max_stock }}
+            </div>
+            
+            {% if not object %}
+                <div class="form-group">
+                    <label class="form-label" for="opening_stock">Initial Opening Stock</label>
+                    <input type="number" name="opening_stock" id="opening_stock" class="form-control" value="0" min="0">
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Product Image</label>
+            {{ form.image }}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <a href="{% url 'product_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

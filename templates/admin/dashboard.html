@@ -1,0 +1,488 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}SaaS Dashboard - GBL Billing{% endblock %}
+
+{% block header_datetime %}
+    {% include 'dashboard_datetime.html' %}
+{% endblock %}
+
+{% block content %}
+<!-- Admin Dashboard Header -->
+<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Admin Dashboard</h1>
+        <small style="color: var(--muted); font-size: 0.8rem;">
+            <i class="fa-solid fa-sync fa-spin" id="admin-realtime-spinner" style="display: none; margin-right: 0.25rem;"></i>
+            Realtime System Status: <span id="admin-last-updated-time">Just updated</span>
+        </small>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button id="btn-admin-refresh" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Refresh SaaS Metrics Realtime">
+            <i class="fa-solid fa-rotate"></i> Refresh Data
+        </button>
+        <a href="{% url 'admin_company_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Add New Company
+        </a>
+    </div>
+</div>
+
+<!-- SaaS KPI Cards -->
+<div class="dashboard-grid">
+    <div class="stat-card kpi-sales">
+        <div class="stat-card-header">
+            <span>Total Companies</span>
+            <i class="fa-solid fa-building" style="color: var(--primary); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value">{{ total_companies }}</div>
+        <div class="stat-card-footer">Registered accounts</div>
+    </div>
+    
+    <div class="stat-card kpi-purchases">
+        <div class="stat-card-header">
+            <span>Active Businesses</span>
+            <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value" style="color: var(--success);">{{ active_companies }}</div>
+        <div class="stat-card-footer">Paying subscribers</div>
+    </div>
+    
+    <div class="stat-card kpi-alerts">
+        <div class="stat-card-header">
+            <span>Free Trials</span>
+            <i class="fa-solid fa-clock" style="color: var(--warning); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value" style="color: var(--warning);">{{ trial_companies }}</div>
+        <div class="stat-card-footer">Evaluation accounts</div>
+    </div>
+
+    <div class="stat-card kpi-payable">
+        <div class="stat-card-header">
+            <span>Suspended / Expired</span>
+            <i class="fa-solid fa-circle-exclamation" style="color: var(--danger); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value" style="color: var(--danger);">{{ expired_companies|add:suspended_companies }}</div>
+        <div class="stat-card-footer">Require attention</div>
+    </div>
+</div>
+
+<!-- Graphs Grid Row 1 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Registrations Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">New Business Registrations</h3>
+            <select class="form-control period-selector" data-chart="registrations" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="registrationsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscriptions Revenue Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Estimated SaaS Revenue</h3>
+            <select class="form-control period-selector" data-chart="revenue" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Graphs Grid Row 2 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Plan Distribution Donut -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Subscription Plan Distribution</h3>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <canvas id="plansChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Ticket Status Distribution -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Support Tickets Breakdown</h3>
+            <select class="form-control period-selector" data-chart="tickets" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <canvas id="ticketsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Section: Recent Registrations & Activities -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Recent Companies Table -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Recent Registrations</h3>
+            <a href="{% url 'admin_companies_list' %}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Company Name</th>
+                        <th>GSTIN</th>
+                        <th>Mobile</th>
+                        <th>Subscription</th>
+                        <th>Registered On</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-companies-tbody">
+                    {% for comp in companies %}
+                        <tr>
+                            <td><strong>{{ comp.name }}</strong></td>
+                            <td>{{ comp.gstin|default:"-" }}</td>
+                            <td>{{ comp.mobile }}</td>
+                            <td>
+                                <span class="badge {% if comp.subscription_status == 'ACTIVE' %}badge-success{% elif comp.subscription_status == 'TRIAL' %}badge-info{% else %}badge-danger{% endif %}">
+                                    {{ comp.get_subscription_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ comp.created_at|date:"d M Y" }}</td>
+                            <td>
+                                <a href="{% url 'admin_company_view' comp.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Detail">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--muted); padding: 2rem;">No companies registered yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Platform Activity Logs -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Platform Activity</h3>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <ul id="recent-logs-list" style="list-style: none;">
+                {% for log in recent_logs %}
+                    <li style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 0.25rem; color: var(--foreground);">
+                            <span>{{ log.user.username|default:"System" }}</span>
+                            <span style="font-weight: 400; color: var(--muted); font-size: 0.75rem;">{{ log.timestamp|date:"H:i" }}</span>
+                        </div>
+                        <div style="color: var(--muted);">
+                            {{ log.action }} on <strong>{{ log.module }}</strong>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li style="padding: 2rem; text-align: center; color: var(--muted); font-size: 0.85rem;">No activities logged yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Shared chart instances
+        let registrationsChart = null;
+        let revenueChart = null;
+        let plansChart = null;
+        let ticketsChart = null;
+
+        const adminPeriods = {
+            registrations: 'this_month',
+            revenue: 'this_month',
+            tickets: 'this_month'
+        };
+
+        // Fetch chart data helper with realtime table updating
+        function fetchChartData(period) {
+            return fetch(`/admin/dashboard/chart-data/?period=${period}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        // Update Recent Registrations Table
+                        const tbody = document.getElementById('recent-companies-tbody');
+                        if (tbody && data.recent_companies) {
+                            if (data.recent_companies.length === 0) {
+                                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 2rem;">No companies registered yet.</td></tr>`;
+                            } else {
+                                tbody.innerHTML = data.recent_companies.map(comp => {
+                                    let badgeClass = 'badge-danger';
+                                    if (comp.status === 'ACTIVE') badgeClass = 'badge-success';
+                                    else if (comp.status === 'TRIAL') badgeClass = 'badge-info';
+
+                                    return `
+                                        <tr>
+                                            <td><strong>${comp.name}</strong></td>
+                                            <td>${comp.gstin}</td>
+                                            <td>${comp.mobile}</td>
+                                            <td>
+                                                <span class="badge ${badgeClass}">
+                                                    ${comp.status_display}
+                                                </span>
+                                            </td>
+                                            <td>${comp.created_at}</td>
+                                            <td>
+                                                <a href="/admin/companies/${comp.id}/" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Detail">
+                                                    <i class="fa-regular fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('');
+                            }
+                        }
+
+                        // Update Platform Activity List
+                        const logsList = document.getElementById('recent-logs-list');
+                        if (logsList && data.recent_logs) {
+                            if (data.recent_logs.length === 0) {
+                                logsList.innerHTML = `<li style="padding: 2rem; text-align: center; color: var(--muted); font-size: 0.85rem;">No activities logged yet.</li>`;
+                            } else {
+                                logsList.innerHTML = data.recent_logs.map(log => {
+                                    return `
+                                        <li style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
+                                            <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 0.25rem; color: var(--foreground);">
+                                                <span>${log.username}</span>
+                                                <span style="font-weight: 400; color: var(--muted); font-size: 0.75rem;">${log.time}</span>
+                                            </div>
+                                            <div style="color: var(--muted);">
+                                                ${log.action} on <strong>${log.module}</strong>
+                                            </div>
+                                        </li>
+                                    `;
+                                }).join('');
+                            }
+                        }
+                    }
+                    return data;
+                })
+                .catch(err => {
+                    console.error("Error loading SaaS chart data", err);
+                    return null;
+                });
+        }
+
+        function updateAdminTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const el = document.getElementById('admin-last-updated-time');
+            if (el) el.textContent = timeStr;
+        }
+
+        // Initialize Registrations Chart (GRAPH 1)
+        function initRegistrationsChart(period) {
+            fetchChartData(period).then(data => {
+                if (!data) return;
+                const ctx = document.getElementById('registrationsChart').getContext('2d');
+                if (registrationsChart) registrationsChart.destroy();
+                
+                registrationsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'New Registrations',
+                            data: data.registrations_data,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, stepSize: 1 } },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Initialize SaaS Revenue Chart (GRAPH 2)
+        function initRevenueChart(period) {
+            fetchChartData(period).then(data => {
+                if (!data) return;
+                const ctx = document.getElementById('revenueChart').getContext('2d');
+                if (revenueChart) revenueChart.destroy();
+                
+                revenueChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Monthly Subscriptions Revenue Sum (₹)',
+                            data: data.revenue_data,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Initialize Plans Chart (GRAPH 3)
+        function initPlansChart() {
+            fetchChartData('this_month').then(data => {
+                if (!data) return;
+                const ctx = document.getElementById('plansChart').getContext('2d');
+                if (plansChart) plansChart.destroy();
+                
+                plansChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.plan_labels,
+                        datasets: [{
+                            data: data.plan_values,
+                            backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Initialize Tickets Chart (GRAPH 4)
+        function initTicketsChart(period) {
+            fetchChartData(period).then(data => {
+                if (!data) return;
+                const ctx = document.getElementById('ticketsChart').getContext('2d');
+                if (ticketsChart) ticketsChart.destroy();
+                
+                ticketsChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.ticket_labels,
+                        datasets: [{
+                            data: data.ticket_values,
+                            backgroundColor: ['#f59e0b', '#2563eb', '#10b981', '#64748b'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function reloadAllAdminCharts() {
+            const spinner = document.getElementById('admin-realtime-spinner');
+            if (spinner) spinner.style.display = 'inline-block';
+
+            initRegistrationsChart(adminPeriods.registrations);
+            initRevenueChart(adminPeriods.revenue);
+            initPlansChart();
+            initTicketsChart(adminPeriods.tickets);
+
+            setTimeout(() => {
+                if (spinner) spinner.style.display = 'none';
+                updateAdminTimestamp();
+            }, 600);
+        }
+
+        // Handle Selector changes
+        document.querySelectorAll('.period-selector').forEach(sel => {
+            sel.addEventListener('change', (e) => {
+                const chartType = e.target.dataset.chart;
+                const period = e.target.value;
+                adminPeriods[chartType] = period;
+                
+                if (chartType === 'registrations') initRegistrationsChart(period);
+                if (chartType === 'revenue') initRevenueChart(period);
+                if (chartType === 'tickets') initTicketsChart(period);
+                updateAdminTimestamp();
+            });
+        });
+
+        // Handle Manual Refresh button
+        const refreshBtn = document.getElementById('btn-admin-refresh');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                reloadAllAdminCharts();
+            });
+        }
+
+        // Initialize all charts on load
+        reloadAllAdminCharts();
+
+        // Realtime Polling (Auto-refresh every 30 seconds)
+        setInterval(() => {
+            reloadAllAdminCharts();
+        }, 30000);
+    });
+</script>
+{% endblock %}

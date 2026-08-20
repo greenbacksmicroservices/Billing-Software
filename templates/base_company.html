@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}{% block company_title %}GST Billing System - GBL Billing{% endblock %}{% endblock %}
+
+{% block sidebar_menu %}
+<li class="sidebar-section-header">MAIN MENU</li>
+<!-- Dashboard -->
+<li class="sidebar-item {% block nav_dashboard %}{% endblock %}">
+    <a href="{% url 'company_dashboard' %}" class="sidebar-link">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Dashboard</span>
+    </a>
+</li>
+
+<!-- Sales Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="sales">
+        <i class="fa-solid fa-file-invoice"></i>
+        <span>Sales & Invoicing</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'quotation_list' %}" class="sub-link {% block sub_quotations %}{% endblock %}"><i class="fa-solid fa-file-lines"></i> Quotations</a></li>
+        <li><a href="{% url 'sales_order_list' %}" class="sub-link {% block sub_sales_orders %}{% endblock %}"><i class="fa-solid fa-file-circle-check"></i> Sales Orders</a></li>
+        <li><a href="{% url 'invoice_list' %}" class="sub-link {% block sub_invoices %}{% endblock %}"><i class="fa-solid fa-receipt"></i> Tax Invoices</a></li>
+        <li><a href="{% url 'credit_note_list' %}" class="sub-link {% block sub_credit_notes %}{% endblock %}"><i class="fa-solid fa-file-invoice-dollar"></i> Credit Notes</a></li>
+    </ul>
+</li>
+
+<!-- Purchases Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="purchases">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <span>Purchases</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'purchase_bill_list' %}" class="sub-link {% block sub_purchase_bills %}{% endblock %}"><i class="fa-solid fa-cart-shopping"></i> Purchase Bills</a></li>
+        <li><a href="{% url 'debit_note_list' %}" class="sub-link {% block sub_debit_notes %}{% endblock %}"><i class="fa-solid fa-file-invoice-dollar"></i> Debit Notes</a></li>
+    </ul>
+</li>
+
+<!-- Inventory Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="inventory">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>Inventory</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'product_list' %}" class="sub-link {% block sub_products %}{% endblock %}"><i class="fa-solid fa-box"></i> Products Master</a></li>
+        <li><a href="{% url 'stock_ledger' %}" class="sub-link {% block sub_stock_ledger %}{% endblock %}"><i class="fa-solid fa-list-check"></i> Stock Movements</a></li>
+        <li><a href="{% url 'warehouse_list' %}" class="sub-link {% block sub_warehouses %}{% endblock %}"><i class="fa-solid fa-warehouse"></i> Warehouses</a></li>
+    </ul>
+</li>
+
+<!-- Contacts Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="contacts">
+        <i class="fa-solid fa-address-book"></i>
+        <span>Contacts</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'customer_list' %}" class="sub-link {% block sub_customers %}{% endblock %}"><i class="fa-solid fa-user-tie"></i> Customers</a></li>
+        <li><a href="{% url 'supplier_list' %}" class="sub-link {% block sub_suppliers %}{% endblock %}"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+    </ul>
+</li>
+
+<!-- Accounting Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="accounting">
+        <i class="fa-solid fa-wallet"></i>
+        <span>Accounting</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'payment_list' %}" class="sub-link {% block sub_payments %}{% endblock %}"><i class="fa-solid fa-money-bill-transfer"></i> Payments Logs</a></li>
+        <li><a href="{% url 'expense_list' %}" class="sub-link {% block sub_expenses %}{% endblock %}"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
+    </ul>
+</li>
+
+<!-- GST Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="gst">
+        <i class="fa-solid fa-building-columns"></i>
+        <span>GST Compliance</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'gst_dashboard' %}" class="sub-link {% block sub_gst_dash %}{% endblock %}"><i class="fa-solid fa-percent"></i> GST Dashboard</a></li>
+        <li><a href="{% url 'gst_report_gstr1' %}" class="sub-link {% block sub_gstr1 %}{% endblock %}"><i class="fa-solid fa-file-export"></i> GSTR-1 (Sales)</a></li>
+        <li><a href="{% url 'gst_report_gstr3b' %}" class="sub-link {% block sub_gstr3b %}{% endblock %}"><i class="fa-solid fa-file-shield"></i> GSTR-3B Summary</a></li>
+    </ul>
+</li>
+
+<!-- System Config Dropdown -->
+<li class="sidebar-item dropdown">
+    <div class="sidebar-link dropdown-toggle" data-menu="management">
+        <i class="fa-solid fa-gears"></i>
+        <span>Management</span>
+        <i class="fa-solid fa-chevron-right chevron"></i>
+    </div>
+    <ul class="sidebar-sub-menu">
+        <li><a href="{% url 'reports_hub' %}" class="sub-link {% block nav_reports %}{% endblock %}"><i class="fa-solid fa-file-chart-column"></i> Reports Hub</a></li>
+        <li><a href="{% url 'company_settings' %}" class="sub-link {% block nav_settings %}{% endblock %}"><i class="fa-solid fa-circle-info"></i> Business Settings</a></li>
+    </ul>
+</li>
+
+<li class="sidebar-item {% block nav_my_account %}{% endblock %}">
+    <a href="{% url 'company_my_account' %}" class="sidebar-link">
+        <i class="fa-solid fa-user-gear"></i>
+        <span>My Account</span>
+    </a>
+</li>
+{% endblock %}

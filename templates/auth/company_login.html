@@ -1,0 +1,30 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}Business Login - GST Billing{% endblock %}
+{% block heading %}Business Control Desk{% endblock %}
+{% block subheading %}Access your billing, sales & inventory dashboard{% endblock %}
+
+{% block content %}
+<form method="POST">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" name="username" id="username" class="form-control" placeholder="Company username" required autofocus>
+    </div>
+    
+    <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.75rem;">
+        <i class="fa-solid fa-right-to-bracket"></i> Login to Account
+    </button>
+</form>
+
+<div style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem;">
+    <a href="{% url 'admin_login' %}" style="color: var(--muted-foreground);">
+        <i class="fa-solid fa-gears"></i> System Admin Portal
+    </a>
+</div>
+{% endblock %}

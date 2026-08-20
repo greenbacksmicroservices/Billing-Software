@@ -1,0 +1,117 @@
+{% extends 'base_company.html' %}
+
+{% block title %}{% if object %}Edit Supplier - {{ object.name }}{% else %}Add New Supplier{% endif %}{% endblock %}
+{% block sub_suppliers %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{% if object %}Edit Supplier Profile{% else %}Register New Supplier{% endif %}</h1>
+    <a href="{% url 'supplier_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<form method="POST" class="card-container">
+    {% csrf_token %}
+    <div class="card-header">
+        <h3 class="card-title">Supplier Registration Details</h3>
+    </div>
+    
+    <div class="card-body">
+        {% if form.errors %}
+            <div class="message-item error">
+                <strong>Error saving form:</strong> Please verify the highlighted inputs.
+                {{ form.errors }}
+            </div>
+        {% endif %}
+        
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-bottom: 1rem;">1. Basic Business Information</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Supplier Legal Name *</label>
+                {{ form.name }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Trade / Brand Name</label>
+                {{ form.business_name }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Supplier GST Type</label>
+                {{ form.supplier_type }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">GSTIN (15-characters)</label>
+                {{ form.gstin }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">PAN Card Number</label>
+                {{ form.pan }}
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">2. Contact Details</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Mobile Number *</label>
+                {{ form.mobile }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Alternate Mobile</label>
+                {{ form.alternate_mobile }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email address</label>
+                {{ form.email }}
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">3. Business Address</h4>
+        <div class="form-group">
+            <label class="form-label">Street Address *</label>
+            {{ form.address }}
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">City *</label>
+                {{ form.city }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">State *</label>
+                {{ form.state }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">State Code *</label>
+                {{ form.state_code }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Pincode *</label>
+                {{ form.pincode }}
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">4. Credit Terms & Opening Balance</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Payment Credit Terms (Days)</label>
+                {{ form.payment_terms }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Opening Balance (INR)</label>
+                {{ form.opening_balance }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Opening Balance Type</label>
+                {{ form.opening_balance_type }}
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <a href="{% url 'supplier_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

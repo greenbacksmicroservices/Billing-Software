@@ -1,0 +1,632 @@
+{% extends 'base_company.html' %}
+
+{% block title %}My Account - User Access Management{% endblock %}
+{% block nav_my_account %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0;">My Account</h1>
+        <p style="color: var(--muted-foreground); margin: 0.25rem 0 0 0;">Manage company accounts and access.</p>
+    </div>
+    {% if request.user.role == 'ADMIN' %}
+    <div>
+        <button type="button" class="btn btn-primary" onclick="openAddAccountModal()">
+            <i class="fa-solid fa-plus"></i> Add Account
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" data-no-ajax="true" onsubmit="applyFilters(event)">
+            <div style="flex-grow: 1; min-width: 250px;">
+                {% include 'common_table_search.html' with placeholder="Search name, username, email..." %}
+            </div>
+            
+            <div style="width: 160px;">
+                <select id="filter_role" name="role" class="form-control" onchange="submitFilters()">
+                    <option value="">All Roles</option>
+                    {% for val, display in roles %}
+                        <option value="{{ val }}" {% if request.GET.role == val %}selected{% endif %}>{{ display }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="width: 160px;">
+                <select id="filter_status" name="status" class="form-control" onchange="submitFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            
+            <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+        </form>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Created Date</th>
+                    <th style="text-align: right; width: 220px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in accounts %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td><strong>{{ u.first_name }} {{ u.last_name }}</strong></td>
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.mobile|default:"-" }}</td>
+                        <td><span class="badge badge-info">{{ u.get_role_display }}</span></td>
+                        <td>
+                            <span class="badge {% if u.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if u.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>{{ u.last_login|date:"d M Y H:i"|default:"Never" }}</td>
+                        <td>{{ u.date_joined|date:"d M Y" }}</td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                                <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openViewAccountModal({{ u.id }})" title="View Details">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
+                                {% if request.user.role == 'ADMIN' %}
+                                    <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openEditAccountModal({{ u.id }})" title="Edit Account">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openChangePasswordModal({{ u.id }}, '{{ u.username }}')" title="Change Password">
+                                        <i class="fa-solid fa-key"></i>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="triggerGlobalDelete('/api/delete/user/{{ u.id }}/', '{{ u.username }}')" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Deactivate/Delete User">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No accounts logged.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+
+<!-- Modal: Add Account -->
+<div id="addAccountModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 500px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-user-plus"></i> Add Account</h3>
+            <button type="button" onclick="closeAddAccountModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form onsubmit="submitAddAccount(event)">
+            <div id="add_err_box" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Name *</label>
+                <input type="text" id="add_name" class="form-control" required placeholder="Type your name">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Username *</label>
+                <input type="text" id="add_username" class="form-control" required placeholder="Enter username">
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Email *</label>
+                    <input type="email" id="add_email" class="form-control" required placeholder="name@company.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Mobile</label>
+                    <input type="text" id="add_mobile" class="form-control" placeholder="9876543210">
+                </div>
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Role *</label>
+                    <select id="add_role" class="form-control" required>
+                        <option value="ACCOUNTANT">Accountant</option>
+                        <option value="ADMIN">Company Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Status</label>
+                    <select id="add_status" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Password *</label>
+                    <input type="password" id="add_password" class="form-control" required placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Confirm Password *</label>
+                    <input type="password" id="add_confirm" class="form-control" required placeholder="Re-enter password">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeAddAccountModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="addSubmitBtn" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Account -->
+<div id="editAccountModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 500px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-user-pen"></i> Edit Account</h3>
+            <button type="button" onclick="closeEditAccountModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form onsubmit="submitEditAccount(event)">
+            <input type="hidden" id="edit_user_id">
+            <div id="edit_err_box" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Name *</label>
+                <input type="text" id="edit_name" class="form-control" required placeholder="Type your name">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Username *</label>
+                <input type="text" id="edit_username" class="form-control" required placeholder="Enter username">
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Email *</label>
+                    <input type="email" id="edit_email" class="form-control" required placeholder="name@company.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Mobile</label>
+                    <input type="text" id="edit_mobile" class="form-control">
+                </div>
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Role *</label>
+                    <select id="edit_role" class="form-control" required>
+                        <option value="ACCOUNTANT">Accountant</option>
+                        <option value="ADMIN">Company Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Status</label>
+                    <select id="edit_status" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeEditAccountModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="editSubmitBtn" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: View Account -->
+<div id="viewAccountModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 500px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-id-card"></i> Account Details</h3>
+            <button type="button" onclick="closeViewAccountModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Name:</span>
+                <span id="view_name" style="font-weight: 600;"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Username:</span>
+                <span id="view_username"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Email:</span>
+                <span id="view_email"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Mobile:</span>
+                <span id="view_mobile"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Role:</span>
+                <span id="view_role" class="badge badge-info"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Status:</span>
+                <span id="view_status" class="badge"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Company Context:</span>
+                <span id="view_company"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Created Date:</span>
+                <span id="view_created_at"></span>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                <span style="font-weight: 600; width: 140px; color: var(--muted-foreground);">Last Login:</span>
+                <span id="view_last_login"></span>
+            </div>
+            
+            <h4 style="margin: 0.75rem 0 0.5rem 0; color: var(--primary);">Platform Activity Log counts:</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: var(--card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 4px;">
+                <div>Quotations Created: <strong id="act_quotes">0</strong></div>
+                <div>Invoices Posted: <strong id="act_invoices">0</strong></div>
+                <div>Payments Logged: <strong id="act_payments">0</strong></div>
+                <div>Purchases Created: <strong id="act_purchases">0</strong></div>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--border); margin-top: 1.25rem; padding-top: 0.75rem;">
+            <button type="button" onclick="closeViewAccountModal()" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Change Password -->
+<div id="changePasswordModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 450px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-key"></i> Modify Password</h3>
+            <button type="button" onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form onsubmit="submitChangePassword(event)">
+            <input type="hidden" id="pass_user_id">
+            <div id="pass_err_box" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            <div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--muted-foreground);">
+                Resetting password for: <strong id="pass_target_name" style="color: var(--foreground);"></strong>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Your Current Admin Password *</label>
+                <input type="password" id="pass_current" class="form-control" required placeholder="Enter your current password">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">New Password *</label>
+                <input type="password" id="pass_new" class="form-control" required placeholder="Min 6 characters">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Confirm New Password *</label>
+                <input type="password" id="pass_confirm" class="form-control" required placeholder="Confirm new password">
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeChangePasswordModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="passSubmitBtn" class="btn btn-primary">Change Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Filters & AJAX Table loading helper
+    function submitFilters() {
+        const role = document.getElementById('filter_role').value;
+        const status = document.getElementById('filter_status').value;
+        const searchInput = document.querySelector('.table-search-input');
+        const search = searchInput ? searchInput.value.trim() : '';
+
+        const url = new URL(window.location.href);
+        if (role) url.searchParams.set('role', role); else url.searchParams.delete('role');
+        if (status) url.searchParams.set('status', status); else url.searchParams.delete('status');
+        if (search) url.searchParams.set('search', search); else url.searchParams.delete('search');
+        url.searchParams.set('page', '1'); // Reset to page 1
+
+        if (typeof window.loadAjaxTable === 'function') {
+            window.loadAjaxTable(url.toString(), 'table-container');
+        } else {
+            window.location.href = url.toString();
+        }
+    }
+
+    function applyFilters(e) {
+        e.preventDefault();
+        submitFilters();
+    }
+
+    function resetFilters() {
+        document.getElementById('filter_role').value = '';
+        document.getElementById('filter_status').value = '';
+        const searchInput = document.querySelector('.table-search-input');
+        if (searchInput) searchInput.value = '';
+        
+        const url = new URL(window.location.href);
+        url.search = ''; // Clear all search queries
+        
+        if (typeof window.loadAjaxTable === 'function') {
+            window.loadAjaxTable(url.toString(), 'table-container');
+        } else {
+            window.location.href = url.pathname;
+        }
+    }
+
+    // Modal Add Account actions
+    function openAddAccountModal() {
+        document.getElementById('add_err_box').style.display = 'none';
+        document.getElementById('add_name').value = '';
+        document.getElementById('add_username').value = '';
+        document.getElementById('add_email').value = '';
+        document.getElementById('add_mobile').value = '';
+        document.getElementById('add_password').value = '';
+        document.getElementById('add_confirm').value = '';
+        document.getElementById('add_role').value = 'ACCOUNTANT';
+        document.getElementById('add_status').value = 'active';
+        document.getElementById('addAccountModal').style.display = 'flex';
+    }
+
+    function closeAddAccountModal() {
+        document.getElementById('addAccountModal').style.display = 'none';
+    }
+
+    function submitAddAccount(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('add_err_box');
+        errBox.style.display = 'none';
+
+        const name = document.getElementById('add_name').value.trim();
+        const username = document.getElementById('add_username').value.trim();
+        const email = document.getElementById('add_email').value.trim();
+        const mobile = document.getElementById('add_mobile').value.trim();
+        const role = document.getElementById('add_role').value;
+        const status = document.getElementById('add_status').value;
+        const password = document.getElementById('add_password').value;
+        const confirm = document.getElementById('add_confirm').value;
+
+        if (password !== confirm) {
+            errBox.innerText = "Passwords do not match.";
+            errBox.style.display = 'block';
+            return;
+        }
+
+        const btn = document.getElementById('addSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        fetch('/company/my-account/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                name: name,
+                username: username,
+                email: email,
+                mobile: mobile,
+                role: role,
+                status: status,
+                password: password,
+                confirm_password: confirm
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerText = 'Save';
+            if (data.success) {
+                closeAddAccountModal();
+                showToast('success', data.message || 'Account created successfully.');
+                submitFilters(); // reload table
+            } else {
+                errBox.innerText = data.message || 'Failed to create account.';
+                errBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = 'Save';
+            errBox.innerText = 'Network error occurred. Try again.';
+            errBox.style.display = 'block';
+        });
+    }
+
+    // Modal Edit Account actions
+    function openEditAccountModal(id) {
+        const errBox = document.getElementById('edit_err_box');
+        errBox.style.display = 'none';
+        
+        fetch(`/company/my-account/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('edit_user_id').value = data.user.id;
+                    document.getElementById('edit_name').value = data.user.name;
+                    document.getElementById('edit_username').value = data.user.username;
+                    document.getElementById('edit_email').value = data.user.email;
+                    document.getElementById('edit_mobile').value = data.user.mobile;
+                    document.getElementById('edit_role').value = data.user.role;
+                    document.getElementById('edit_status').value = data.user.status === 'Active' ? 'active' : 'inactive';
+                    
+                    document.getElementById('editAccountModal').style.display = 'flex';
+                } else {
+                    showToast('error', data.message || 'Could not fetch user details.');
+                }
+            })
+            .catch(err => showToast('error', 'Network error while fetching user details.'));
+    }
+
+    function closeEditAccountModal() {
+        document.getElementById('editAccountModal').style.display = 'none';
+    }
+
+    function submitEditAccount(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_user_id').value;
+        const errBox = document.getElementById('edit_err_box');
+        errBox.style.display = 'none';
+
+        const name = document.getElementById('edit_name').value.trim();
+        const username = document.getElementById('edit_username').value.trim();
+        const email = document.getElementById('edit_email').value.trim();
+        const mobile = document.getElementById('edit_mobile').value.trim();
+        const role = document.getElementById('edit_role').value;
+        const status = document.getElementById('edit_status').value;
+
+        const btn = document.getElementById('editSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        fetch(`/company/my-account/${id}/edit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                name: name,
+                username: username,
+                email: email,
+                mobile: mobile,
+                role: role,
+                status: status
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerText = 'Save Changes';
+            if (data.success) {
+                closeEditAccountModal();
+                showToast('success', data.message || 'Account updated successfully.');
+                submitFilters(); // reload table
+            } else {
+                errBox.innerText = data.message || 'Failed to edit account.';
+                errBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = 'Save Changes';
+            errBox.innerText = 'Network error occurred. Try again.';
+            errBox.style.display = 'block';
+        });
+    }
+
+    // Modal View Account actions
+    function openViewAccountModal(id) {
+        fetch(`/company/my-account/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('view_name').innerText = data.user.name;
+                    document.getElementById('view_username').innerText = data.user.username;
+                    document.getElementById('view_email').innerText = data.user.email;
+                    document.getElementById('view_mobile').innerText = data.user.mobile || '-';
+                    
+                    const roleEl = document.getElementById('view_role');
+                    roleEl.innerText = data.user.role_display;
+                    
+                    const statusEl = document.getElementById('view_status');
+                    statusEl.innerText = data.user.status;
+                    statusEl.className = 'badge ' + (data.user.status === 'Active' ? 'badge-success' : 'badge-danger');
+                    
+                    document.getElementById('view_company').innerText = data.user.company;
+                    document.getElementById('view_created_at').innerText = data.user.created_at;
+                    document.getElementById('view_last_login').innerText = data.user.last_login;
+                    
+                    document.getElementById('act_quotes').innerText = data.user.activity.quotations_created;
+                    document.getElementById('act_invoices').innerText = data.user.activity.invoices_created;
+                    document.getElementById('act_payments').innerText = data.user.activity.payments_created;
+                    document.getElementById('act_purchases').innerText = data.user.activity.purchases_created;
+
+                    document.getElementById('viewAccountModal').style.display = 'flex';
+                } else {
+                    showToast('error', data.message || 'Could not fetch user details.');
+                }
+            })
+            .catch(err => showToast('error', 'Network error while fetching user details.'));
+    }
+
+    // Modal Change Password actions
+    function openChangePasswordModal(id, username) {
+        document.getElementById('pass_err_box').style.display = 'none';
+        document.getElementById('pass_user_id').value = id;
+        document.getElementById('pass_target_name').innerText = username;
+        document.getElementById('pass_current').value = '';
+        document.getElementById('pass_new').value = '';
+        document.getElementById('pass_confirm').value = '';
+        document.getElementById('changePasswordModal').style.display = 'flex';
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').style.display = 'none';
+    }
+
+    function submitChangePassword(e) {
+        e.preventDefault();
+        const id = document.getElementById('pass_user_id').value;
+        const errBox = document.getElementById('pass_err_box');
+        errBox.style.display = 'none';
+
+        const currentPass = document.getElementById('pass_current').value;
+        const newPass = document.getElementById('pass_new').value;
+        const confirmPass = document.getElementById('pass_confirm').value;
+
+        if (newPass !== confirmPass) {
+            errBox.innerText = "New passwords do not match.";
+            errBox.style.display = 'block';
+            return;
+        }
+
+        const btn = document.getElementById('passSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        fetch(`/company/my-account/${id}/change-password/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                current_password: currentPass,
+                new_password: newPass,
+                confirm_password: confirmPass
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerText = 'Change Password';
+            if (data.success) {
+                closeChangePasswordModal();
+                showToast('success', data.message || 'Password updated successfully.');
+            } else {
+                errBox.innerText = data.message || 'Failed to change password.';
+                errBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = 'Change Password';
+            errBox.innerText = 'Network error occurred. Try again.';
+            errBox.style.display = 'block';
+        });
+    }
+</script>
+{% endblock %}

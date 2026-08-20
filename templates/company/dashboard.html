@@ -1,0 +1,606 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Dashboard - GBL Billing{% endblock %}
+
+{% block header_datetime %}
+    {% include 'dashboard_datetime.html' %}
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Dashboard</h1>
+        <small style="color: var(--muted); font-size: 0.8rem;">
+            <i class="fa-solid fa-sync fa-spin" id="realtime-spinner" style="display: none; margin-right: 0.25rem;"></i>
+            Realtime DB Status: <span id="last-updated-time">Just updated</span>
+        </small>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button id="btn-manual-refresh" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Refresh Graphs Realtime">
+            <i class="fa-solid fa-rotate"></i> Refresh Data
+        </button>
+        <a href="{% url 'invoice_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Create Invoice
+        </a>
+        <a href="{% url 'purchase_bill_add' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-cart-flatbed"></i> Purchase Bill
+        </a>
+    </div>
+</div>
+
+<!-- KPI Cards Row 1 -->
+<div class="dashboard-grid">
+    <div class="stat-card kpi-sales">
+        <div class="stat-card-header">
+            <span>Today's Sales</span>
+            <i class="fa-solid fa-money-bill-wave" style="color: var(--primary); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value">{{ today_sales|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-trend {% if sales_trend >= 0 %}up{% else %}down{% endif %}">
+                <i class="fa-solid {% if sales_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                {{ sales_trend|floatformat:1 }}%
+            </span>
+            <span>from yesterday</span>
+        </div>
+    </div>
+
+    <div class="stat-card kpi-purchases">
+        <div class="stat-card-header">
+            <span>Today's Purchases</span>
+            <i class="fa-solid fa-basket-shopping" style="color: #10b981; font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value">{{ today_purchase|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-trend {% if purchase_trend >= 0 %}up{% else %}down{% endif %}">
+                <i class="fa-solid {% if purchase_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                {{ purchase_trend|floatformat:1 }}%
+            </span>
+            <span>from yesterday</span>
+        </div>
+    </div>
+
+    <div class="stat-card kpi-collections">
+        <div class="stat-card-header">
+            <span>Today's Collections</span>
+            <i class="fa-solid fa-hand-holding-dollar" style="color: #8b5cf6; font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value">{{ today_collection|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-trend {% if collection_trend >= 0 %}up{% else %}down{% endif %}">
+                <i class="fa-solid {% if collection_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                {{ collection_trend|floatformat:1 }}%
+            </span>
+            <span>from yesterday</span>
+        </div>
+    </div>
+
+    <div class="stat-card kpi-alerts">
+        <div class="stat-card-header">
+            <span>Low Stock Alerts</span>
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 1.1rem;"></i>
+        </div>
+        <div class="stat-card-value" style="color: {% if low_stock_items > 0 %}var(--warning){% else %}var(--foreground){% endif %};">{{ low_stock_items }}</div>
+        <div class="stat-card-footer">
+            <span>Items require re-ordering</span>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Row 2 -->
+<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <div class="stat-card kpi-receivable">
+        <div class="stat-card-header">Total Outstanding Receivables</div>
+        <div class="stat-card-value" style="color: var(--primary);">{{ receivable|indian_currency }}</div>
+        <div class="stat-card-footer">Due from customers</div>
+    </div>
+
+    <div class="stat-card kpi-payable">
+        <div class="stat-card-header">Total Outstanding Payables</div>
+        <div class="stat-card-value" style="color: var(--danger);">{{ payable|indian_currency }}</div>
+        <div class="stat-card-footer">Due to suppliers</div>
+    </div>
+
+    <div class="stat-card kpi-stock">
+        <div class="stat-card-header">Estimated Stock Value</div>
+        <div class="stat-card-value" style="color: var(--success);">{{ total_stock_value|indian_currency }}</div>
+        <div class="stat-card-footer">At current selling rates</div>
+    </div>
+
+    <div class="stat-card kpi-profit">
+        <div class="stat-card-header">Total Profit (MTD)</div>
+        <div class="stat-card-value" style="color: #06b6d4;">{{ profit_mtd|indian_currency }}</div>
+        <div class="stat-card-footer">
+            <span class="stat-card-trend {% if profit_trend >= 0 %}up{% else %}down{% endif %}">
+                <i class="fa-solid {% if profit_trend >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                {{ profit_trend|floatformat:1 }}%
+            </span>
+            <span>vs last month</span>
+        </div>
+    </div>
+</div>
+
+<!-- Main Graphs Grid Row 1 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Sales Overview Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Sales Overview</h3>
+            <select class="form-control period-selector" data-chart="sales" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchases Overview Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Purchases Overview</h3>
+            <select class="form-control period-selector" data-chart="purchases" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="purchasesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Graphs Grid Row 2 -->
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Expenses Category Donut Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Expenses Distribution</h3>
+            <select class="form-control period-selector" data-chart="expenses" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <canvas id="expensesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue/Collection/Profit Bar/Line Graph -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Revenue vs Collections vs Profit</h3>
+            <select class="form-control period-selector" data-chart="revenue" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document/Application Status Breakdown Graph Row 3 -->
+<div style="margin-bottom: 2rem;">
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <h3 class="card-title" style="margin: 0;">Status-wise Breakdown</h3>
+                <select id="status-entity-selector" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; font-weight: 600;">
+                    <option value="invoice" selected>Tax Invoices</option>
+                    <option value="quotation">Quotations</option>
+                    <option value="sales_order">Sales Orders</option>
+                </select>
+            </div>
+            <select class="form-control period-selector" data-chart="status" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <option value="this_month" selected>This Month</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+            </select>
+        </div>
+        <div class="card-body">
+            <div style="height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Section: Recent Invoices & Low Stock -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Recent Tax Invoices Table -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Recent Tax Invoices</h3>
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">View All Invoices</a>
+        </div>
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                        <tr>
+                            <td><strong>{{ inv.invoice_number }}</strong></td>
+                            <td>{{ inv.customer.name }}</td>
+                            <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+                            <td>{{ inv.grand_total|indian_currency }}</td>
+                            <td>
+                                <span class="badge {% if inv.status == 'PAID' %}badge-success{% elif inv.status == 'PARTIALLY_PAID' %}badge-info{% elif inv.status == 'DRAFT' %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ inv.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'invoice_view' inv.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Details">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--muted); padding: 2rem;">No invoices logged yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Low Stock Indicators -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header">
+            <h3 class="card-title">Low Stock Items</h3>
+            <a href="{% url 'product_list' %}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">View All</a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <ul style="list-style: none;">
+                {% for prod in low_stock_alerts %}
+                    <li style="padding: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.875rem; color: var(--foreground);">{{ prod.name }}</div>
+                            <small style="color: var(--muted);">SKU: {{ prod.sku|default:"N/A" }}</small>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="color: var(--danger); font-weight: 700; font-size: 0.95rem;">{{ prod.current_stock }} {{ prod.unit.name|default:"PCS" }}</div>
+                            <small style="color: var(--muted);">Min: {{ prod.min_stock }}</small>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li style="padding: 2.5rem; text-align: center; color: var(--muted); font-size: 0.85rem;">All inventory levels are optimal.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Shared chart instances
+        let salesChart = null;
+        let purchasesChart = null;
+        let expensesChart = null;
+        let revenueChart = null;
+        let statusChart = null;
+
+        // Current periods state
+        const chartPeriods = {
+            sales: 'this_month',
+            purchases: 'this_month',
+            expenses: 'this_month',
+            revenue: 'this_month',
+            status: 'this_month'
+        };
+        let currentStatusEntity = 'invoice';
+
+        // Cached fetch chart data helper to prevent duplicate concurrent network requests
+        let chartDataCache = {};
+        function fetchChartData(period, statusEntity = 'invoice') {
+            const key = `${period}_${statusEntity}`;
+            if (chartDataCache[key]) {
+                return chartDataCache[key];
+            }
+            chartDataCache[key] = fetch(`/company/dashboard/chart-data/?period=${period}&status_entity=${statusEntity}`)
+                .then(res => res.json())
+                .catch(err => {
+                    console.error("Error loading chart data", err);
+                    return null;
+                });
+            return chartDataCache[key];
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('last-updated-time').textContent = timeStr;
+        }
+
+        // Render Sales Chart (GRAPH 1)
+        function renderSalesChart(data) {
+            if (!data) return;
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            if (salesChart) salesChart.destroy();
+            
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Sales (₹)',
+                        data: data.sales_data,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Render Purchases Chart (GRAPH 2)
+        function renderPurchasesChart(data) {
+            if (!data) return;
+            const ctx = document.getElementById('purchasesChart').getContext('2d');
+            if (purchasesChart) purchasesChart.destroy();
+            
+            purchasesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Purchases (₹)',
+                        data: data.purchases_data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Render Expenses Chart (GRAPH 3)
+        function renderExpensesChart(data) {
+            if (!data) return;
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            if (expensesChart) expensesChart.destroy();
+            
+            expensesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.expense_labels,
+                    datasets: [{
+                        data: data.expense_values,
+                        backgroundColor: [
+                            '#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', 
+                            '#06b6d4', '#ec4899', '#3b82f6', '#14b8a6', '#f43f5e'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Revenue vs Collection vs Profit Chart (GRAPH 4)
+        function renderRevenueChart(data) {
+            if (!data) return;
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            if (revenueChart) revenueChart.destroy();
+            
+            revenueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Revenue',
+                            data: data.sales_data,
+                            backgroundColor: '#2563eb',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Collections',
+                            data: data.collections_data,
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Profit',
+                            data: data.profit_data,
+                            type: 'line',
+                            borderColor: '#06b6d4',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 12, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Render Status Breakdown Chart (GRAPH 5)
+        function renderStatusChart(data) {
+            if (!data) return;
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            if (statusChart) statusChart.destroy();
+            
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.status_labels,
+                    datasets: [{
+                        data: data.status_values,
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function reloadAllCharts() {
+            chartDataCache = {};
+            const spinner = document.getElementById('realtime-spinner');
+            if (spinner) spinner.style.display = 'inline-block';
+            
+            fetchChartData(chartPeriods.sales, currentStatusEntity).then(data => {
+                if (data) {
+                    renderSalesChart(data);
+                    renderPurchasesChart(data);
+                    renderExpensesChart(data);
+                    renderRevenueChart(data);
+                    renderStatusChart(data);
+                }
+                if (spinner) spinner.style.display = 'none';
+                updateTimestamp();
+            }).catch(() => {
+                if (spinner) spinner.style.display = 'none';
+                updateTimestamp();
+            });
+        }
+
+        // Handle Period Selector changes
+        document.querySelectorAll('.period-selector').forEach(sel => {
+            sel.addEventListener('change', (e) => {
+                const chartType = e.target.dataset.chart;
+                const period = e.target.value;
+                chartPeriods[chartType] = period;
+                
+                if (chartType === 'sales') {
+                    fetchChartData(period, currentStatusEntity).then(renderSalesChart);
+                } else if (chartType === 'purchases') {
+                    fetchChartData(period, currentStatusEntity).then(renderPurchasesChart);
+                } else if (chartType === 'expenses') {
+                    fetchChartData(period, currentStatusEntity).then(renderExpensesChart);
+                } else if (chartType === 'revenue') {
+                    fetchChartData(period, currentStatusEntity).then(renderRevenueChart);
+                } else if (chartType === 'status') {
+                    fetchChartData(period, currentStatusEntity).then(renderStatusChart);
+                }
+                updateTimestamp();
+            });
+        });
+
+        // Handle Status Entity Selector change
+        const entitySel = document.getElementById('status-entity-selector');
+        if (entitySel) {
+            entitySel.addEventListener('change', (e) => {
+                currentStatusEntity = e.target.value;
+                fetchChartData(chartPeriods.status, currentStatusEntity).then(renderStatusChart);
+                updateTimestamp();
+            });
+        }
+
+        // Handle Manual Refresh button click
+        const refreshBtn = document.getElementById('btn-manual-refresh');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                reloadAllCharts();
+            });
+        }
+
+        // Initial Load
+        reloadAllCharts();
+
+        // Realtime Polling (Auto-refresh graphs every 30 seconds)
+        setInterval(() => {
+            reloadAllCharts();
+        }, 30000);
+    });
+</script>
+{% endblock %}

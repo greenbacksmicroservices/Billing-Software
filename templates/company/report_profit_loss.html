@@ -1,0 +1,72 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Profit & Loss Statement{% endblock %}
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Profit & Loss Statement</h1>
+    <a href="{% url 'reports_hub' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Hub
+    </a>
+</div>
+
+<div class="card-container" style="max-width: 600px; margin: auto;">
+    <div class="card-header"><h3 class="card-title">Estimated Statement of Operations</h3></div>
+    <div class="card-body" style="font-size: 1.1rem; display: flex; flex-direction: column; gap: 1rem;">
+        
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+            <strong style="color: var(--primary);">1. Operating Revenue (Sales)</strong>
+            <span>{{ sales_total|indian_currency }}</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; padding-left: 1.5rem; color: var(--muted-foreground); font-size: 0.95rem;">
+            <span>Less: Cost of Goods Sold (Purchases)</span>
+            <span>-{{ cogs_total|indian_currency }}</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 1.15rem;">
+            <span>Gross Operating Profit</span>
+            <span id="gross-profit-val">₹0.00</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; padding-left: 1.5rem; color: var(--muted-foreground); font-size: 0.95rem;">
+            <span>Less: Overhead Expenses</span>
+            <span>-{{ expenses_total|indian_currency }}</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 700; background-color: var(--muted); padding: 0.75rem; border-radius: var(--radius); border-left: 4px solid var(--success);">
+            <span>Estimated Net Profit</span>
+            <span style="color: var(--success);" id="net-profit-val">{{ net_profit|indian_currency }}</span>
+        </div>
+        
+        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-align: center; margin-top: 1rem;">
+            * Calculated on paid cash basis. Ensure all bills and invoices are fully recorded for formal bookkeeping.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sales = parseFloat("{{ sales_total }}") || 0;
+        const cogs = parseFloat("{{ cogs_total }}") || 0;
+        const expenses = parseFloat("{{ expenses_total }}") || 0;
+        
+        const gross = sales - cogs;
+        const net = gross - expenses;
+        
+        const grossEl = document.getElementById('gross-profit-val');
+        const netEl = document.getElementById('net-profit-val');
+
+        if (grossEl) grossEl.innerText = window.formatIndianCurrency(gross);
+        if (netEl) netEl.innerText = window.formatIndianCurrency(net);
+        
+        if (net < 0 && netEl) {
+            netEl.style.color = 'var(--destructive)';
+        }
+    });
+</script>
+{% endblock %}

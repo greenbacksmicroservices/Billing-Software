@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Login - GBL Billing{% endblock %}</title>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body class="auth-wrapper">
+    
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">{% block heading %}GBL Billing{% endblock %}</h1>
+            <p style="color: var(--muted-foreground); font-size: 0.9rem;">{% block subheading %}Access your panel{% endblock %}</p>
+        </div>
+
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="message-item {{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Custom JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+</body>
+</html>

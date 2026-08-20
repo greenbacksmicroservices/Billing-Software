@@ -1,0 +1,44 @@
+{% if is_paginated or page_obj.paginator.count > 0 %}
+<div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--muted);">
+        <span>Show</span>
+        <select class="form-control entries-select" style="width: auto; padding: 0.25rem 0.5rem; display: inline-block;" onchange="updateEntries(this)">
+            <option value="10" {% if page_obj.paginator.per_page == 10 %}selected{% endif %}>10</option>
+            <option value="25" {% if page_obj.paginator.per_page == 25 %}selected{% endif %}>25</option>
+            <option value="50" {% if page_obj.paginator.per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if page_obj.paginator.per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+        <span>Entries</span>
+    </div>
+    
+    <div style="font-size: 0.875rem; color: var(--muted);">
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} Entries
+    </div>
+    
+    <div style="display: flex; gap: 0.25rem;">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary pagination-link" data-page="{{ page_obj.previous_page_number }}" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Previous</a>
+        {% else %}
+            <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>Previous</button>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if num == page_obj.number %}
+                <button class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; font-weight: 600;">{{ num }}</button>
+            {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                <a href="?page={{ num }}" class="btn btn-secondary pagination-link" data-page="{{ num }}" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary pagination-link" data-page="{{ page_obj.next_page_number }}" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Next</a>
+        {% else %}
+            <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>Next</button>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="empty-state-pagination" style="text-align: center; padding: 2rem; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border);">
+    No records found
+</div>
+{% endif %}

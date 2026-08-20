@@ -1,0 +1,24 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Debit Note Details{% endblock %}
+{% block sub_debit_notes %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Debit Note Details</h1>
+    <a href="{% url 'debit_note_list' %}" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="card-container" style="max-width: 600px;">
+    <div class="card-body">
+        <h3>Debit Note: {{ note.note_number }}</h3>
+        <p>Date: {{ note.note_date|date:"d M Y" }}</p>
+        <p>Original Bill Ref: <strong>{{ note.purchase_bill.supplier_bill_no }}</strong></p>
+        <p>Adjustment Reason: {{ note.get_reason_display }}</p>
+        <hr style="border: none; border-top:1px solid var(--border); margin:1rem 0;">
+        <div style="font-size: 1.25rem;">
+            Adjustment Value: <strong>₹{{ note.grand_total }}</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,485 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Create Tax Invoice - Sales{% endblock %}
+{% block sub_invoices %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">New Tax Invoice</h1>
+    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Directory
+    </a>
+</div>
+
+<form id="invoice-form" method="POST" onsubmit="submitInvoice(event)" class="card-container" novalidate>
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Tax Invoice Billing Form</h3></div>
+    <div class="card-body">
+        
+        <div id="form-error-toast" class="message-item error" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <!-- 1. Form Header metadata -->
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="customer">Select Customer *</label>
+                <select id="customer" class="form-control" onchange="onCustomerChange()" required>
+                    <option value="">-- Select Customer --</option>
+                    {% for c in customers %}
+                        <option value="{{ c.id }}" data-state="{{ c.billing_state }}" data-state-code="{{ c.billing_state_code }}" data-type="{{ c.customer_type }}">
+                            {{ c.name }} {% if c.business_name %}({{ c.business_name }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="invoice-number">Invoice Number *</label>
+                <input type="text" id="invoice-number" class="form-control" value="{{ invoice_number }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="invoice-date">Invoice Date *</label>
+                <input type="date" id="invoice-date" class="form-control" value="2026-08-14" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="due-date">Due Date *</label>
+                <input type="date" id="due-date" class="form-control" value="2026-09-13" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="place-of-supply">Place of Supply (State) *</label>
+                <input type="text" id="place-of-supply" class="form-control" placeholder="Select customer..." readonly required>
+                <input type="hidden" id="place-of-supply-code" value="">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="warehouse">Dispatch Warehouse</label>
+                <select id="warehouse" class="form-control">
+                    {% for w in warehouses %}
+                        <option value="{{ w.id }}">{{ w.name }} (Code: {{ w.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="reverse-charge"> Enable Reverse Charge (RCM)
+                </label>
+            </div>
+        </div>
+
+        <!-- 2. Line Items Grid -->
+        <h4 style="margin: 2rem 0 1rem 0; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--primary);">
+            <i class="fa-solid fa-list-ul"></i> Line Items Grid
+        </h4>
+
+        <div class="table-responsive">
+            <table class="custom-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Product / Service *</th>
+                        <th style="width: 15%;">HSN/SAC</th>
+                        <th>Qty *</th>
+                        <th>Rate *</th>
+                        <th>Disc (INR)</th>
+                        <th>GST %</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right; width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                    <!-- Dynamic Rows Inserted Here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="addRow()">
+                <i class="fa-solid fa-plus"></i> Add Item Row
+            </button>
+        </div>
+
+        <!-- 3. Totals Breakdown Summary -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div>
+                <div class="form-group">
+                    <label class="form-label" for="notes">Terms / Notes</label>
+                    <textarea id="notes" class="form-control" rows="3" placeholder="Enter notes visible on invoice..."></textarea>
+                </div>
+            </div>
+            
+            <div style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gross Subtotal:</span>
+                    <strong id="summary-subtotal">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Taxable Value:</span>
+                    <strong id="summary-taxable">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cgst-row">
+                    <span>CGST:</span>
+                    <strong id="summary-cgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="sgst-row">
+                    <span>SGST:</span>
+                    <strong id="summary-sgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="igst-row">
+                    <span>IGST:</span>
+                    <strong id="summary-igst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cess-row">
+                    <span>Cess:</span>
+                    <strong id="summary-cess">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
+                    <span>Grand Total:</span>
+                    <strong id="summary-grand">₹0.00</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Post and Save Invoice
+            </button>
+        </div>
+
+    </div>
+</form>
+
+<script id="products-data" type="application/json">
+{{ products_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let products = [];
+    try {
+        products = JSON.parse(document.getElementById('products-data').textContent || '[]');
+    } catch(e) { console.error('Error parsing products JSON:', e); products = []; }
+    const companyStateCode = "{{ request.user.company.state_code }}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const invDateInput = document.getElementById('invoice-date');
+        const dueDateInput = document.getElementById('due-date');
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        if (invDateInput && !invDateInput.value) {
+            invDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+        if (dueDateInput && !dueDateInput.value) {
+            const future = new Date(today);
+            future.setDate(future.getDate() + 30);
+            const f_yyyy = future.getFullYear();
+            const f_mm = String(future.getMonth() + 1).padStart(2, '0');
+            const f_dd = String(future.getDate()).padStart(2, '0');
+            dueDateInput.value = `${f_yyyy}-${f_mm}-${f_dd}`;
+        }
+
+        // Add initial row
+        addRow();
+        
+        // Listen POS inputs for immediate calculations
+        const posInput = document.getElementById('place-of-supply');
+        const posCodeInput = document.getElementById('place-of-supply-code');
+        if (posInput) posInput.addEventListener('input', recalculateAll);
+        if (posCodeInput) posCodeInput.addEventListener('input', recalculateAll);
+    });
+
+    function onCustomerChange() {
+        const select = document.getElementById('customer');
+        const option = select.options[select.selectedIndex];
+        
+        if (option && option.value) {
+            const state = option.getAttribute('data-state') || '';
+            const stateCode = option.getAttribute('data-state-code') || '';
+            document.getElementById('place-of-supply').value = state;
+            document.getElementById('place-of-supply-code').value = stateCode;
+        } else {
+            document.getElementById('place-of-supply').value = '';
+            document.getElementById('place-of-supply-code').value = '';
+        }
+        recalculateAll();
+    }
+
+    function addRow() {
+        const tbody = document.getElementById('items-tbody');
+        const rowId = 'row-' + Date.now();
+        
+        let selectOptions = '<option value="">-- Select Product --</option>';
+        products.forEach(p => {
+            selectOptions += `<option value="${p.id}">${p.name} (₹${p.price})</option>`;
+        });
+
+        const rowHtml = `
+            <tr id="${rowId}" class="item-row">
+                <td>
+                    <select class="form-control prod-select" onchange="onProductSelect('${rowId}')" required>
+                        ${selectOptions}
+                    </select>
+                </td>
+                <td style="position: relative;">
+                    <input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC">
+                </td>
+                <td>
+                    <input type="number" class="form-control qty-input" value="1" min="1" step="any" oninput="recalculateAll()" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control rate-input" value="0.00" min="0" step="any" oninput="recalculateAll()" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control disc-input" value="0.00" min="0" step="any" oninput="recalculateAll()">
+                </td>
+                <td>
+                    <input type="number" class="form-control gst-input" value="0.00" min="0" max="100" step="any" readonly>
+                </td>
+                <td style="text-align: right; font-weight: 600;" class="row-total">
+                    ₹0.00
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
+                        <i class="fa-regular fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function removeRow(rowId) {
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.remove();
+        }
+        recalculateAll();
+    }
+
+    function onProductSelect(rowId) {
+        const row = document.getElementById(rowId);
+        const prodId = row.querySelector('.prod-select').value;
+        const prod = products.find(p => p.id == prodId);
+        
+        // Remove old warnings if any
+        const oldWarning = row.querySelector('.hsn-warning');
+        if (oldWarning) oldWarning.remove();
+        
+        if (prod) {
+            row.querySelector('.rate-input').value = prod.price.toFixed(2);
+            row.querySelector('.gst-input').value = prod.gst_rate.toFixed(2);
+            row.querySelector('.hsn-input').value = prod.hsn_code || '';
+            
+            if (!prod.hsn_code) {
+                row.querySelector('.hsn-input').insertAdjacentHTML('afterend', '<small class="hsn-warning" style="color: var(--destructive); display: block; font-size: 0.75rem; margin-top: 0.25rem;">GST rate is not configured.</small>');
+            }
+        } else {
+            row.querySelector('.rate-input').value = '0.00';
+            row.querySelector('.gst-input').value = '0.00';
+            row.querySelector('.hsn-input').value = '';
+        }
+        recalculateAll();
+    }
+
+    function recalculateAll() {
+        const rows = document.querySelectorAll('.item-row');
+        const posCode = (document.getElementById('place-of-supply-code').value || '').trim().padStart(2, '0');
+        const companyStateCodeNormalized = (companyStateCode || '').trim().padStart(2, '0');
+        
+        let subtotal = 0;
+        let discountTotal = 0;
+        let taxableTotal = 0;
+        let cgstTotal = 0;
+        let sgstTotal = 0;
+        let igstTotal = 0;
+        let cessTotal = 0;
+        
+        const isSameState = (posCode === companyStateCodeNormalized);
+        
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            
+            const prodId = row.querySelector('.prod-select').value;
+            const prod = products.find(p => p.id == prodId);
+            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            
+            const gross = qty * rate;
+            let taxable = gross - disc;
+            
+            if (prod && prod.tax_inclusive) {
+                taxable = gross / (1.00 + (gstRate / 100.00)) - disc;
+            }
+            
+            let rowGst = taxable * (gstRate / 100.00);
+            let rowCess = taxable * (cessRate / 100.00);
+            let rowTotal = taxable + rowGst + rowCess;
+            
+            row.querySelector('.row-total').innerText = window.formatIndianCurrency(rowTotal);
+            
+            subtotal += gross;
+            discountTotal += disc;
+            taxableTotal += taxable;
+            cessTotal += rowCess;
+            
+            if (isSameState) {
+                cgstTotal += rowGst / 2.00;
+                sgstTotal += rowGst / 2.00;
+            } else {
+                igstTotal += rowGst;
+            }
+        });
+
+        const totalTaxableAndTax = taxableTotal + cgstTotal + sgstTotal + igstTotal + cessTotal;
+        const roundedGrand = Math.round(totalTaxableAndTax);
+        const roundOff = roundedGrand - totalTaxableAndTax;
+        
+        document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
+        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discountTotal);
+        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxableTotal);
+        
+        document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
+        document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
+        document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
+        document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
+        document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
+        document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+    }
+
+    function submitInvoice(e) {
+        if (e) e.preventDefault();
+        const errorToast = document.getElementById('form-error-toast');
+        errorToast.style.display = 'none';
+        
+        const customerId = document.getElementById('customer').value;
+        const invNo = document.getElementById('invoice-number').value;
+        const invDate = document.getElementById('invoice-date').value;
+        const dueDate = document.getElementById('due-date').value;
+        const pos = document.getElementById('place-of-supply').value;
+        const posCode = document.getElementById('place-of-supply-code').value;
+        const whId = document.getElementById('warehouse').value;
+        const reverse = document.getElementById('reverse-charge').checked;
+        const notes = document.getElementById('notes').value;
+        
+        if (!customerId || !invNo || !invDate || !dueDate || !pos) {
+            const msg = "Please fill in all required fields marked with * (Customer, Invoice No, Dates, Place of Supply).";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const rows = document.querySelectorAll('.item-row');
+        const items = [];
+        let hasIncompleteRow = false;
+        
+        rows.forEach(row => {
+            const prodId = row.querySelector('.prod-select').value;
+            const qty = parseFloat(row.querySelector('.qty-input').value);
+            const rate = parseFloat(row.querySelector('.rate-input').value);
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            
+            if (prodId) {
+                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                    hasIncompleteRow = true;
+                } else {
+                    items.push({
+                        product_id: parseInt(prodId),
+                        quantity: qty,
+                        rate: rate,
+                        discount: disc
+                    });
+                }
+            }
+        });
+
+        if (items.length === 0) {
+            const msg = "Please select at least one valid product in the items grid (quantity > 0).";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (hasIncompleteRow) {
+            const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const payload = {
+            customer_id: parseInt(customerId),
+            invoice_number: invNo,
+            invoice_date: invDate,
+            due_date: dueDate,
+            place_of_supply: pos,
+            place_of_supply_code: posCode,
+            warehouse_id: parseInt(whId),
+            reverse_charge: reverse,
+            notes: notes,
+            items: items
+        };
+
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Posting...';
+
+        fetch('{% url "invoice_add" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Invoice posted and saved successfully');
+                }
+                window.location.href = data.redirect_url || '/company/invoices/';
+            } else {
+                const msg = data.message || "Unable to post and save invoice.";
+                errorToast.innerText = "Error: " + msg;
+                errorToast.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', msg);
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            errorToast.innerText = "Server connection lost. Try saving again.";
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Server connection lost. Try saving again.');
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+</script>
+{% endblock %}

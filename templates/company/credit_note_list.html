@@ -1,0 +1,237 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Credit Notes{% endblock %}
+{% block sub_credit_notes %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Credit Notes (Sales Returns)</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search credit note, invoice..." %}
+        <button onclick="openCreditNoteModal()" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Issue Credit Note
+        </button>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Note Number</th>
+                    <th>Date</th>
+                    <th>Invoice Reference</th>
+                    <th>Reason</th>
+                    <th>Total Refund</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in credit_notes %}
+                    <tr>
+                        <td><strong>{{ note.note_number }}</strong></td>
+                        <td>{{ note.note_date|date:"d M Y" }}</td>
+                        <td>{{ note.invoice.invoice_number }}</td>
+                        <td>{{ note.get_reason_display }}</td>
+                        <td style="font-weight: 600; color: var(--success);">₹{{ note.grand_total }}</td>
+                        <td>
+                            <span class="badge badge-success">
+                                {{ note.status }}
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No credit notes recorded.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+
+<!-- Issue Credit Note Modal -->
+<div id="credit-note-modal" class="modal-overlay" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card-bg, #ffffff); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 550px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--primary);">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Issue Credit Note
+            </h3>
+            <button type="button" onclick="closeCreditNoteModal()" class="btn-close" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem; overflow-y: auto; max-height: 70vh;">
+            <div id="cn-error-msg" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Select Sales Invoice reference *</label>
+                <select name="invoice" id="cn-invoice" class="form-control" onchange="onInvoiceChange()" required>
+                    <option value="">-- Select Invoice --</option>
+                    {% for inv in form.fields.invoice.queryset %}
+                        <option value="{{ inv.id }}" data-customer="{{ inv.customer.name }}" data-taxable="{{ inv.taxable_value }}">{{ inv.invoice_number }} (₹{{ inv.grand_total }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Customer</label>
+                <input type="text" id="cn-customer-name" class="form-control" readonly placeholder="Customer name will load automatically">
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Credit Note Number *</label>
+                    <input type="text" id="cn-note_number" class="form-control" name="note_number" value="{{ form.initial.note_number }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note Date *</label>
+                    <input type="date" id="cn-note_date" class="form-control" name="note_date" value="{{ form.initial.note_date|date:'Y-m-d' }}" required>
+                </div>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Adjustment Reason *</label>
+                    <select name="reason" id="cn-reason" class="form-control" required>
+                        {% for code, label in form.fields.reason.choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Taxable Value (Subtotal) *</label>
+                    <input type="number" id="cn-subtotal" class="form-control" name="subtotal" step="0.01" placeholder="Max: ₹0.00" required>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Remarks / Explanation</label>
+                <textarea id="cn-notes" class="form-control" name="notes" rows="2" placeholder="Describe the reason for adjustment..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 1rem; padding: 1rem 1.25rem; border-top: 1px solid var(--border);">
+            <button type="button" onclick="closeCreditNoteModal()" class="btn btn-secondary">Cancel</button>
+            <button type="button" id="cn-submit-btn" onclick="submitCreditNote()" class="btn btn-primary">Issue Credit</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openCreditNoteModal() {
+        document.getElementById('cn-error-msg').style.display = 'none';
+        document.getElementById('cn-invoice').value = '';
+        document.getElementById('cn-customer-name').value = '';
+        document.getElementById('cn-subtotal').value = '';
+        document.getElementById('cn-notes').value = '';
+        document.getElementById('credit-note-modal').style.display = 'flex';
+    }
+
+    function closeCreditNoteModal() {
+        document.getElementById('credit-note-modal').style.display = 'none';
+    }
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeCreditNoteModal();
+        }
+    });
+
+    // Close when clicking outside modal card
+    document.getElementById('credit-note-modal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('credit-note-modal')) {
+            closeCreditNoteModal();
+        }
+    });
+
+    function onInvoiceChange() {
+        const select = document.getElementById('cn-invoice');
+        const selected = select.options[select.selectedIndex];
+        if (selected && selected.value) {
+            const customer = selected.getAttribute('data-customer');
+            const taxable = parseFloat(selected.getAttribute('data-taxable')) || 0;
+            document.getElementById('cn-customer-name').value = customer;
+            document.getElementById('cn-subtotal').placeholder = `Max: ₹${taxable.toFixed(2)}`;
+            document.getElementById('cn-subtotal').max = taxable;
+        } else {
+            document.getElementById('cn-customer-name').value = '';
+            document.getElementById('cn-subtotal').placeholder = 'Max: ₹0.00';
+            document.getElementById('cn-subtotal').removeAttribute('max');
+        }
+    }
+
+    function submitCreditNote() {
+        const errorMsg = document.getElementById('cn-error-msg');
+        errorMsg.style.display = 'none';
+
+        const invoiceId = document.getElementById('cn-invoice').value;
+        const noteNo = document.getElementById('cn-note_number').value;
+        const noteDate = document.getElementById('cn-note_date').value;
+        const reason = document.getElementById('cn-reason').value;
+        const subtotal = parseFloat(document.getElementById('cn-subtotal').value);
+        const notes = document.getElementById('cn-notes').value;
+
+        if (!invoiceId || !noteNo || !noteDate || !reason || isNaN(subtotal)) {
+            errorMsg.innerText = "Please fill in all required fields marked with *.";
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        const maxTaxable = parseFloat(document.getElementById('cn-subtotal').max) || 0;
+        if (subtotal > maxTaxable) {
+            errorMsg.innerText = `Credit note taxable value (₹${subtotal.toFixed(2)}) cannot exceed original invoice taxable value (₹${maxTaxable.toFixed(2)}).`;
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        const submitBtn = document.getElementById('cn-submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Issuing...';
+
+        const payload = {
+            invoice: parseInt(invoiceId),
+            note_number: noteNo,
+            note_date: noteDate,
+            reason: reason,
+            subtotal: subtotal,
+            notes: notes
+        };
+
+        fetch('{% url "credit_note_add" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeCreditNoteModal();
+                window.location.reload();
+            } else {
+                errorMsg.innerText = data.message;
+                errorMsg.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            errorMsg.innerText = "Connection lost. Please try again.";
+            errorMsg.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+</script>
+{% endblock %}

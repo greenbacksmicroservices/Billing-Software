@@ -1,0 +1,54 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Sales Order {{ order.order_number }}{% endblock %}
+{% block sub_sales_orders %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sales Order {{ order.order_number }}</h1>
+        <p style="color: var(--muted-foreground);">Delivery Target: {{ order.expected_delivery|date:"d M Y" }}</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'sales_order_list' %}" class="btn btn-secondary">Back</a>
+        {% if order.status != 'INVOICED' %}
+            <a href="{% url 'sales_order_convert' order.id %}" class="btn btn-success">
+                <i class="fa-solid fa-file-invoice"></i> Generate Invoice
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card-container">
+    <div class="card-body">
+        <h3 style="margin-bottom: 1rem;">Customer: {{ order.customer.name }}</h3>
+        <p>Order Status: <strong style="text-transform: uppercase;">{{ order.status }}</strong></p>
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Discount</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ item.rate }}</td>
+                        <td>₹{{ item.discount }}</td>
+                        <td style="text-align: right; font-weight:600;">₹{{ item.total_amount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div style="text-align: right; margin-top: 2rem; font-size: 1.2rem;">
+            <strong>Order Grand Total: ₹{{ order.grand_total }}</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

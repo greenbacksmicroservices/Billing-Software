@@ -1,0 +1,63 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Warehouses - Inventory{% endblock %}
+{% block sub_warehouses %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Warehouses / Locations</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search warehouse, code..." %}
+        <a href="{% url 'warehouse_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Add Warehouse
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Warehouse Name</th>
+                    <th>Code</th>
+                    <th>Address</th>
+                    <th>Manager</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for wh in warehouses %}
+                    <tr>
+                        <td><strong>{{ wh.name }}</strong></td>
+                        <td><code>{{ wh.code }}</code></td>
+                        <td>{{ wh.address|default:"-" }}</td>
+                        <td>{{ wh.manager|default:"-" }}</td>
+                        <td>{{ wh.contact|default:"-" }}</td>
+                        <td>
+                            <span class="badge {% if wh.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if wh.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <button type="button" onclick="triggerGlobalDelete('/api/delete/warehouse/{{ wh.id }}/', '{{ wh.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Warehouse">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No warehouses found.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

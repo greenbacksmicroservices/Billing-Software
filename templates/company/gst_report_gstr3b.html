@@ -1,0 +1,71 @@
+{% extends 'base_company.html' %}
+
+{% block title %}GSTR-3B Summary Return{% endblock %}
+{% block sub_gstr3b %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">GSTR-3B Summary return</h1>
+        <p style="color: var(--muted-foreground);">Self-Declaration Monthly Summary Return (Table 3.1 & 4)</p>
+    </div>
+</div>
+
+<!-- Table 3.1 Outward supplies -->
+<div class="card-container" style="margin-bottom: 2rem;">
+    <div class="card-header" style="background-color: var(--muted);"><h3 class="card-title">Table 3.1 Details of Outward Taxable Supplies</h3></div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Nature of Supplies</th>
+                    <th style="text-align: right;">Total Taxable Value</th>
+                    <th style="text-align: right;">Integrated Tax (IGST)</th>
+                    <th style="text-align: right;">Central Tax (CGST)</th>
+                    <th style="text-align: right;">State/UT Tax (SGST)</th>
+                    <th style="text-align: right;">Cess</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>(a) Outward taxable supplies (other than zero rated, nil rated and exempted)</strong></td>
+                    <td style="text-align: right; font-weight: 600;">₹{{ sales_val }}</td>
+                    <td style="text-align: right;">₹{{ sales_igst }}</td>
+                    <td style="text-align: right;">₹{{ sales_cgst }}</td>
+                    <td style="text-align: right;">₹{{ sales_sgst }}</td>
+                    <td style="text-align: right;">₹0.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Table 4 Eligible ITC -->
+<div class="card-container">
+    <div class="card-header" style="background-color: var(--muted);"><h3 class="card-title">Table 4 Details of Eligible Input Tax Credit (ITC)</h3></div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>ITC Details</th>
+                    <th style="text-align: right;">Total Taxable Purchase</th>
+                    <th style="text-align: right;">Integrated Tax (IGST)</th>
+                    <th style="text-align: right;">Central Tax (CGST)</th>
+                    <th style="text-align: right;">State/UT Tax (SGST)</th>
+                    <th style="text-align: right;">Cess</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>(A) ITC Available (whether in full or part)</strong></td>
+                    <td style="text-align: right; font-weight: 600;">₹{{ itc_val }}</td>
+                    <td style="text-align: right; color: green; font-weight: 600;">₹{{ itc_igst }}</td>
+                    <td style="text-align: right; color: green; font-weight: 600;">₹{{ itc_cgst }}</td>
+                    <td style="text-align: right; color: green; font-weight: 600;">₹{{ itc_sgst }}</td>
+                    <td style="text-align: right;">₹0.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

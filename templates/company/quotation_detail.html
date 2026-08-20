@@ -1,0 +1,62 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Quotation {{ quotation.quotation_number }}{% endblock %}
+{% block sub_quotations %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Quotation {{ quotation.quotation_number }}</h1>
+        <p style="color: var(--muted-foreground);">Valid Until: {{ quotation.valid_until|date:"d M Y" }}</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'quotation_list' %}" class="btn btn-secondary">Back</a>
+        <a href="{% url 'quotation_pdf' quotation.id %}" target="_blank" class="btn btn-secondary">
+            <i class="fa-solid fa-print"></i> Print / Download PDF
+        </a>
+        {% if quotation.status != 'CONVERTED' %}
+            <a href="{% url 'quotation_edit' quotation.id %}" class="btn btn-secondary">
+                <i class="fa-regular fa-pen-to-square"></i> Edit
+            </a>
+            <a href="{% url 'quotation_convert_so' quotation.id %}" class="btn btn-primary">
+                <i class="fa-solid fa-file-circle-check"></i> Convert to Sales Order
+            </a>
+            <a href="{% url 'quotation_convert' quotation.id %}" class="btn btn-success">
+                <i class="fa-solid fa-arrows-spin"></i> Convert to Invoice
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card-container">
+    <div class="card-body">
+        <h3 style="margin-bottom: 1rem;">Client: {{ quotation.customer.name }}</h3>
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Discount</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in quotation.items.all %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ item.rate }}</td>
+                        <td>₹{{ item.discount }}</td>
+                        <td style="text-align: right; font-weight:600;">₹{{ item.total_amount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div style="text-align: right; margin-top: 2rem; font-size: 1.2rem;">
+            <strong>Grand Total: ₹{{ quotation.grand_total }}</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

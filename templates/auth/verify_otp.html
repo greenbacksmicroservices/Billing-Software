@@ -1,0 +1,52 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}Verify OTP - GBL Billing{% endblock %}
+{% block heading %}Verify OTP{% endblock %}
+{% block subheading %}OTP sent to: {{ masked_email }}{% endblock %}
+
+{% block content %}
+<form method="POST">
+    {% csrf_token %}
+    <div class="form-group" style="margin-bottom: 1.5rem; text-align: center;">
+        <label class="form-label" style="display: block; margin-bottom: 0.75rem; text-align: left;">Enter 6-Digit OTP</label>
+        <input type="text" name="otp" class="form-control" placeholder="••••••" maxlength="6" pattern="\d{6}" required autofocus style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 4px; border: 1px solid var(--border); font-size: 1.5rem; font-weight: 700; text-align: center; letter-spacing: 0.75rem;">
+    </div>
+    
+    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-weight: 600;">
+        <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> Verify OTP
+    </button>
+</form>
+
+<form method="POST" style="margin-top: 1.5rem; text-align: center;">
+    {% csrf_token %}
+    <input type="hidden" name="resend" value="1">
+    {% if cooldown > 0 %}
+        <button type="button" class="btn btn-link" style="font-size: 0.85rem; color: var(--muted-foreground); text-decoration: none; border: none; background: none; cursor: not-allowed;" disabled>
+            Resend OTP in {{ cooldown }}s
+        </button>
+        <script>
+            let cooldown = {{ cooldown }};
+            const btn = document.querySelector('button[disabled]');
+            const timer = setInterval(() => {
+                cooldown--;
+                if (cooldown <= 0) {
+                    clearInterval(timer);
+                    location.reload();
+                } else {
+                    btn.innerText = `Resend OTP in ${cooldown}s`;
+                }
+            }, 1000);
+        </script>
+    {% else %}
+        <button type="submit" class="btn btn-link" style="font-size: 0.85rem; color: var(--primary); font-weight: 600; border: none; background: none; cursor: pointer; text-decoration: none;">
+            <i class="fa-solid fa-arrows-rotate" style="margin-right: 4px;"></i> Resend OTP
+        </button>
+    {% endif %}
+</form>
+
+<div style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+    <a href="{% url 'forgot_password' %}" style="color: var(--muted-foreground); text-decoration: none;">
+        Request new OTP code
+    </a>
+</div>
+{% endblock %}

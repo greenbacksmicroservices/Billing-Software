@@ -1,0 +1,18 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}System Reports{% endblock %}
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">SaaS Revenue Reports</h1>
+</div>
+
+<div class="card-container" style="max-width: 600px;">
+    <div class="card-header"><h3 class="card-title">Monthly Subscriptions Statement</h3></div>
+    <div class="card-body">
+        <p style="margin-bottom: 1rem;">Revenue is generated based on registered active paying accounts.</p>
+        <div style="font-size: 1.5rem; font-weight: 700;">₹52,000.00 <small style="font-weight: 400; font-size: 0.85rem; color: var(--muted-foreground);">Estimated Monthly Recurrings</small></div>
+    </div>
+</div>
+{% endblock %}

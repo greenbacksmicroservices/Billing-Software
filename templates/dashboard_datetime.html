@@ -1,0 +1,31 @@
+<div class="header-datetime-container" style="text-align: right; margin-right: 1.25rem; line-height: 1.3; font-size: 0.8rem; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;">
+    <div id="live-date" style="color: var(--muted); font-size: 0.75rem; font-weight: 500;"></div>
+    <div id="live-time" style="color: var(--foreground); font-weight: 600; font-size: 0.875rem;"></div>
+</div>
+
+<script>
+    (function() {
+        function updateDateTime() {
+            const dateEl = document.getElementById('live-date');
+            const timeEl = document.getElementById('live-time');
+            if (!dateEl || !timeEl) return;
+            
+            const now = new Date();
+            
+            // Format: Monday, 17 August 2026
+            const optionsDate = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const dateStr = now.toLocaleDateString('en-US', optionsDate);
+            
+            // Format: 05:14 PM
+            const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: true };
+            const timeStr = now.toLocaleTimeString('en-US', optionsTime);
+            
+            dateEl.textContent = dateStr;
+            timeEl.textContent = timeStr;
+        }
+        
+        // Run immediately and set interval
+        updateDateTime();
+        setInterval(updateDateTime, 10000); // Check every 10 seconds to keep it accurate
+    })();
+</script>

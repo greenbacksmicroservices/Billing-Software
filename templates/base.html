@@ -1,0 +1,490 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GBL Billing{% endblock %}</title>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js CDN for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% block extra_css %}{% endblock %}
+    <!-- Anti-Flash Dark Mode Script -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span style="color: #ffffff; font-weight: 300; letter-spacing: 1px;">GBL</span><span style="color: #2563eb; font-weight: 700; letter-spacing: 0.5px;">Billing</span>
+                </div>
+            </div>
+            
+            <ul class="sidebar-menu">
+                {% block sidebar_menu %}{% endblock %}
+            </ul>
+
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="main-wrapper">
+            <!-- Header / Topbar -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="toggle-sidebar-btn" id="toggle-sidebar">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    {% if request.user.is_authenticated and request.user.company %}
+                    <div class="header-fy" title="Financial Year Context">
+                        FY: <strong>{{ request.user.company.financial_year }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="header-right">
+                    {% block header_datetime %}{% endblock %}
+                    <!-- Profile Avatar & Dropdown -->
+                    <div class="profile-trigger-container" id="profile-area">
+                        <div class="user-profile" id="profile-btn">
+                            <div class="user-avatar" id="header-user-avatar-box">
+                                {% if request.user.get_profile_photo_url %}
+                                    <img id="header-user-avatar" src="{{ request.user.get_profile_photo_url }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                {% else %}
+                                    <span id="header-user-initial">{{ request.user.username|slice:":1"|upper }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="user-info-text">
+                                <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.2;">{{ request.user.username }}</div>
+                                <div style="font-size: 0.7rem; color: var(--muted); text-transform: capitalize;">{{ request.user.role|lower }}</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+                        </div>
+
+                        <!-- Dropdown panel -->
+                        <div class="dropdown-menu-container" id="profile-dropdown">
+                            <ul class="dropdown-list">
+                                <li>
+                                    <a href="{% url 'profile' %}" class="dropdown-item">
+                                        <i class="fa-regular fa-user"></i>
+                                        <span>Profile</span>
+                                    </a>
+                                </li>
+                                {% if request.user.company %}
+                                <li>
+                                    <a href="{% url 'company_settings' %}" class="dropdown-item">
+                                        <i class="fa-solid fa-gear"></i>
+                                        <span>Account Settings</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <a href="{% url 'change_password' %}" class="dropdown-item">
+                                        <i class="fa-solid fa-lock"></i>
+                                        <span>Change Password</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <div class="dropdown-item" id="dark-mode-toggle" style="cursor: pointer;">
+                                        <i class="fa-regular fa-moon"></i>
+                                        <span>Dark Mode</span>
+                                        <div class="theme-switch" style="margin-left: auto;">
+                                            <div class="switch-handle"></div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li style="border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem;">
+                                    <a href="{% url 'logout' %}" class="dropdown-item" style="color: var(--danger);" onclick="return confirm('Are you sure you want to log out?');">
+                                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                        <span>Logout</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Body -->
+            <main class="content-body">
+                <!-- Toast Alerts / Messages -->
+                <div class="toast-wrapper" id="toast-wrapper">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="toast-item {{ message.tags }}">
+                                {% if message.tags == 'success' %}
+                                    <i class="fa-solid fa-circle-check"></i>
+                                {% elif message.tags == 'error' %}
+                                    <i class="fa-solid fa-circle-exclamation"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle-info"></i>
+                                {% endif %}
+                                <div class="toast-message">{{ message }}</div>
+                                <button class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                {% block content %}{% endblock %}
+            </main>
+            
+            <footer class="app-footer">
+                <div style="font-size: 0.85rem; font-weight: 500;">Designed & Managed by Greenbacks Lexverse Pvt. Ltd.</div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Script assets -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Sidebar collapse/expand toggle
+            const toggleBtn = document.getElementById('toggle-sidebar');
+            const sidebar = document.getElementById('sidebar');
+            
+            // Restore sidebar state from localStorage
+            if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth > 768) {
+                sidebar.classList.add('collapsed');
+            }
+
+            if (toggleBtn && sidebar) {
+                toggleBtn.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.toggle('open');
+                    } else {
+                        sidebar.classList.toggle('collapsed');
+                        localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                    }
+                });
+            }
+
+            // ESC key to close dropdowns & drawers
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const profileDropdown = document.getElementById('profile-dropdown');
+                    if (profileDropdown) profileDropdown.classList.remove('open');
+                    if (window.innerWidth <= 768 && sidebar) sidebar.classList.remove('open');
+                }
+            });
+
+            // Dark mode handled centrally in main.js
+
+            // Automatic message fadeout
+            const toasts = document.querySelectorAll('.toast-item');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-10px)';
+                    setTimeout(() => toast.remove(), 500);
+                }, 5000);
+            });
+            // Toast message animation completed
+            
+            // AJAX table loading logic
+            window.loadAjaxTable = function(url, containerId = 'table-container') {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                // Show loading indicator
+                container.style.position = 'relative';
+                let loader = container.querySelector('.ajax-loader');
+                if (!loader) {
+                    loader = document.createElement('div');
+                    loader.className = 'ajax-loader';
+                    loader.innerHTML = '<div class="spinner"></div>';
+                    container.appendChild(loader);
+                }
+                loader.style.display = 'flex';
+                
+                const tbody = container.querySelector('tbody');
+                if (tbody) tbody.style.opacity = '0.4';
+                
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.text();
+                    })
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newContent = doc.getElementById(containerId);
+                        if (newContent) {
+                            container.innerHTML = newContent.innerHTML;
+                            // Update browser URL
+                            history.pushState(null, '', url);
+                        } else {
+                            window.location.href = url;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error fetching table page:', err);
+                        window.location.href = url;
+                    })
+                    .finally(() => {
+                        if (loader) loader.style.display = 'none';
+                        if (tbody) tbody.style.opacity = '1';
+                    });
+            };
+
+            // Intercept pagination link clicks
+            document.addEventListener('click', (e) => {
+                const link = e.target.closest('.table-container-ajax a.pagination-link');
+                if (link) {
+                    e.preventDefault();
+                    const href = link.getAttribute('href');
+                    if (href) {
+                        const container = link.closest('.table-container-ajax');
+                        window.loadAjaxTable(href, container.id);
+                    }
+                }
+            });
+
+            // Intercept entries dropdown change
+            window.updateEntries = function(selectEl) {
+                const container = selectEl.closest('.table-container-ajax');
+                if (!container) return;
+                
+                const limit = selectEl.value;
+                const url = new URL(window.location.href);
+                url.searchParams.set('entries', limit);
+                url.searchParams.set('page', '1'); // Reset to page 1
+                window.loadAjaxTable(url.toString(), container.id);
+            };
+
+            // Intercept GET form submissions
+            document.addEventListener('submit', (e) => {
+                const form = e.target.closest('form');
+                const container = document.getElementById('table-container');
+                if (form && container && form.method.toLowerCase() === 'get') {
+                    if (form.hasAttribute('data-no-ajax')) return;
+                    
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    const url = new URL(form.action || window.location.href);
+                    
+                    const currentEntries = url.searchParams.get('entries');
+                    url.search = '';
+                    
+                    for (const [key, val] of formData.entries()) {
+                        if (val) {
+                            url.searchParams.set(key, val);
+                        }
+                    }
+                    
+                    if (currentEntries) {
+                        url.searchParams.set('entries', currentEntries);
+                    }
+                    url.searchParams.set('page', '1'); // Reset to page 1
+                    window.loadAjaxTable(url.toString(), 'table-container');
+                }
+            });
+        });
+
+        // Global Realtime Debounced Search Controller
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        const performRealtimeSearch = debounce((inputEl) => {
+            const value = inputEl.value.trim();
+            const parent = inputEl.parentElement;
+            const clearBtn = parent ? parent.querySelector('.clear-search-btn') : null;
+            const spinner = parent ? parent.querySelector('.search-spinner') : null;
+
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (spinner) spinner.style.display = 'inline-block';
+
+            const url = new URL(window.location.href);
+            if (value) {
+                url.searchParams.set('search', value);
+            } else {
+                url.searchParams.delete('search');
+            }
+            url.searchParams.set('page', '1'); // Reset to page 1
+
+            if (typeof window.loadAjaxTable === 'function') {
+                const res = window.loadAjaxTable(url.toString(), 'table-container');
+                if (res && typeof res.finally === 'function') {
+                    res.finally(() => {
+                        if (spinner) spinner.style.display = 'none';
+                        if (clearBtn) clearBtn.style.display = value ? 'inline-flex' : 'none';
+                    });
+                } else {
+                    setTimeout(() => {
+                        if (spinner) spinner.style.display = 'none';
+                        if (clearBtn) clearBtn.style.display = value ? 'inline-flex' : 'none';
+                    }, 250);
+                }
+            } else {
+                window.location.href = url.toString();
+            }
+        }, 300);
+
+        document.addEventListener('input', (e) => {
+            if (e.target && (e.target.classList.contains('table-search-input') || e.target.name === 'search')) {
+                const parent = e.target.parentElement;
+                const clearBtn = parent ? parent.querySelector('.clear-search-btn') : null;
+                const spinner = parent ? parent.querySelector('.search-spinner') : null;
+                if (clearBtn && (!spinner || spinner.style.display === 'none')) {
+                    clearBtn.style.display = e.target.value.trim() ? 'inline-flex' : 'none';
+                }
+                performRealtimeSearch(e.target);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target && (e.target.classList.contains('table-search-input') || e.target.name === 'search')) {
+                e.preventDefault();
+            }
+        });
+
+        window.clearGlobalSearch = function(btnEl) {
+            const inputEl = btnEl.parentElement.querySelector('input');
+            if (inputEl) {
+                inputEl.value = '';
+                btnEl.style.display = 'none';
+                performRealtimeSearch(inputEl);
+                inputEl.focus();
+            }
+        };
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Global Delete Confirmation Modal & AJAX Functions
+        let currentDeleteUrl = null;
+
+        window.triggerGlobalDelete = function(url, recordName = 'record') {
+            currentDeleteUrl = url;
+            const msg = document.getElementById('globalDeleteMessage');
+            if (msg) {
+                msg.innerHTML = `Are you sure you want to delete <strong>${recordName}</strong>?<br><small style="color: var(--muted-foreground);">This action cannot be undone.</small>`;
+            }
+            const modal = document.getElementById('globalDeleteModal');
+            if (modal) modal.style.display = 'flex';
+        };
+
+        window.closeGlobalDeleteModal = function() {
+            const modal = document.getElementById('globalDeleteModal');
+            if (modal) modal.style.display = 'none';
+            currentDeleteUrl = null;
+        };
+
+        window.confirmExecuteDelete = function() {
+            if (!currentDeleteUrl) return;
+            const btn = document.getElementById('globalConfirmDeleteBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+
+            fetch(currentDeleteUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
+                closeGlobalDeleteModal();
+
+                if (data.status === 'success' || data.status === 'warning') {
+                    showToast(data.status === 'success' ? 'success' : 'warning', data.message || 'Record deleted successfully.');
+                    const container = document.getElementById('table-container');
+                    if (container && typeof window.loadAjaxTable === 'function') {
+                        window.loadAjaxTable(window.location.href, 'table-container');
+                    } else {
+                        window.location.reload();
+                    }
+                } else {
+                    showToast('error', data.message || 'Unable to delete record.');
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
+                closeGlobalDeleteModal();
+                showToast('error', 'Something went wrong. Please try again.');
+            });
+        };
+
+        window.showToast = function(type, message) {
+            let wrapper = document.getElementById('toast-wrapper');
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'toast-wrapper';
+                wrapper.id = 'toast-wrapper';
+                document.body.appendChild(wrapper);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast-item ${type}`;
+            let icon = 'fa-circle-info';
+            if (type === 'success') icon = 'fa-circle-check';
+            if (type === 'error' || type === 'danger') icon = 'fa-circle-exclamation';
+            if (type === 'warning') icon = 'fa-triangle-exclamation';
+
+            toast.innerHTML = `
+                <i class="fa-solid ${icon}"></i>
+                <div class="toast-message">${message}</div>
+                <button class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            wrapper.appendChild(toast);
+            setTimeout(() => {
+                if (toast && toast.parentElement) toast.remove();
+            }, 4000);
+        };
+    </script>
+
+    <!-- Global Reusable Delete Confirmation Modal -->
+    <div id="globalDeleteModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+        <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 420px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); text-align: center;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 1rem auto;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);">Delete Confirmation</h3>
+            <p id="globalDeleteMessage" style="color: var(--muted-foreground); font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.4;">
+                Are you sure you want to delete this record?<br><small style="color: var(--muted-foreground);">This action cannot be undone.</small>
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: center;">
+                <button type="button" onclick="closeGlobalDeleteModal()" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                <button type="button" id="globalConfirmDeleteBtn" onclick="confirmExecuteDelete()" class="btn btn-danger" style="flex: 1; background: var(--danger); color: white;"><i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

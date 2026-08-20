@@ -1,0 +1,95 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Tax Invoices - Sales{% endblock %}
+{% block sub_invoices %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Tax Invoices (Sales)</h1>
+    <a href="{% url 'invoice_add' %}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Create Tax Invoice
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <div>
+                {% include 'common_table_search.html' with placeholder="Search invoice, customer..." %}
+            </div>
+            
+            <div style="width: 150px;">
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>Posted</option>
+                    <option value="PAID" {% if request.GET.status == 'PAID' %}selected{% endif %}>Paid</option>
+                    <option value="PARTIALLY_PAID" {% if request.GET.status == 'PARTIALLY_PAID' %}selected{% endif %}>Partially Paid</option>
+                    <option value="CANCELLED" {% if request.GET.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Reset</a>
+        </form>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Invoice Number</th>
+                    <th>Customer Name</th>
+                    <th>Date</th>
+                    <th>Grand Total</th>
+                    <th>Paid Amount</th>
+                    <th>Outstanding</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                    <tr>
+                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                        <td>{{ inv.customer.name }}</td>
+                        <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+                        <td>{{ inv.grand_total|indian_currency }}</td>
+                        <td>{{ inv.paid_amount|indian_currency }}</td>
+                        <td style="font-weight: 600;">{{ inv.outstanding_amount|indian_currency }}</td>
+                        <td>
+                            <span class="badge {% if inv.status == 'PAID' %}badge-success{% elif inv.status == 'PARTIALLY_PAID' %}badge-info{% elif inv.status == 'DRAFT' %}badge-warning{% else %}badge-danger{% endif %}">
+                                {{ inv.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <a href="{% url 'invoice_view' inv.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Details">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                                <a href="{% url 'invoice_pdf' inv.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Print PDF">
+                                    <i class="fa-solid fa-print"></i>
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/invoice/{{ inv.id }}/', '{{ inv.invoice_number }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete / Cancel Invoice">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No invoices generated yet. Click "Create Tax Invoice" to bill customers.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

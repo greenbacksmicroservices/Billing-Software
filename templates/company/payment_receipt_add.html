@@ -1,0 +1,135 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Log Customer Receipt{% endblock %}
+
+{% block content %}
+<style>
+    .btn-customer-receipt {
+        background-color: #10b981;
+        color: #ffffff !important;
+        border: 1px solid #059669;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+    .btn-customer-receipt:hover, .btn-customer-receipt:focus {
+        background-color: #059669;
+        color: #ffffff !important;
+        border-color: #047857;
+    }
+</style>
+
+<div class="page-header">
+    <h1 class="page-title">Log Customer Payment Receipt</h1>
+    <a href="{% url 'payment_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Logs
+    </a>
+</div>
+
+<form method="POST" id="receiptPageForm" class="card-container" style="max-width: 600px;" onsubmit="handleFormSubmit(event)">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Receipt Details</h3></div>
+    <div class="card-body">
+        {% if form.errors %}
+            <div class="message-item error">
+                {% for field, errors in form.errors.items %}
+                    <div><strong>{{ field|title }}:</strong> {{ errors|striptags }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label">Select Customer *</label>
+            {{ form.customer }}
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Against Invoice (Optional)</label>
+            {{ form.invoice }}
+            <small style="color: var(--muted-foreground);">Leave blank to log as "On Account" general credit.</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Payment Date *</label>
+                {{ form.payment_date }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount Received (INR) *</label>
+                {{ form.amount }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Payment Method *</label>
+                {{ form.payment_method }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ref Transaction / Cheque #</label>
+                {{ form.reference_no }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            {{ form.notes }}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+            <a href="{% url 'payment_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="saveReceiptBtn" class="btn-customer-receipt">Save Receipt</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const customerSelect = document.getElementById('id_customer');
+    const invoiceSelect = document.getElementById('id_invoice');
+
+    if (customerSelect && invoiceSelect) {
+        customerSelect.addEventListener('change', function() {
+            const custId = this.value;
+            invoiceSelect.innerHTML = '<option value="">---------</option>';
+            if (!custId) return;
+
+            fetch(`/api/company/customers/${custId}/unpaid-invoices/`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'success' && d.invoices) {
+                        d.invoices.forEach(inv => {
+                            invoiceSelect.innerHTML += `<option value="${inv.id}" data-due="${inv.outstanding_amount}">${inv.invoice_number} (Due: ₹${inv.outstanding_amount})</option>`;
+                        });
+                    }
+                });
+        });
+
+        invoiceSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (opt && opt.dataset.due) {
+                const amtInput = document.getElementById('id_amount');
+                if (amtInput) amtInput.value = opt.dataset.due;
+            }
+        });
+    }
+
+    function handleFormSubmit(e) {
+        const btn = document.getElementById('saveReceiptBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Customers Directory{% endblock %}
+{% block sub_customers %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Customers Directory</h1>
+    <a href="{% url 'customer_add' %}" class="btn btn-primary">
+        <i class="fa-solid fa-user-plus"></i> Add New Customer
+    </a>
+</div>
+
+<!-- Search filters -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center; justify-content: space-between;">
+            <div>
+                {% include 'common_table_search.html' with placeholder="Search name, mobile, GSTIN, city..." %}
+            </div>
+            <a href="{% url 'customer_list' %}" class="btn btn-secondary">Reset Filters</a>
+        </form>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Business Name</th>
+                    <th>GSTIN</th>
+                    <th>Mobile</th>
+                    <th>State</th>
+                    <th style="text-align: right;">Outstanding Balance</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                    <tr>
+                        <td>
+                            <strong><a href="{% url 'customer_view' customer.id %}" style="color: var(--primary);">{{ customer.name }}</a></strong>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">Type: {{ customer.get_customer_type_display }}</div>
+                        </td>
+                        <td>{{ customer.business_name|default:"-" }}</td>
+                        <td><code>{{ customer.gstin|default:"Unregistered" }}</code></td>
+                        <td>{{ customer.mobile }}</td>
+                        <td>{{ customer.billing_state }}</td>
+                        <td style="text-align: right; font-weight: 600; {% if customer.outstanding_balance > 0 %}color: var(--destructive);{% endif %}">
+                            {{ customer.outstanding_balance|indian_currency }}
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <a href="{% url 'customer_view' customer.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                                <a href="{% url 'customer_edit' customer.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
+                                    <i class="fa-regular fa-pen-to-square"></i>
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/customer/{{ customer.id }}/', '{{ customer.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Customer">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No customers found. Click "Add New Customer" to start.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

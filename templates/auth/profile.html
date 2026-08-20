@@ -1,0 +1,378 @@
+{% extends request.user.company|yesno:"base_company.html,base_admin.html" %}
+
+{% block title %}User Profile - GBL Billing{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">User Account Profile</h1>
+        <div class="breadcrumbs">
+            <a href="#">Home</a> / <span>Profile</span>
+        </div>
+    </div>
+</div>
+
+<div class="form-row" style="grid-template-columns: 1fr 2fr; align-items: start;">
+    <!-- Profile Card (Left) -->
+    <div class="card-container">
+        <div class="card-body" style="text-align: center; padding: 2rem 1.5rem;">
+            <!-- Profile Avatar Box -->
+            <div class="user-avatar" id="profile-page-avatar-box" style="width: 110px; height: 110px; font-size: 3rem; margin: 0 auto 1rem auto; box-shadow: var(--shadow-md); position: relative; overflow: hidden; border: 2px solid var(--border); border-radius: 50%;">
+                {% if request.user.get_profile_photo_url %}
+                    <img id="profile-page-avatar" src="{{ request.user.get_profile_photo_url }}" alt="Profile Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                {% else %}
+                    <span id="profile-page-initial">{{ request.user.username|slice:":1"|upper }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Profile Photo File Name Section -->
+            <div style="margin: 0.5rem 0 1rem 0; padding: 0.5rem; background: var(--background); border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--muted-foreground); letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-image" style="margin-right: 4px;"></i> File Name
+                </div>
+                <div id="profile-photo-filename" style="font-size: 0.82rem; font-weight: 600; color: var(--foreground); font-family: monospace; margin-top: 0.2rem; word-break: break-all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ request.user.get_profile_photo_filename|default:'No profile photo uploaded' }}">
+                    {% if request.user.profile_photo %}
+                        {{ request.user.get_profile_photo_filename }}
+                    {% else %}
+                        No profile photo uploaded
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Selected File Indicator (Visible only after file selection) -->
+            <div id="selected-file-indicator" style="display: none; margin-bottom: 0.75rem; padding: 0.4rem 0.6rem; background: rgba(59, 130, 246, 0.1); border: 1px dashed var(--primary); border-radius: 6px; font-size: 0.78rem; color: var(--primary); font-weight: 600;">
+                <i class="fa-solid fa-file-image"></i> Selected: <span id="selected-file-name" style="word-break: break-all;"></span>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem;">
+                <input type="file" id="profile_photo_input" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="onProfilePhotoSelected(this)">
+                
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('profile_photo_input').click()" style="font-size: 0.8rem; padding: 0.4rem 0.75rem;" id="choosePhotoBtn">
+                    <i class="fa-solid fa-folder-open"></i> Choose Photo
+                </button>
+
+                <button type="button" class="btn btn-primary" onclick="uploadProfilePhoto()" style="font-size: 0.8rem; padding: 0.4rem 0.75rem; display: none;" id="uploadPhotoBtn">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photo
+                </button>
+
+                <button type="button" class="btn btn-secondary" onclick="openRemovePhotoModal()" style="font-size: 0.8rem; padding: 0.4rem 0.75rem; color: var(--danger); {% if not request.user.profile_photo %}display: none;{% endif %}" id="removePhotoBtn">
+                    <i class="fa-regular fa-trash-can"></i> Remove Photo
+                </button>
+            </div>
+
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--foreground); margin-top: 0.5rem;">{{ request.user.get_full_name|default:request.user.username }}</h2>
+            <div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                {{ request.user.get_role_display }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; background-color: var(--background); padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-block;">
+                Status: <span style="color: var(--success); font-weight: 600;">Active</span>
+            </div>
+
+            <div style="border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1.5rem; text-align: left;">
+                <div style="font-size: 0.8rem; margin-bottom: 0.75rem; color: var(--muted);">
+                    <i class="fa-solid fa-user-tag" style="margin-right: 8px;"></i>Username: <strong style="color: var(--foreground);">{{ request.user.username }}</strong>
+                </div>
+                <div style="font-size: 0.8rem; margin-bottom: 0.75rem; color: var(--muted);">
+                    <i class="fa-solid fa-clock" style="margin-right: 8px;"></i>Last Login: <strong style="color: var(--foreground);">{{ request.user.last_login|date:"d M Y, H:i"|default:"Just now" }}</strong>
+                </div>
+                {% if request.user.company %}
+                <div style="font-size: 0.8rem; color: var(--muted);">
+                    <i class="fa-solid fa-building" style="margin-right: 8px;"></i>Business: <strong style="color: var(--foreground);">{{ request.user.company.name }}</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <a href="{% url 'change_password' %}" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fa-solid fa-lock"></i> Change Password
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Fields Form (Right) -->
+    <div class="card-container">
+        <div class="card-header">
+            <h3 class="card-title">Personal Details & Contacts</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first_name" class="form-label">First Name / Display Name</label>
+                        <input type="text" name="first_name" id="first_name" class="form-control" value="{{ request.user.first_name }}" required placeholder="First name">
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" name="last_name" id="last_name" class="form-control" value="{{ request.user.last_name }}" placeholder="e.g. Sharma">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" name="email" id="email" class="form-control" value="{{ request.user.email }}" required placeholder="name@domain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="mobile" class="form-label">Phone / Mobile Number</label>
+                        <input type="text" name="mobile" id="mobile" class="form-control" value="{{ request.user.mobile|default:'' }}" placeholder="e.g. 9876543210">
+                    </div>
+                </div>
+
+                {% if request.user.company %}
+                <div style="border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1.5rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary);">Associated Business Context</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" class="form-control" value="{{ request.user.company.name }}" readonly style="background-color: var(--background); cursor: not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">GSTIN</label>
+                            <input type="text" class="form-control" value="{{ request.user.company.gstin|default:'Unregistered' }}" readonly style="background-color: var(--background); cursor: not-allowed;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Registered Business Address</label>
+                        <textarea class="form-control" readonly style="background-color: var(--background); cursor: not-allowed; min-height: 80px;">{{ request.user.company.address }}</textarea>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-circle-check"></i> Update Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Dedicated Remove Profile Photo Modal -->
+<div class="modal-backdrop" id="removePhotoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="card-container" style="max-width: 420px; width: 90%; background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-lg); border-radius: 8px; overflow: hidden;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: var(--card);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i> Remove Profile Photo?
+            </h3>
+            <button type="button" onclick="closeRemovePhotoModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            <p style="margin: 0; font-size: 0.9rem; color: var(--muted-foreground); line-height: 1.5;">
+                Are you sure you want to remove your profile photo? This will permanently delete the stored image file from your account.
+            </p>
+        </div>
+        <div style="padding: 1rem 1.25rem; background: var(--background); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeRemovePhotoModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="confirmRemovePhotoBtn" onclick="executeRemovePhoto()" style="background: var(--danger); border-color: var(--danger); color: #ffffff;">
+                <i class="fa-regular fa-trash-can"></i> Remove
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedPhotoFile = null;
+
+    function onProfilePhotoSelected(input) {
+        if (!input.files || !input.files[0]) {
+            resetSelectedFileState();
+            return;
+        }
+
+        const file = input.files[0];
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+        if (!validTypes.includes(file.type) && !validExtensions.includes(ext)) {
+            showToast('error', 'Please select a valid image file (JPG, JPEG, PNG, or WEBP).');
+            input.value = '';
+            resetSelectedFileState();
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('error', 'Profile image must be less than 5MB.');
+            input.value = '';
+            resetSelectedFileState();
+            return;
+        }
+
+        selectedPhotoFile = file;
+
+        // Show local preview immediately
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const avatarBox = document.getElementById('profile-page-avatar-box');
+            if (avatarBox) {
+                avatarBox.innerHTML = `<img src="${e.target.result}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Show selected file indicator and upload button
+        const indicator = document.getElementById('selected-file-indicator');
+        const fileNameEl = document.getElementById('selected-file-name');
+        const uploadBtn = document.getElementById('uploadPhotoBtn');
+
+        if (indicator && fileNameEl) {
+            fileNameEl.textContent = file.name;
+            indicator.style.display = 'block';
+        }
+        if (uploadBtn) {
+            uploadBtn.style.display = 'inline-flex';
+        }
+    }
+
+    function resetSelectedFileState() {
+        selectedPhotoFile = null;
+        const input = document.getElementById('profile_photo_input');
+        if (input) input.value = '';
+
+        const indicator = document.getElementById('selected-file-indicator');
+        if (indicator) indicator.style.display = 'none';
+
+        const uploadBtn = document.getElementById('uploadPhotoBtn');
+        if (uploadBtn) uploadBtn.style.display = 'none';
+    }
+
+    function uploadProfilePhoto() {
+        if (!selectedPhotoFile) {
+            showToast('error', 'Please choose a photo first.');
+            return;
+        }
+
+        const uploadBtn = document.getElementById('uploadPhotoBtn');
+        const chooseBtn = document.getElementById('choosePhotoBtn');
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+        if (chooseBtn) chooseBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('photo', selectedPhotoFile);
+
+        fetch('/api/profile/photo/upload/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('HTTP error! Status: ' + res.status);
+            }
+            return res.json();
+        })
+        .then(data => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Photo';
+            if (chooseBtn) chooseBtn.disabled = false;
+
+            if (data.status === 'success') {
+                showToast('success', data.message || 'Profile photo uploaded successfully.');
+                
+                // Realtime Avatar & Filename Update across components
+                updateAllAvatars(data.photo_url);
+                updatePhotoFilenameDisplay(data.profile_photo_name || selectedPhotoFile.name);
+
+                resetSelectedFileState();
+                
+                const removeBtn = document.getElementById('removePhotoBtn');
+                if (removeBtn) removeBtn.style.display = 'inline-flex';
+            } else {
+                showToast('error', data.message || 'Profile photo upload failed. Please try again.');
+            }
+        })
+        .catch(err => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Photo';
+            if (chooseBtn) chooseBtn.disabled = false;
+            showToast('error', 'Upload failed. Please try again.');
+        });
+    }
+
+    function openRemovePhotoModal() {
+        const modal = document.getElementById('removePhotoModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeRemovePhotoModal() {
+        const modal = document.getElementById('removePhotoModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function executeRemovePhoto() {
+        const btn = document.getElementById('confirmRemovePhotoBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Removing...';
+
+        fetch('/api/profile/photo/remove/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('HTTP error! Status: ' + res.status);
+            }
+            return res.json();
+        })
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-regular fa-trash-can"></i> Remove';
+            closeRemovePhotoModal();
+
+            if (data.status === 'success') {
+                showToast('success', data.message || 'Profile photo removed.');
+                
+                // Realtime Avatar & Filename Update to Default
+                updateAllAvatars(null);
+                updatePhotoFilenameDisplay('No profile photo uploaded');
+                resetSelectedFileState();
+
+                const removeBtn = document.getElementById('removePhotoBtn');
+                if (removeBtn) removeBtn.style.display = 'none';
+            } else {
+                showToast('error', data.message || 'Failed to remove profile photo.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-regular fa-trash-can"></i> Remove';
+            closeRemovePhotoModal();
+            showToast('error', 'Unable to remove photo. Please try again.');
+        });
+    }
+
+    function updatePhotoFilenameDisplay(name) {
+        const fnEl = document.getElementById('profile-photo-filename');
+        if (fnEl) {
+            fnEl.textContent = name || 'No profile photo uploaded';
+            fnEl.title = name || 'No profile photo uploaded';
+        }
+    }
+
+    function updateAllAvatars(url) {
+        const usernameInitial = "{{ request.user.username|slice:':1'|upper }}";
+        const targets = [
+            'profile-page-avatar-box',
+            'header-user-avatar-box',
+            'dropdown-user-avatar-box'
+        ];
+
+        targets.forEach(boxId => {
+            const box = document.getElementById(boxId);
+            if (box) {
+                if (url) {
+                    box.innerHTML = `<img src="${url}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                } else {
+                    box.innerHTML = `<span>${usernameInitial}</span>`;
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

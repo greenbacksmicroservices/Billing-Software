@@ -1,0 +1,191 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Create Subscription Plan{% endblock %}
+{% block nav_plans %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Create Subscription Plan</h1>
+        <p style="color: var(--muted-foreground); font-size: 0.9rem; margin-top: 0.25rem;">Create and configure a new subscription plan</p>
+    </div>
+    <a href="{% url 'admin_plans' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" onsubmit="submitPlanForm(event, 'Creating...')" class="card-container">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Configure Pricing & Limits</h3></div>
+    <div class="card-body">
+        {% if form.non_field_errors %}
+            <div class="toast-item error" style="position: static; min-width: 100%; margin-bottom: 1.5rem; box-shadow: none;">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div class="toast-message">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            </div>
+        {% elif form.errors %}
+            <div class="toast-item error" style="position: static; min-width: 100%; margin-bottom: 1.5rem; box-shadow: none;">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div class="toast-message">
+                    Please correct the highlighted fields.
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="form-grid-2">
+            <!-- Basic Details -->
+            <div class="form-section-title">1. Plan Information</div>
+
+            <div class="form-group {% if form.name.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}{% if form.name.field.required %} *{% endif %}</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <span class="field-error-message">{{ form.name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.is_active.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                <div style="display: flex; align-items: center; gap: 0.5rem; height: 38px;">
+                    {{ form.is_active }}
+                    <span style="font-size: 0.85rem; color: var(--muted);">Active and available for subscriptions</span>
+                </div>
+                {% if form.is_active.errors %}
+                    <span class="field-error-message">{{ form.is_active.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.description.errors %}has-error{% endif %} col-span-2">
+                <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}{% if form.description.field.required %} *{% endif %}</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <span class="field-error-message">{{ form.description.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Pricing Details -->
+            <div class="form-section-title">2. Pricing & Trial</div>
+
+            <div class="form-group {% if form.monthly_price.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.monthly_price.id_for_label }}">{{ form.monthly_price.label }}{% if form.monthly_price.field.required %} *{% endif %}</label>
+                {{ form.monthly_price }}
+                {% if form.monthly_price.errors %}
+                    <span class="field-error-message">{{ form.monthly_price.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.yearly_price.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.yearly_price.id_for_label }}">{{ form.yearly_price.label }}{% if form.yearly_price.field.required %} *{% endif %}</label>
+                {{ form.yearly_price }}
+                {% if form.yearly_price.errors %}
+                    <span class="field-error-message">{{ form.yearly_price.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.gst_rate.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.gst_rate.id_for_label }}">{{ form.gst_rate.label }}{% if form.gst_rate.field.required %} *{% endif %}</label>
+                {{ form.gst_rate }}
+                {% if form.gst_rate.errors %}
+                    <span class="field-error-message">{{ form.gst_rate.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.trial_days.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.trial_days.id_for_label }}">{{ form.trial_days.label }}{% if form.trial_days.field.required %} *{% endif %}</label>
+                {{ form.trial_days }}
+                {% if form.trial_days.errors %}
+                    <span class="field-error-message">{{ form.trial_days.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Limits -->
+            <div class="form-section-title">3. Usage Limits</div>
+
+            <div class="form-group {% if form.user_limit.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.user_limit.id_for_label }}">{{ form.user_limit.label }}{% if form.user_limit.field.required %} *{% endif %}</label>
+                {{ form.user_limit }}
+                {% if form.user_limit.errors %}
+                    <span class="field-error-message">{{ form.user_limit.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.invoice_limit.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.invoice_limit.id_for_label }}">{{ form.invoice_limit.label }}{% if form.invoice_limit.field.required %} *{% endif %}</label>
+                {{ form.invoice_limit }}
+                {% if form.invoice_limit.errors %}
+                    <span class="field-error-message">{{ form.invoice_limit.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.product_limit.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.product_limit.id_for_label }}">{{ form.product_limit.label }}{% if form.product_limit.field.required %} *{% endif %}</label>
+                {{ form.product_limit }}
+                {% if form.product_limit.errors %}
+                    <span class="field-error-message">{{ form.product_limit.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group {% if form.customer_limit.errors %}has-error{% endif %}">
+                <label class="form-label" for="{{ form.customer_limit.id_for_label }}">{{ form.customer_limit.label }}{% if form.customer_limit.field.required %} *{% endif %}</label>
+                {{ form.customer_limit }}
+                {% if form.customer_limit.errors %}
+                    <span class="field-error-message">{{ form.customer_limit.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Features -->
+            <div class="form-section-title">4. Plan Features & Modules</div>
+
+            <div class="form-group col-span-2">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; padding: 0.5rem 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.inventory_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.inventory_enabled.id_for_label }}">Inventory Management</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.gst_reports_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.gst_reports_enabled.id_for_label }}">GST Reports & Compliance</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.e_invoice_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.e_invoice_enabled.id_for_label }}">E-Invoicing API Integration</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.e_way_bill_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.e_way_bill_enabled.id_for_label }}">E-Way Bill Generation</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.advanced_reports_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.advanced_reports_enabled.id_for_label }}">Advanced Analytics & Reports</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.accounting_enabled }}
+                        <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="{{ form.accounting_enabled.id_for_label }}">Double Entry Accounting</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <a href="{% url 'admin_plans' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i> Create Plan
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+    function submitPlanForm(e, btnText) {
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + btnText;
+        }
+    }
+</script>
+{% endblock %}

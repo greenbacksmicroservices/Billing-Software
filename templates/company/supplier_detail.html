@@ -1,0 +1,163 @@
+{% extends 'base_company.html' %}
+
+{% block title %}{{ supplier.name }} - Supplier Profile{% endblock %}
+{% block sub_suppliers %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ supplier.name }}</h1>
+        <p style="color: var(--muted-foreground);">Trade Name: {{ supplier.business_name|default:"Individual" }}</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'supplier_list' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        <a href="{% url 'supplier_edit' supplier.id %}" class="btn btn-primary">
+            <i class="fa-regular fa-pen-to-square"></i> Edit Profile
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Profile & Balance Summary -->
+    <div>
+        <div class="card-container">
+            <div class="card-header"><h3 class="card-title">Balance Summary</h3></div>
+            <div class="card-body">
+                <div style="text-align: center; padding: 1.5rem 0;">
+                    <div style="font-size: 0.85rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Net Outstanding Payable</div>
+                    <div style="font-size: 2.25rem; font-weight: 800; margin: 0.25rem 0; color: var(--warning);">
+                        ₹{{ supplier.outstanding_balance }}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--muted-foreground);">
+                        Payment Terms: {{ supplier.payment_terms }} Days Credit
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-container">
+            <div class="card-header"><h3 class="card-title">Supplier Details</h3></div>
+            <div class="card-body" style="font-size: 0.9rem; line-height: 1.6;">
+                <p><strong>Mobile:</strong> {{ supplier.mobile }}</p>
+                <p><strong>Alternate Mobile:</strong> {{ supplier.alternate_mobile|default:"-" }}</p>
+                <p><strong>Email:</strong> {{ supplier.email|default:"-" }}</p>
+                <p><strong>GSTIN:</strong> <code>{{ supplier.gstin|default:"Unregistered" }}</code></p>
+                <p><strong>PAN:</strong> <code>{{ supplier.pan|default:"N/A" }}</code></p>
+                
+                <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;">
+                
+                <p><strong>Address:</strong></p>
+                <p style="color: var(--muted-foreground);">{{ supplier.address }}<br>{{ supplier.city }}, {{ supplier.state }} - {{ supplier.pincode }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ledger & Purchase Bills -->
+    <div class="card-container">
+        <div class="card-header">
+            <h3 class="card-title">Transaction Ledger</h3>
+        </div>
+        <div class="card-body">
+            <h4 style="color: var(--primary); margin-bottom: 1rem;">Purchase Bills</h4>
+            <table class="custom-table" style="margin-bottom: 2rem;">
+                <thead>
+                    <tr>
+                        <th>Bill #</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Paid</th>
+                        <th>Outstanding</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in bills %}
+                        <tr>
+                            <td><strong><a href="{% url 'purchase_bill_view' bill.id %}" style="color: var(--primary);">{{ bill.supplier_bill_no }}</a></strong></td>
+                            <td>{{ bill.bill_date|date:"d M Y" }}</td>
+                            <td>₹{{ bill.grand_total }}</td>
+                            <td>₹{{ bill.paid_amount }}</td>
+                            <td style="font-weight: 600;">₹{{ bill.outstanding_amount }}</td>
+                            <td>
+                                <span class="badge {% if bill.status == 'PAID' %}badge-success{% elif bill.status == 'PARTIALLY_PAID' %}badge-info{% elif bill.status == 'DRAFT' %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ bill.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No purchase bills logged.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h4 style="color: var(--primary); margin-bottom: 1rem;">Payments Logs</h4>
+            <table class="custom-table" style="margin-bottom: 2rem;">
+                <thead>
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Date</th>
+                        <th>Bill Ref</th>
+                        <th>Amount Paid</th>
+                        <th>Method</th>
+                        <th>Reference #</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pm in payments %}
+                        <tr>
+                            <td>#{{ pm.id }}</td>
+                            <td>{{ pm.payment_date|date:"d M Y" }}</td>
+                            <td>{{ pm.purchase_bill.supplier_bill_no|default:"On Account" }}</td>
+                            <td style="color: var(--destructive); font-weight: 600;">₹{{ pm.amount }}</td>
+                            <td>{{ pm.get_payment_method_display }}</td>
+                            <td>{{ pm.reference_no|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No supplier payments logged.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h4 style="color: var(--primary); margin-bottom: 1rem;">Consolidated Accounting Ledger</h4>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Transaction Type</th>
+                            <th>Reference #</th>
+                            <th>Description</th>
+                            <th style="text-align: right;">Debit (Dr)</th>
+                            <th style="text-align: right;">Credit (Cr)</th>
+                            <th style="text-align: right;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in ledger_entries %}
+                            <tr>
+                                <td>{{ entry.date|date:"d M Y" }}</td>
+                                <td><span class="badge badge-info" style="text-transform: uppercase;">{{ entry.get_entry_type_display }}</span></td>
+                                <td><strong>{{ entry.reference_no }}</strong></td>
+                                <td>{{ entry.description|default:"-" }}</td>
+                                <td style="text-align: right; color: var(--destructive);">{% if entry.debit > 0 %}₹{{ entry.debit }}{% else %}-{% endif %}</td>
+                                <td style="text-align: right; color: var(--success);">{% if entry.credit > 0 %}₹{{ entry.credit }}{% else %}-{% endif %}</td>
+                                <td style="text-align: right; font-weight: 600;">₹{{ entry.running_balance }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No ledger entries found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

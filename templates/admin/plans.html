@@ -1,0 +1,66 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Subscription Plans - SaaS Admin{% endblock %}
+{% block nav_plans %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">SaaS Pricing Plans</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search plans..." %}
+        <a href="{% url 'admin_plan_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Add New Plan
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Plan Name</th>
+                    <th>Monthly Price</th>
+                    <th>Yearly Price</th>
+                    <th>User Limit</th>
+                    <th>Invoice Limit</th>
+                    <th>Inventory Enabled</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                    <tr>
+                        <td><strong>{{ plan.name }}</strong><br><small style="color: var(--muted-foreground);">{{ plan.description }}</small></td>
+                        <td>₹{{ plan.monthly_price }}</td>
+                        <td>₹{{ plan.yearly_price }}</td>
+                        <td>{{ plan.user_limit }} Users</td>
+                        <td>{{ plan.invoice_limit }} Invoices</td>
+                        <td>{% if plan.inventory_enabled %}Yes{% else %}No{% endif %}</td>
+                        <td>
+                            <span class="badge {% if plan.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if plan.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <a href="{% url 'admin_plan_edit' plan.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i class="fa-regular fa-pen-to-square"></i></a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/plan/{{ plan.id }}/', '{{ plan.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Plan"><i class="fa-regular fa-trash-can"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No pricing plans registered.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

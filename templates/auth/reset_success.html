@@ -1,0 +1,20 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}Password Changed - GBL Billing{% endblock %}
+{% block heading %}Success!{% endblock %}
+{% block subheading %}Your account credentials have been updated{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background-color: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 2rem; margin-bottom: 1.5rem;">
+        <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <p style="color: var(--muted-foreground); line-height: 1.6; font-size: 0.95rem;">
+        Your password has been changed successfully. A confirmation email has been dispatched to your registered address.
+    </p>
+</div>
+
+<a href="{% url 'login' %}" class="btn btn-primary" style="display: block; text-align: center; text-decoration: none; width: 100%; padding: 0.75rem; font-weight: 600; box-sizing: border-box;">
+    Go to Login <i class="fa-solid fa-arrow-right" style="margin-left: 6px;"></i>
+</a>
+{% endblock %}

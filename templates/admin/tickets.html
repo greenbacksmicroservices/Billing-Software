@@ -1,0 +1,79 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Support Tickets - SaaS Owner{% endblock %}
+{% block nav_tickets %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Client Support Tickets</h1>
+    <div>
+        {% include 'common_table_search.html' with placeholder="Search tickets, user, subject..." %}
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Company</th>
+                    <th>User</th>
+                    <th>Subject</th>
+                    <th>Priority</th>
+                    <th>Filing Date</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                    <tr>
+                        <td>#{{ ticket.id }}</td>
+                        <td>{{ ticket.company.name }}</td>
+                        <td>{{ ticket.user.username }}</td>
+                        <td><strong>{{ ticket.subject }}</strong><br><small style="color: var(--muted-foreground);">{{ ticket.description }}</small></td>
+                        <td>
+                            <span class="badge {% if ticket.priority == 'HIGH' %}badge-danger{% elif ticket.priority == 'MEDIUM' %}badge-warning{% else %}badge-info{% endif %}">
+                                {{ ticket.get_priority_display }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.created_at|date:"d M Y H:i" }}</td>
+                        <td>
+                            <span class="badge {% if ticket.status == 'RESOLVED' %}badge-success{% else %}badge-warning{% endif %}">
+                                {{ ticket.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: inline-flex; gap: 0.25rem; align-items: center;">
+                                {% if ticket.status == 'OPEN' %}
+                                    <form method="POST" action="{% url 'admin_ticket_reply' ticket.id %}" style="display: inline-flex; gap: 0.25rem;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="reply" value="Resolved by admin.">
+                                        <button type="submit" class="btn btn-success" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">
+                                            <i class="fa-solid fa-check"></i> Resolve
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span style="color: var(--muted-foreground); font-size: 0.85rem; margin-right: 0.25rem;">Resolved</span>
+                                {% endif %}
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/ticket/{{ ticket.id }}/', 'Ticket #{{ ticket.id }}')" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Delete Ticket">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No pending support tickets found.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

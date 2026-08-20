@@ -1,0 +1,709 @@
+{% extends 'base_admin.html' %}
+
+{% block admin_title %}HSN/SAC Code Assignment Master - GBL Billing{% endblock %}
+{% block nav_hsn_sac %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title">HSN/SAC Code Assignment Master</h1>
+        <p style="color: var(--muted-foreground); font-size: 0.875rem; margin-top: 0.25rem;">Centralized master tax rates and HSN/SAC classification codes for all multi-tenant company panels.</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button" class="btn btn-primary" onclick="openAddModal()"><i class="fa-solid fa-plus" style="margin-right: 0.35rem;"></i> Add HSN/SAC Code</button>
+        <button type="button" class="btn btn-secondary" onclick="openBulkUploadModal()"><i class="fa-solid fa-file-import" style="margin-right: 0.35rem;"></i> Bulk Upload</button>
+    </div>
+</div>
+
+<!-- Filters Panel (Static outside table-container so user inputs aren't reset) -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+        <form method="GET" action="{% url 'admin_hsn_sac_list' %}" id="filter-form" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+                <!-- Code Type -->
+                <div style="flex: 1; min-width: 140px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Code Type</label>
+                    <select name="type" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                        <option value="">All Types</option>
+                        <option value="HSN" {% if request.GET.type == 'HSN' %}selected{% endif %}>HSN (Goods)</option>
+                        <option value="SAC" {% if request.GET.type == 'SAC' %}selected{% endif %}>SAC (Services)</option>
+                    </select>
+                </div>
+
+                <!-- GST Rate -->
+                <div style="flex: 1; min-width: 140px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">GST Rate</label>
+                    <select name="gst_rate" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                        <option value="">All Rates</option>
+                        <option value="0.00" {% if request.GET.gst_rate == '0.00' %}selected{% endif %}>0%</option>
+                        <option value="5.00" {% if request.GET.gst_rate == '5.00' %}selected{% endif %}>5%</option>
+                        <option value="12.00" {% if request.GET.gst_rate == '12.00' %}selected{% endif %}>12%</option>
+                        <option value="18.00" {% if request.GET.gst_rate == '18.00' %}selected{% endif %}>18%</option>
+                        <option value="28.00" {% if request.GET.gst_rate == '28.00' %}selected{% endif %}>28%</option>
+                        <option value="other" {% if request.GET.gst_rate == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div style="flex: 1; min-width: 140px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Status</label>
+                    <select name="status" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+
+                <!-- Category -->
+                <div style="flex: 1; min-width: 150px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Category</label>
+                    <select name="category" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Sort Order -->
+                <div style="flex: 1; min-width: 160px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Sort By</label>
+                    <select name="sort_by" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                        <option value="code_asc" {% if request.GET.sort_by == 'code_asc' or not request.GET.sort_by %}selected{% endif %}>Code ↑</option>
+                        <option value="code_desc" {% if request.GET.sort_by == 'code_desc' %}selected{% endif %}>Code ↓</option>
+                        <option value="desc_asc" {% if request.GET.sort_by == 'desc_asc' %}selected{% endif %}>Description A-Z</option>
+                        <option value="desc_desc" {% if request.GET.sort_by == 'desc_desc' %}selected{% endif %}>Description Z-A</option>
+                        <option value="rate_asc" {% if request.GET.sort_by == 'rate_asc' %}selected{% endif %}>GST Rate ↑</option>
+                        <option value="rate_desc" {% if request.GET.sort_by == 'rate_desc' %}selected{% endif %}>GST Rate ↓</option>
+                        <option value="date_asc" {% if request.GET.sort_by == 'date_asc' %}selected{% endif %}>Created Date ↑</option>
+                        <option value="date_desc" {% if request.GET.sort_by == 'date_desc' %}selected{% endif %}>Created Date ↓</option>
+                    </select>
+                </div>
+
+                <!-- Search Input -->
+                <div style="flex: 2; min-width: 220px;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Realtime Search</label>
+                    <div>
+                        {% include 'common_table_search.html' with placeholder="Search code, description, UQC..." %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date Range Filters -->
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 0.75rem; align-items: flex-end;">
+                <div style="flex: 1; min-width: 150px;">
+                    <label class="form-label" style="font-weight: 500; font-size: 0.75rem; margin-bottom: 0.25rem;">Effective From</label>
+                    <input type="date" name="from_date" class="form-control" value="{{ request.GET.from_date }}">
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <label class="form-label" style="font-weight: 500; font-size: 0.75rem; margin-bottom: 0.25rem;">Effective To</label>
+                    <input type="date" name="to_date" class="form-control" value="{{ request.GET.to_date }}">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Filter Dates</button>
+                    <a href="{% url 'admin_hsn_sac_list' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-left: 0.5rem;"><i class="fa-solid fa-arrows-rotate"></i> Reset</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- AJAX Container Wrapper -->
+<div class="table-container-ajax" id="table-container">
+    <!-- Summary Cards -->
+    <div class="dashboard-grid" style="margin-bottom: 1.5rem;">
+        <div class="stat-card" style="border-left: 4px solid var(--primary);">
+            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Total Codes</div>
+            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary.total_codes }}</div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--success);">
+            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Active Codes</div>
+            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary.active_codes }}</div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--danger);">
+            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Inactive Codes</div>
+            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary.inactive_codes }}</div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--warning);">
+            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">HSN (Goods)</div>
+            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary.hsn_codes }}</div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
+            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">SAC (Services)</div>
+            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary.sac_codes }}</div>
+        </div>
+    </div>
+
+    <!-- Export Actions Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="font-size: 0.9rem; font-weight: 600; color: var(--foreground);">
+            HSN/SAC Classification Registry
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary" onclick="exportData('excel')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-regular fa-file-excel" style="color: var(--success); margin-right: 0.25rem;"></i> Export Excel</button>
+            <button type="button" class="btn btn-secondary" onclick="exportData('csv')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-solid fa-file-csv" style="color: var(--primary); margin-right: 0.25rem;"></i> Export CSV</button>
+            <button type="button" class="btn btn-secondary" onclick="exportData('print')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-solid fa-print" style="margin-right: 0.25rem;"></i> Print</button>
+        </div>
+    </div>
+
+    <!-- Master Table Card -->
+    <div class="card-container">
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Sr.</th>
+                        <th>Type</th>
+                        <th>HSN/SAC Code</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Sub Category</th>
+                        <th style="text-align: right;">GST Rate</th>
+                        <th style="text-align: right;">CGST</th>
+                        <th style="text-align: right;">SGST</th>
+                        <th style="text-align: right;">IGST</th>
+                        <th>UQC</th>
+                        <th>Status</th>
+                        <th>Effective From</th>
+                        <th style="text-align: right; width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in hsn_codes %}
+                        <tr>
+                            <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                            <td>
+                                <span class="badge {% if item.type == 'HSN' %}badge-info{% else %}badge-warning{% endif %}">
+                                    {{ item.type }}
+                                </span>
+                            </td>
+                            <td><strong><code>{{ item.code }}</code></strong></td>
+                            <td style="max-width: 250px; font-size: 0.85rem;">{{ item.description }}</td>
+                            <td>{{ item.category|default:"-" }}</td>
+                            <td>{{ item.sub_category|default:"-" }}</td>
+                            <td style="text-align: right; font-weight: 600;">{{ item.gst_rate }}%</td>
+                            <td style="text-align: right;"><small>{{ item.get_cgst_rate }}%</small></td>
+                            <td style="text-align: right;"><small>{{ item.get_sgst_rate }}%</small></td>
+                            <td style="text-align: right;"><small>{{ item.get_igst_rate }}%</small></td>
+                            <td><code>{{ item.uqc|default:"PCS" }}</code></td>
+                            <td>
+                                <span class="badge {% if item.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                    {% if item.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td><small>{{ item.effective_from|date:"d M Y"|default:"-" }}</small></td>
+                            <td style="text-align: right;">
+                                <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                                    <button class="btn btn-secondary" onclick="openEditModal({{ item.id }})" style="padding: 0.25rem 0.5rem;" title="Edit Code">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </button>
+                                    {% if item.is_active %}
+                                        <a href="{% url 'admin_hsn_sac_status' item.id 'inactive' %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Deactivate">
+                                            <i class="fa-solid fa-ban"></i>
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'admin_hsn_sac_status' item.id 'active' %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--success);" title="Activate">
+                                            <i class="fa-solid fa-check"></i>
+                                        </a>
+                                    {% endif %}
+                                    <button class="btn btn-secondary" onclick="deleteCode({{ item.id }}, '{{ item.code }}')" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="14" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No HSN/SAC classification codes found matching your criteria.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% include 'common_pagination.html' %}
+    </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div id="hsnModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitle" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Add HSN/SAC Code</h3>
+            <button type="button" onclick="closeHsnModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form id="hsnForm" onsubmit="submitHsnForm(event)" style="padding: 1.25rem;">
+            <input type="hidden" id="hsn_id" name="id" value="">
+            <div id="formErrorAlert" class="alert alert-danger" style="display: none; margin-bottom: 1rem; padding: 0.75rem; border-radius: 6px; font-size: 0.875rem;"></div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Code Type *</label>
+                    <select id="form_type" name="type" class="form-control" required>
+                        <option value="HSN">HSN (Goods)</option>
+                        <option value="SAC">SAC (Services)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">HSN/SAC Code *</label>
+                    <input type="text" id="form_code" name="code" class="form-control" placeholder="e.g. 998311 or 1001" required>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Description *</label>
+                <textarea id="form_description" name="description" class="form-control" rows="2" placeholder="Detailed product or service description..." required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Category</label>
+                    <input type="text" id="form_category" name="category" class="form-control" placeholder="e.g. IT Services, Agricultural">
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Sub Category</label>
+                    <input type="text" id="form_sub_category" name="sub_category" class="form-control" placeholder="e.g. Consulting, Grains">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; background: var(--background); padding: 0.75rem; border-radius: 6px;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem; display: block;">GST Rate (%) *</label>
+                    <input type="number" step="0.01" id="form_gst_rate" name="gst_rate" class="form-control" value="18.00" oninput="autoCalculateGst()" required>
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 500; font-size: 0.75rem; margin-bottom: 0.25rem; display: block;">CGST (%)</label>
+                    <input type="number" step="0.01" id="form_cgst_rate" name="cgst_rate" class="form-control" value="9.00">
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 500; font-size: 0.75rem; margin-bottom: 0.25rem; display: block;">SGST (%)</label>
+                    <input type="number" step="0.01" id="form_sgst_rate" name="sgst_rate" class="form-control" value="9.00">
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 500; font-size: 0.75rem; margin-bottom: 0.25rem; display: block;">IGST (%)</label>
+                    <input type="number" step="0.01" id="form_igst_rate" name="igst_rate" class="form-control" value="18.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">UQC (Unit)</label>
+                    <input type="text" id="form_uqc" name="uqc" class="form-control" value="PCS" placeholder="PCS, KGS, NOS">
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Effective From</label>
+                    <input type="date" id="form_effective_from" name="effective_from" class="form-control">
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Status</label>
+                    <select id="form_is_active" name="is_active" class="form-control">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeHsnModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="saveHsnBtn">Save Code</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div id="bulkModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Bulk Upload HSN/SAC Codes</h3>
+            <button type="button" onclick="closeBulkModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <!-- Step 1: Upload Form -->
+            <div id="bulkStep1">
+                <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--muted-foreground);">
+                    Upload a CSV or Excel (.xlsx) file containing HSN/SAC classification codes. Download the sample template below for reference.
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <a href="{% url 'admin_hsn_sac_sample_template' %}" class="btn btn-secondary" style="font-size: 0.85rem;"><i class="fa-solid fa-download" style="margin-right: 0.25rem;"></i> Download Sample Template</a>
+                </div>
+                <form id="bulkFileForm" onsubmit="uploadBulkFile(event)">
+                    <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 2rem; text-align: center; background: var(--background); margin-bottom: 1rem;">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 0.75rem; display: block;"></i>
+                        <input type="file" id="bulk_file" name="file" accept=".csv, .xlsx" style="display: none;" onchange="updateFileName(this)">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulk_file').click()">Select CSV or Excel File</button>
+                        <div id="fileNameDisplay" style="margin-top: 0.5rem; font-weight: 600; font-size: 0.85rem; color: var(--foreground);">No file selected</div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                        <button type="button" onclick="closeBulkModal()" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="validateFileBtn"><i class="fa-solid fa-check-double" style="margin-right: 0.25rem;"></i> Validate & Preview</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 2: Preview & Import Summary -->
+            <div id="bulkStep2" style="display: none;">
+                <div class="dashboard-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem;">
+                    <div class="stat-card" style="padding: 0.75rem;">
+                        <div style="font-size: 0.75rem; color: var(--muted);">Total Rows</div>
+                        <div id="sumTotal" style="font-size: 1.25rem; font-weight: 700;">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--success);">
+                        <div style="font-size: 0.75rem; color: var(--muted);">Valid Rows</div>
+                        <div id="sumValid" style="font-size: 1.25rem; font-weight: 700; color: var(--success);">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--danger);">
+                        <div style="font-size: 0.75rem; color: var(--muted);">Invalid Rows</div>
+                        <div id="sumInvalid" style="font-size: 1.25rem; font-weight: 700; color: var(--danger);">0</div>
+                    </div>
+                    <div class="stat-card" style="padding: 0.75rem; border-left: 3px solid var(--primary);">
+                        <div style="font-size: 0.75rem; color: var(--muted);">Updates / New</div>
+                        <div id="sumAction" style="font-size: 1.25rem; font-weight: 700;"><span id="sumNew">0</span> / <span id="sumUpdate">0</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Import Mode</label>
+                    <select id="import_mode" class="form-control" style="max-width: 300px;">
+                        <option value="add_update" selected>Add New + Update Existing (Recommended)</option>
+                        <option value="add_only">Add New Records Only</option>
+                        <option value="update_only">Update Existing Records Only</option>
+                    </select>
+                </div>
+
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px;">
+                    <table class="custom-table" style="font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Type</th>
+                                <th>Code</th>
+                                <th>Description</th>
+                                <th>GST %</th>
+                                <th>Action</th>
+                                <th>Verification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 1rem;">
+                    <div>
+                        <button type="button" class="btn btn-secondary" id="downloadErrorBtn" onclick="downloadErrorReport()" style="display: none; color: var(--danger);"><i class="fa-solid fa-file-excel" style="margin-right: 0.25rem;"></i> Download Error Report</button>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button type="button" onclick="resetBulkStep()" class="btn btn-secondary">Back to Upload</button>
+                        <button type="button" class="btn btn-primary" onclick="executeBulkImport()" id="confirmImportBtn">Import Valid Records</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function autoCalculateGst() {
+        const gstVal = parseFloat(document.getElementById('form_gst_rate').value) || 0;
+        document.getElementById('form_cgst_rate').value = (gstVal / 2).toFixed(2);
+        document.getElementById('form_sgst_rate').value = (gstVal / 2).toFixed(2);
+        document.getElementById('form_igst_rate').value = gstVal.toFixed(2);
+    }
+
+    function openAddModal() {
+        document.getElementById('modalTitle').innerText = 'Add HSN/SAC Code';
+        document.getElementById('hsn_id').value = '';
+        document.getElementById('hsnForm').reset();
+        document.getElementById('form_gst_rate').value = '18.00';
+        autoCalculateGst();
+        document.getElementById('formErrorAlert').style.display = 'none';
+        document.getElementById('hsnModal').style.display = 'flex';
+    }
+
+    function openEditModal(id) {
+        document.getElementById('modalTitle').innerText = 'Edit HSN/SAC Code';
+        document.getElementById('hsn_id').value = id;
+        document.getElementById('formErrorAlert').style.display = 'none';
+        
+        fetch(`/admin/hsn-sac-codes/${id}/edit/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const data = res.data;
+                    document.getElementById('form_type').value = data.type;
+                    document.getElementById('form_code').value = data.code;
+                    document.getElementById('form_description').value = data.description;
+                    document.getElementById('form_category').value = data.category;
+                    document.getElementById('form_sub_category').value = data.sub_category;
+                    document.getElementById('form_gst_rate').value = data.gst_rate;
+                    document.getElementById('form_cgst_rate').value = data.cgst_rate;
+                    document.getElementById('form_sgst_rate').value = data.sgst_rate;
+                    document.getElementById('form_igst_rate').value = data.igst_rate;
+                    document.getElementById('form_uqc').value = data.uqc || 'PCS';
+                    document.getElementById('form_effective_from').value = data.effective_from || '';
+                    document.getElementById('form_is_active').value = data.is_active ? 'true' : 'false';
+                    document.getElementById('hsnModal').style.display = 'flex';
+                } else {
+                    alert(res.message);
+                }
+            })
+            .catch(err => alert('Failed to load code details.'));
+    }
+
+    function closeHsnModal() {
+        document.getElementById('hsnModal').style.display = 'none';
+    }
+
+    function submitHsnForm(e) {
+        e.preventDefault();
+        const id = document.getElementById('hsn_id').value;
+        const url = id ? `/admin/hsn-sac-codes/${id}/edit/` : '/admin/hsn-sac-codes/add/';
+        const form = document.getElementById('hsnForm');
+        
+        const payload = {
+            type: document.getElementById('form_type').value,
+            code: document.getElementById('form_code').value,
+            description: document.getElementById('form_description').value,
+            category: document.getElementById('form_category').value,
+            sub_category: document.getElementById('form_sub_category').value,
+            gst_rate: document.getElementById('form_gst_rate').value,
+            cgst_rate: document.getElementById('form_cgst_rate').value,
+            sgst_rate: document.getElementById('form_sgst_rate').value,
+            igst_rate: document.getElementById('form_igst_rate').value,
+            uqc: document.getElementById('form_uqc').value,
+            effective_from: document.getElementById('form_effective_from').value,
+            is_active: document.getElementById('form_is_active').value
+        };
+
+        const saveBtn = document.getElementById('saveHsnBtn');
+        saveBtn.disabled = true;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            saveBtn.disabled = false;
+            if (data.status === 'success') {
+                closeHsnModal();
+                window.location.reload();
+            } else {
+                const alertBox = document.getElementById('formErrorAlert');
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            saveBtn.disabled = false;
+            alert('An unexpected error occurred.');
+        });
+    }
+
+    function deleteCode(id, code) {
+        triggerGlobalDelete(`/api/delete/hsn-sac/${id}/`, code);
+    }
+
+    // Bulk Upload Functions
+    let bulkParsedData = null;
+
+    function openBulkUploadModal() {
+        resetBulkStep();
+        document.getElementById('bulkModal').style.display = 'flex';
+    }
+
+    function closeBulkModal() {
+        document.getElementById('bulkModal').style.display = 'none';
+    }
+
+    function updateFileName(input) {
+        const display = document.getElementById('fileNameDisplay');
+        if (input.files && input.files[0]) {
+            display.innerText = input.files[0].name;
+        } else {
+            display.innerText = 'No file selected';
+        }
+    }
+
+    function resetBulkStep() {
+        document.getElementById('bulkStep1').style.display = 'block';
+        document.getElementById('bulkStep2').style.display = 'none';
+        document.getElementById('bulkFileForm').reset();
+        document.getElementById('fileNameDisplay').innerText = 'No file selected';
+        bulkParsedData = null;
+    }
+
+    function uploadBulkFile(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('bulk_file');
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Please select a file to upload.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const btn = document.getElementById('validateFileBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating File...';
+
+        fetch('/admin/hsn-sac-codes/bulk-preview/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check-double" style="margin-right: 0.25rem;"></i> Validate & Preview';
+            if (data.status === 'success') {
+                bulkParsedData = data;
+                renderPreviewStep(data);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check-double" style="margin-right: 0.25rem;"></i> Validate & Preview';
+            alert('Failed to parse file.');
+        });
+    }
+
+    function renderPreviewStep(data) {
+        document.getElementById('bulkStep1').style.display = 'none';
+        document.getElementById('bulkStep2').style.display = 'block';
+
+        const s = data.summary;
+        document.getElementById('sumTotal').innerText = s.total_rows;
+        document.getElementById('sumValid').innerText = s.valid_rows;
+        document.getElementById('sumInvalid').innerText = s.invalid_rows;
+        document.getElementById('sumNew').innerText = s.new_rows;
+        document.getElementById('sumUpdate').innerText = s.update_rows;
+
+        const tbody = document.getElementById('previewTableBody');
+        tbody.innerHTML = '';
+
+        data.rows.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.row_num}</td>
+                <td><strong>${r.type}</strong></td>
+                <td><code>${r.code}</code></td>
+                <td style="max-width: 200px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${r.description}</td>
+                <td>${r.gst_rate}%</td>
+                <td><span class="badge ${r.action === 'UPDATE' ? 'badge-warning' : 'badge-info'}">${r.action}</span></td>
+                <td>
+                    ${r.is_valid 
+                        ? '<span class="badge badge-success">✓ Valid</span>' 
+                        : `<span class="badge badge-danger">✕ Invalid: ${r.errors}</span>`}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('downloadErrorBtn').style.display = s.invalid_rows > 0 ? 'inline-block' : 'none';
+        document.getElementById('confirmImportBtn').disabled = s.valid_rows === 0;
+    }
+
+    function executeBulkImport() {
+        if (!bulkParsedData || !bulkParsedData.rows) return;
+
+        const validRows = bulkParsedData.rows.filter(r => r.is_valid);
+        if (validRows.length === 0) {
+            alert('No valid records to import.');
+            return;
+        }
+
+        const mode = document.getElementById('import_mode').value;
+        const confirmBtn = document.getElementById('confirmImportBtn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Importing...';
+
+        fetch('/admin/hsn-sac-codes/bulk-import/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                valid_rows: validRows,
+                import_mode: mode
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Import Valid Records';
+            if (data.status === 'success') {
+                closeBulkModal();
+                window.location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(err => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Import Valid Records';
+            alert('Import failed.');
+        });
+    }
+
+    function downloadErrorReport() {
+        if (!bulkParsedData || !bulkParsedData.rows) return;
+
+        const invalidRows = bulkParsedData.rows.filter(r => !r.is_valid);
+        fetch('/admin/hsn-sac-codes/export-error-report/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ invalid_rows: invalidRows })
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'HSN_SAC_Import_Error_Report.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        });
+    }
+
+    function exportData(format) {
+        const urlParams = new URLSearchParams(new FormData(document.getElementById('filter-form')));
+        if (format === 'excel' || format === 'csv') {
+            urlParams.set('export', format);
+            window.location.href = window.location.pathname + '?' + urlParams.toString();
+        } else if (format === 'print') {
+            urlParams.set('print', 'true');
+            window.open(window.location.pathname + '?' + urlParams.toString(), '_blank');
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

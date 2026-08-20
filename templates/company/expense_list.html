@@ -1,0 +1,66 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Expenses Ledger{% endblock %}
+{% block sub_expenses %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Overhead Expenses</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search expense, vendor..." %}
+        <a href="{% url 'expense_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Log New Expense
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Expense ID</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>GST Amount</th>
+                    <th>Total</th>
+                    <th>Method</th>
+                    <th>Ref #</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in expenses %}
+                    <tr>
+                        <td>#{{ exp.id }}</td>
+                        <td>{{ exp.created_at|date:"d M Y" }}</td>
+                        <td><strong>{{ exp.category.name }}</strong></td>
+                        <td>{{ exp.vendor|default:"-" }}</td>
+                        <td>{{ exp.amount|indian_currency }}</td>
+                        <td style="color: var(--muted-foreground);">{{ exp.gst_amount|indian_currency }}</td>
+                        <td style="font-weight: 600;">{{ exp.amount|add:exp.gst_amount|indian_currency }}</td>
+                        <td>{{ exp.payment_method }}</td>
+                        <td>{{ exp.reference_no|default:"-" }}</td>
+                        <td style="text-align: right;">
+                            <button type="button" onclick="triggerGlobalDelete('/api/delete/expense/{{ exp.id }}/', 'Expense #{{ exp.id }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Expense">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No expenses logged. Click "Log New Expense" to track overheads.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

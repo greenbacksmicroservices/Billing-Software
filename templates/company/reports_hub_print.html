@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GBL Billing Report - Print</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #000;
+            background: #fff;
+            margin: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+        }
+        .header p {
+            margin: 0;
+            color: #555;
+        }
+        .totals-summary {
+            display: flex;
+            justify-content: space-around;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .totals-item {
+            text-align: center;
+        }
+        .totals-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #555;
+        }
+        .totals-value {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+        .text-right {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>GBL Billing - Reports Hub</h1>
+        <p>Generated on {{ current_time|date:"d M Y h:i A" }} | View: {{ view_type|title }}</p>
+        {% if start_date or end_date %}
+            <p>Date Range: {{ start_date|default:"Beginning" }} to {{ end_date|default:"Present" }}</p>
+        {% endif %}
+    </div>
+
+    <div class="totals-summary">
+        <div class="totals-item">
+            <div class="totals-label">Total Records</div>
+            <div class="totals-value">{{ footer_totals.records }}</div>
+        </div>
+        <div class="totals-item">
+            <div class="totals-label">Completed</div>
+            <div class="totals-value">{{ footer_totals.completed }}</div>
+        </div>
+        <div class="totals-item">
+            <div class="totals-label">Pending</div>
+            <div class="totals-value">{{ footer_totals.pending }}</div>
+        </div>
+        <div class="totals-item">
+            <div class="totals-label">Cancelled</div>
+            <div class="totals-value">{{ footer_totals.cancelled }}</div>
+        </div>
+        <div class="totals-item">
+            <div class="totals-label">Total Amount</div>
+            <div class="totals-value">₹{{ footer_totals.amount }}</div>
+        </div>
+    </div>
+
+    {% if view_type == 'day_wise' %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Records</th>
+                    <th>Completed</th>
+                    <th>Pending</th>
+                    <th>Cancelled</th>
+                    <th class="text-right">Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in object_list %}
+                    <tr>
+                        <td>{{ row.invoice_date|date:"d M Y" }}</td>
+                        <td>{{ row.total_records }}</td>
+                        <td>{{ row.completed }}</td>
+                        <td>{{ row.pending }}</td>
+                        <td>{{ row.cancelled }}</td>
+                        <td class="text-right">₹{{ row.total_amount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif view_type == 'month_wise' %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Total Records</th>
+                    <th>Completed</th>
+                    <th>Pending</th>
+                    <th>Cancelled</th>
+                    <th class="text-right">Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in object_list %}
+                    <tr>
+                        <td>{{ row.month|date:"F Y" }}</td>
+                        <td>{{ row.total_records }}</td>
+                        <td>{{ row.completed }}</td>
+                        <td>{{ row.pending }}</td>
+                        <td>{{ row.cancelled }}</td>
+                        <td class="text-right">₹{{ row.total_amount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice Number</th>
+                    <th>Date</th>
+                    <th>Customer Name</th>
+                    <th>Status</th>
+                    <th class="text-right">Taxable Value</th>
+                    <th class="text-right">GST Total</th>
+                    <th class="text-right">Grand Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in object_list %}
+                    <tr>
+                        <td>{{ inv.invoice_number }}</td>
+                        <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+                        <td>{{ inv.customer.name }}</td>
+                        <td>{{ inv.get_status_display }}</td>
+                        <td class="text-right">₹{{ inv.taxable_value }}</td>
+                        <td class="text-right">₹{{ inv.cgst_total|add:inv.sgst_total|add:inv.igst_total }}</td>
+                        <td class="text-right">₹{{ inv.grand_total }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

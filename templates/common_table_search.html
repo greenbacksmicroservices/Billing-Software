@@ -1,0 +1,22 @@
+{% comment %}
+Global Reusable Table Search Bar Component
+Usage: {% include 'common_table_search.html' with placeholder="Search by name, code, GSTIN..." %}
+{% endcomment %}
+<div class="global-table-search-box" style="position: relative; display: inline-flex; align-items: center; width: 100%; max-width: 240px; min-width: 180px;">
+    <i class="fa-solid fa-magnifying-glass search-icon" style="position: absolute; left: 0.75rem; color: var(--muted-foreground); font-size: 0.85rem; pointer-events: none;"></i>
+    <input type="text" 
+           name="search" 
+           class="form-control table-search-input" 
+           value="{{ request.GET.search|default:'' }}" 
+           placeholder="{{ placeholder|default:'Type to search...' }}" 
+           autocomplete="off"
+           style="padding-left: 2.25rem; padding-right: 2rem; height: 36px; font-size: 0.85rem; border-radius: 6px; background-color: var(--card); color: var(--foreground); border: 1px solid var(--border); transition: all 0.2s ease; width: 100%;">
+    <button type="button" 
+            class="clear-search-btn" 
+            onclick="clearGlobalSearch(this)" 
+            title="Clear search"
+            style="position: absolute; right: 0.4rem; background: none; border: none; color: var(--muted-foreground); font-size: 0.9rem; cursor: pointer; display: {% if request.GET.search %}inline-flex{% else %}none{% endif %}; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;">
+        &times;
+    </button>
+    <i class="fa-solid fa-spinner fa-spin search-spinner" style="position: absolute; right: 0.6rem; color: var(--primary); font-size: 0.85rem; display: none; pointer-events: none;"></i>
+</div>

@@ -1,0 +1,150 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Register Company - SaaS Admin{% endblock %}
+{% block nav_companies %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Register New SaaS Company</h1>
+    <a href="{% url 'admin_companies_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Directory
+    </a>
+</div>
+
+<form method="POST" class="card-container">
+    {% csrf_token %}
+    
+    <div class="card-body">
+        <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.5rem; color: var(--primary);">
+            <i class="fa-solid fa-briefcase"></i> Business Information
+        </h3>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="company_name">Legal Business Name *</label>
+                <input type="text" name="company_name" id="company_name" class="form-control" placeholder="e.g. Acme Corp Private Limited" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="trade_name">Trade Name / Brand Name</label>
+                <input type="text" name="trade_name" id="trade_name" class="form-control" placeholder="e.g. Acme Tech">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="business_type">Business Entity Type</label>
+                <select name="business_type" id="business_type" class="form-control">
+                    <option value="PROPRIETORSHIP">Sole Proprietorship</option>
+                    <option value="PARTNERSHIP">Partnership</option>
+                    <option value="LLP">Limited Liability Partnership (LLP)</option>
+                    <option value="PVT_LTD">Private Limited Company</option>
+                    <option value="LTD">Public Limited Company</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="gst_status">GST Status</label>
+                <select name="gst_status" id="gst_status" class="form-control">
+                    <option value="REGISTERED">Registered Regular</option>
+                    <option value="COMPOSITION">Composition Scheme</option>
+                    <option value="UNREGISTERED" selected>Unregistered Business</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="gstin">GSTIN (15-character ID)</label>
+                <input type="text" name="gstin" id="gstin" class="form-control" placeholder="27AAAAA0000A1Z5" maxlength="15">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="pan">PAN Card Number</label>
+                <input type="text" name="pan" id="pan" class="form-control" placeholder="AAAAA0000A" maxlength="10">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="email">Billing Email address *</label>
+                <input type="email" name="email" id="email" class="form-control" placeholder="finance@company.com" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="mobile">Mobile Connection *</label>
+                <input type="text" name="mobile" id="mobile" class="form-control" placeholder="+91 98765 43210" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="address">Registered Address *</label>
+            <textarea name="address" id="address" class="form-control" rows="2" placeholder="Full street address..." required></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="city">City / District *</label>
+                <input type="text" name="city" id="city" class="form-control" placeholder="Mumbai" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="state">State *</label>
+                <input type="text" name="state" id="state" class="form-control" placeholder="Maharashtra" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="state_code">State Code *</label>
+                <input type="text" name="state_code" id="state_code" class="form-control" placeholder="27" maxlength="2" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="pincode">Pincode *</label>
+                <input type="text" name="pincode" id="pincode" class="form-control" placeholder="400001" maxlength="6" required>
+            </div>
+        </div>
+
+        <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 1.5rem; color: var(--primary);">
+            <i class="fa-solid fa-user-gear"></i> Owner / Account Credentials
+        </h3>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="owner_name">Owner / Director Name *</label>
+                <input type="text" name="owner_name" id="owner_name" class="form-control" placeholder="Full Name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="username">Admin Username *</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="admin_username" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Login Password *</label>
+                <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
+            </div>
+        </div>
+
+        <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 1.5rem; color: var(--primary);">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Subscription Pricing Plan
+        </h3>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="plan">Select Plan *</label>
+                <select name="plan" id="plan" class="form-control" required>
+                    {% for plan in plans %}
+                        <option value="{{ plan.id }}">{{ plan.name }} - ₹{{ plan.monthly_price }}/mo (User Limit: {{ plan.user_limit }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="sub_status">Initial Subscription Status</label>
+                <select name="sub_status" id="sub_status" class="form-control">
+                    <option value="TRIAL" selected>Free Trial Evaluation</option>
+                    <option value="ACTIVE">Active Paid Account</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="{% url 'admin_companies_list' %}" class="btn btn-secondary">Cancel Registration</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-circle-check"></i> Register and Provision Account
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

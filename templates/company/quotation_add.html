@@ -1,0 +1,716 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Create Quotation{% endblock %}
+{% block sub_quotations %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">New Sales Quotation</h1>
+    <a href="{% url 'quotation_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form id="quotation-form" method="POST" onsubmit="submitQuotation(event)" class="card-container" novalidate>
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Quotation Parameters</h3></div>
+    <div class="card-body">
+        
+        <div id="form-error-toast" class="message-item error" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <div class="form-row">
+            <div class="form-group customer-autocomplete-group" style="position: relative;">
+                <label class="form-label" for="customer-search-input">Customer *</label>
+                <div class="customer-search-wrapper">
+                    <input type="text" id="customer-search-input" class="form-control" placeholder="Type customer name to search..." autocomplete="off">
+                    <input type="hidden" id="customer" name="customer">
+                    <button type="button" id="customer-clear-btn" class="customer-clear-btn" style="display: none;" title="Clear customer">&times;</button>
+                    <i class="fa-solid fa-chevron-down customer-dropdown-icon"></i>
+                </div>
+                <!-- Dropdown List Container -->
+                <div id="customer-dropdown-results" class="customer-dropdown-results" style="display: none;">
+                    <div class="customer-results-list" id="customer-results-list"></div>
+                    <div class="customer-opt-other" id="customer-opt-other" onclick="openQuickCustomerModal()">
+                        <i class="fa-solid fa-plus-circle" style="color: var(--primary);"></i>
+                        <span><strong>+ Other</strong> <small style="font-size: 0.75rem; color: var(--muted);">(Create new customer)</small></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="quotation-number">Quotation Number *</label>
+                <input type="text" id="quotation-number" class="form-control" value="{{ quotation_number }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="quotation-date">Quotation Date *</label>
+                <input type="date" id="quotation-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="valid-until">Valid Until *</label>
+                <input type="date" id="valid-until" class="form-control" required>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <h4 style="margin: 2rem 0 1rem 0; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--primary);">Items Grid</h4>
+        <div class="table-responsive">
+            <table class="custom-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Product Description *</th>
+                        <th style="width: 15%;">HSN/SAC</th>
+                        <th>Qty *</th>
+                        <th>Rate *</th>
+                        <th>Disc (INR)</th>
+                        <th>GST %</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right; width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody"></tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="addRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div>
+                <textarea id="notes" class="form-control" rows="3" placeholder="Enter comments..."></textarea>
+            </div>
+            <div style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gross Subtotal:</span>
+                    <strong id="summary-subtotal">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Taxable:</span>
+                    <strong id="summary-taxable">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cgst-row">
+                    <span>CGST:</span>
+                    <strong id="summary-cgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="sgst-row">
+                    <span>SGST:</span>
+                    <strong id="summary-sgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="igst-row">
+                    <span>IGST:</span>
+                    <strong id="summary-igst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cess-row">
+                    <span>Cess:</span>
+                    <strong id="summary-cess">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
+                    <span>Grand Total:</span>
+                    <strong id="summary-grand">₹0.00</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+            <a href="{% url 'quotation_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="submit-btn" class="btn btn-primary">Save Quotation</button>
+        </div>
+
+    </div>
+</form>
+
+<!-- Quick Add Customer Modal -->
+<div id="quick-customer-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 550px; width: 90%;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--primary);">
+                <i class="fa-solid fa-user-plus"></i> Add New Customer
+            </h3>
+            <button type="button" onclick="closeQuickCustomerModal()" class="btn-close" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <div id="quick-cust-error" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Customer Name *</label>
+                <input type="text" id="qc-name" class="form-control" placeholder="Enter customer name" required>
+            </div>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Business / Trade Name</label>
+                    <input type="text" id="qc-business-name" class="form-control" placeholder="Enter business name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mobile Number</label>
+                    <input type="text" id="qc-mobile" class="form-control" placeholder="e.g. 9876543210">
+                </div>
+            </div>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">GSTIN (Optional)</label>
+                    <input type="text" id="qc-gstin" class="form-control" placeholder="27AAAAA0000A1Z5" style="text-transform: uppercase;" maxlength="15" oninput="onQcGstinInput()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Registration Type</label>
+                    <select id="qc-type" class="form-control">
+                        <option value="UNREGISTERED">Unregistered / Consumer</option>
+                        <option value="REGISTERED">Registered Business (B2B)</option>
+                        <option value="COMPOSITION">Composition Scheme</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Billing Address</label>
+                <input type="text" id="qc-address" class="form-control" placeholder="Street Address, Area">
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">State *</label>
+                    <select id="qc-state" class="form-control" onchange="onQcStateChange()">
+                        <option value="Maharashtra" data-code="27">Maharashtra (27)</option>
+                        <option value="Gujarat" data-code="24">Gujarat (24)</option>
+                        <option value="Delhi" data-code="07">Delhi (07)</option>
+                        <option value="Karnataka" data-code="29">Karnataka (29)</option>
+                        <option value="Tamil Nadu" data-code="33">Tamil Nadu (33)</option>
+                        <option value="Uttar Pradesh" data-code="09">Uttar Pradesh (09)</option>
+                        <option value="West Bengal" data-code="19">West Bengal (19)</option>
+                        <option value="Rajasthan" data-code="08">Rajasthan (08)</option>
+                        <option value="Telangana" data-code="36">Telangana (36)</option>
+                        <option value="Kerala" data-code="32">Kerala (32)</option>
+                        <option value="Odisha" data-code="21">Odisha (21)</option>
+                        <option value="Punjab" data-code="03">Punjab (03)</option>
+                        <option value="Haryana" data-code="06">Haryana (06)</option>
+                        <option value="Madhya Pradesh" data-code="23">Madhya Pradesh (23)</option>
+                        <option value="Bihar" data-code="10">Bihar (10)</option>
+                        <option value="Andhra Pradesh" data-code="37">Andhra Pradesh (37)</option>
+                        <option value="Assam" data-code="18">Assam (18)</option>
+                        <option value="Chhattisgarh" data-code="22">Chhattisgarh (22)</option>
+                        <option value="Jharkhand" data-code="20">Jharkhand (20)</option>
+                        <option value="Himachal Pradesh" data-code="02">Himachal Pradesh (02)</option>
+                        <option value="Uttarakhand" data-code="05">Uttarakhand (05)</option>
+                        <option value="Goa" data-code="30">Goa (30)</option>
+                    </select>
+                    <input type="hidden" id="qc-state-code" value="27">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pincode</label>
+                    <input type="text" id="qc-pincode" class="form-control" placeholder="400001" maxlength="6">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeQuickCustomerModal()">Cancel</button>
+            <button type="button" id="qc-save-btn" class="btn btn-primary" onclick="saveQuickCustomer()">
+                <i class="fa-solid fa-check"></i> Save Customer
+            </button>
+        </div>
+    </div>
+</div>
+
+<script id="products-data" type="application/json">
+{{ products_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let products = [];
+    try {
+        products = JSON.parse(document.getElementById('products-data').textContent || '[]');
+    } catch(e) { console.error('Error parsing products JSON:', e); products = []; }
+    const companyStateCode = "{{ request.user.company.state_code }}";
+    let searchDebounceTimer = null;
+    let selectedCustomerData = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const dateInput = document.getElementById('quotation-date');
+        const validUntilInput = document.getElementById('valid-until');
+        if (dateInput && !dateInput.value) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+            
+            const future = new Date(today);
+            future.setDate(future.getDate() + 30);
+            const f_yyyy = future.getFullYear();
+            const f_mm = String(future.getMonth() + 1).padStart(2, '0');
+            const f_dd = String(future.getDate()).padStart(2, '0');
+            if (validUntilInput && !validUntilInput.value) {
+                validUntilInput.value = `${f_yyyy}-${f_mm}-${f_dd}`;
+            }
+        }
+
+        addRow();
+        initCustomerAutocomplete();
+    });
+
+    function initCustomerAutocomplete() {
+        const searchInput = document.getElementById('customer-search-input');
+        const hiddenInput = document.getElementById('customer');
+        const clearBtn = document.getElementById('customer-clear-btn');
+        const dropdownResults = document.getElementById('customer-dropdown-results');
+
+        if (!searchInput) return;
+
+        searchInput.addEventListener('focus', () => {
+            fetchCustomers(searchInput.value.trim());
+        });
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            if (hiddenInput.value) {
+                hiddenInput.value = '';
+                selectedCustomerData = null;
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
+            searchDebounceTimer = setTimeout(() => {
+                fetchCustomers(searchInput.value.trim());
+            }, 200);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !dropdownResults.contains(e.target)) {
+                dropdownResults.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                dropdownResults.style.display = 'none';
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                hiddenInput.value = '';
+                selectedCustomerData = null;
+                clearBtn.style.display = 'none';
+                dropdownResults.style.display = 'none';
+                recalculateAll();
+                searchInput.focus();
+            });
+        }
+    }
+
+    function fetchCustomers(query) {
+        const dropdownResults = document.getElementById('customer-dropdown-results');
+
+        fetch(`/company/customers/search/?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    renderCustomerResults(data.customers, query);
+                    dropdownResults.style.display = 'block';
+                }
+            })
+            .catch(err => console.error('Customer search error:', err));
+    }
+
+    function renderCustomerResults(customers, query) {
+        const resultsList = document.getElementById('customer-results-list');
+        resultsList.innerHTML = '';
+
+        if (customers.length === 0) {
+            resultsList.innerHTML = `<div style="padding: 0.75rem 1rem; color: var(--muted); font-size: 0.85rem;">No customer found matching "${query}".</div>`;
+            return;
+        }
+
+        customers.forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'customer-result-item';
+            
+            const metaText = c.gstin ? `GSTIN: ${c.gstin}` : (c.mobile ? `Mobile: ${c.mobile}` : (c.billing_state ? c.billing_state : ''));
+            const businessText = c.business_name ? ` (${c.business_name})` : '';
+
+            item.innerHTML = `
+                <div>
+                    <div class="cust-name">${c.name}${businessText}</div>
+                    <div class="cust-meta">${metaText}</div>
+                </div>
+                <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem; color: var(--muted);"></i>
+            `;
+
+            item.addEventListener('click', () => {
+                selectCustomer(c);
+            });
+
+            resultsList.appendChild(item);
+        });
+    }
+
+    function selectCustomer(cust) {
+        const searchInput = document.getElementById('customer-search-input');
+        const hiddenInput = document.getElementById('customer');
+        const clearBtn = document.getElementById('customer-clear-btn');
+        const dropdownResults = document.getElementById('customer-dropdown-results');
+
+        selectedCustomerData = cust;
+        searchInput.value = cust.name + (cust.business_name ? ` (${cust.business_name})` : '');
+        hiddenInput.value = cust.id;
+        
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+        dropdownResults.style.display = 'none';
+        recalculateAll();
+    }
+
+    function openQuickCustomerModal() {
+        const dropdownResults = document.getElementById('customer-dropdown-results');
+        if (dropdownResults) dropdownResults.style.display = 'none';
+
+        const searchInput = document.getElementById('customer-search-input');
+        const modal = document.getElementById('quick-customer-modal');
+        const nameInput = document.getElementById('qc-name');
+        const errorToast = document.getElementById('quick-cust-error');
+
+        if (errorToast) errorToast.style.display = 'none';
+        
+        if (nameInput) {
+            nameInput.value = searchInput ? searchInput.value.trim() : '';
+        }
+
+        modal.style.display = 'flex';
+        setTimeout(() => nameInput.focus(), 100);
+    }
+
+    function closeQuickCustomerModal() {
+        const modal = document.getElementById('quick-customer-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function onQcStateChange() {
+        const stateSelect = document.getElementById('qc-state');
+        const opt = stateSelect.options[stateSelect.selectedIndex];
+        if (opt) {
+            document.getElementById('qc-state-code').value = opt.dataset.code || '27';
+        }
+    }
+
+    function onQcGstinInput() {
+        const gstin = (document.getElementById('qc-gstin').value || '').trim();
+        if (gstin.length >= 2) {
+            const prefix = gstin.substring(0, 2);
+            const stateSelect = document.getElementById('qc-state');
+            for (let i = 0; i < stateSelect.options.length; i++) {
+                if (stateSelect.options[i].dataset.code === prefix) {
+                    stateSelect.selectedIndex = i;
+                    document.getElementById('qc-state-code').value = prefix;
+                    break;
+                }
+            }
+        }
+    }
+
+    function saveQuickCustomer(force = false) {
+        const name = document.getElementById('qc-name').value.trim();
+        const busName = document.getElementById('qc-business-name').value.trim();
+        const mobile = document.getElementById('qc-mobile').value.trim();
+        const gstin = document.getElementById('qc-gstin').value.trim();
+        const type = document.getElementById('qc-type').value;
+        const address = document.getElementById('qc-address').value.trim();
+        const state = document.getElementById('qc-state').value.trim();
+        const stateCode = document.getElementById('qc-state-code').value.trim();
+        const pincode = document.getElementById('qc-pincode').value.trim();
+        const errorToast = document.getElementById('quick-cust-error');
+
+        if (!name) {
+            if (errorToast) {
+                errorToast.innerText = "Customer name is required.";
+                errorToast.style.display = 'block';
+            }
+            return;
+        }
+
+        const payload = {
+            name: name,
+            business_name: busName,
+            mobile: mobile,
+            gstin: gstin,
+            customer_type: type,
+            billing_address: address,
+            billing_state: state,
+            billing_state_code: stateCode,
+            billing_pincode: pincode,
+            force: force
+        };
+
+        const saveBtn = document.getElementById('qc-save-btn');
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Saving...";
+
+        fetch('{% url "customer_quick_add" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Customer';
+
+            if (data.status === 'duplicate') {
+                if (errorToast) {
+                    errorToast.innerHTML = `
+                        ${data.message}<br>
+                        <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                            <button type="button" class="btn btn-sm btn-primary" onclick='selectDuplicateCustomer(${JSON.stringify(data.customer)})'>Use Existing Customer</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick='saveQuickCustomer(true)'>Create Anyway</button>
+                        </div>
+                    `;
+                    errorToast.style.display = 'block';
+                }
+            } else if (data.status === 'success') {
+                closeQuickCustomerModal();
+                selectCustomer(data.customer);
+            } else {
+                if (errorToast) {
+                    errorToast.innerText = data.message || "Failed to save customer.";
+                    errorToast.style.display = 'block';
+                }
+            }
+        })
+        .catch(err => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Customer';
+            if (errorToast) {
+                errorToast.innerText = "Network error while saving customer.";
+                errorToast.style.display = 'block';
+            }
+        });
+    }
+
+    function selectDuplicateCustomer(cust) {
+        closeQuickCustomerModal();
+        selectCustomer(cust);
+    }
+
+    function addRow() {
+        const tbody = document.getElementById('items-tbody');
+        const rowId = 'row-' + Date.now();
+        let options = '<option value="">-- Select Product --</option>';
+        products.forEach(p => { options += `<option value="${p.id}">${p.name}</option>`; });
+
+        const html = `
+            <tr id="${rowId}" class="item-row">
+                <td><select class="form-control prod-select" onchange="onProductSelect('${rowId}')">${options}</select></td>
+                <td><input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC"></td>
+                <td><input type="number" class="form-control qty-input" value="1" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control rate-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control disc-input" value="0.00" oninput="recalculateAll()"></td>
+                <td><input type="number" class="form-control gst-input" value="0.00" readonly></td>
+                <td style="text-align: right; font-weight:600;" class="row-total">₹0.00</td>
+                <td style="text-align: right;"><button class="btn btn-danger" onclick="removeRow('${rowId}')">&times;</button></td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', html);
+    }
+
+    function removeRow(rowId) { 
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.remove();
+        }
+        recalculateAll(); 
+    }
+
+    function onProductSelect(rowId) {
+        const row = document.getElementById(rowId);
+        const pId = row.querySelector('.prod-select').value;
+        const p = products.find(prod => prod.id == pId);
+        
+        const oldWarning = row.querySelector('.hsn-warning');
+        if (oldWarning) oldWarning.remove();
+        
+        if (p) {
+            row.querySelector('.rate-input').value = p.price.toFixed(2);
+            row.querySelector('.gst-input').value = p.gst_rate.toFixed(2);
+            row.querySelector('.hsn-input').value = p.hsn_code || '';
+            
+            if (!p.hsn_code) {
+                row.querySelector('.hsn-input').insertAdjacentHTML('afterend', '<small class="hsn-warning" style="color: var(--destructive); display: block; font-size: 0.75rem; margin-top: 0.25rem;">GST rate is not configured.</small>');
+            }
+        } else {
+            row.querySelector('.rate-input').value = '0.00';
+            row.querySelector('.gst-input').value = '0.00';
+            row.querySelector('.hsn-input').value = '';
+        }
+        recalculateAll();
+    }
+
+    function recalculateAll() {
+        const rows = document.querySelectorAll('.item-row');
+        const posCode = selectedCustomerData ? (selectedCustomerData.billing_state_code || '').trim().padStart(2, '0') : companyStateCode.trim().padStart(2, '0');
+        const companyStateCodeNormalized = companyStateCode.trim().padStart(2, '0');
+        
+        let subtotal = 0; let discTotal = 0; let taxable = 0;
+        let cgstTotal = 0; let sgstTotal = 0; let igstTotal = 0; let cessTotal = 0;
+        
+        const isSameState = (posCode === companyStateCodeNormalized);
+        
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            
+            const prodId = row.querySelector('.prod-select').value;
+            const prod = products.find(p => p.id == prodId);
+            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            
+            const gross = qty * rate;
+            const taxable_item = gross - disc;
+            const rowGst = taxable_item * (gstRate / 100);
+            const rowCess = taxable_item * (cessRate / 100);
+            const rowTotal = taxable_item + rowGst + rowCess;
+            
+            row.querySelector('.row-total').innerText = window.formatIndianCurrency(rowTotal);
+            
+            subtotal += gross;
+            discTotal += disc;
+            taxable += taxable_item;
+            cessTotal += rowCess;
+            
+            if (isSameState) {
+                cgstTotal += rowGst / 2;
+                sgstTotal += rowGst / 2;
+            } else {
+                igstTotal += rowGst;
+            }
+        });
+
+        const totalTaxableAndTax = taxable + cgstTotal + sgstTotal + igstTotal + cessTotal;
+        const roundedGrand = Math.round(totalTaxableAndTax);
+        const roundOff = roundedGrand - totalTaxableAndTax;
+
+        document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
+        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discTotal);
+        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxable);
+        
+        document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
+        document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
+        document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
+        document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
+        document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
+        document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+    }
+
+    function submitQuotation(e) {
+        if (e) e.preventDefault();
+        const error = document.getElementById('form-error-toast');
+        error.style.display = 'none';
+        
+        const customerId = document.getElementById('customer').value;
+        const qNo = document.getElementById('quotation-number').value;
+        const qDate = document.getElementById('quotation-date').value;
+        const valid = document.getElementById('valid-until').value;
+        const notes = document.getElementById('notes').value;
+        
+        if (!customerId) {
+            const msg = "Please select a customer.";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (!qNo || !qDate || !valid) {
+            const msg = "Please complete all quotation fields.";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const rows = document.querySelectorAll('.item-row');
+        const items = [];
+        let hasIncompleteRow = false;
+
+        rows.forEach(row => {
+            const pId = row.querySelector('.prod-select').value;
+            const qty = parseFloat(row.querySelector('.qty-input').value);
+            const rate = parseFloat(row.querySelector('.rate-input').value);
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            
+            if (pId) {
+                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                    hasIncompleteRow = true;
+                } else {
+                    items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc });
+                }
+            }
+        });
+
+        if (items.length === 0) {
+            const msg = "Please select at least one valid product in the items grid (quantity > 0).";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (hasIncompleteRow) {
+            const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
+            error.innerText = msg;
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        fetch('{% url "quotation_add" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ customer_id: parseInt(customerId), quotation_number: qNo, date: qDate, valid_until: valid, notes: notes, items: items })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Sales quotation saved successfully');
+                }
+                window.location.href = data.redirect_url || '/company/quotations/';
+            } else {
+                const msg = data.message || "Unable to save sales quotation.";
+                error.innerText = "Error: " + msg;
+                error.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', msg);
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            error.innerText = "Server connection lost. Try saving again.";
+            error.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Server connection lost. Try saving again.');
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+</script>
+{% endblock %}

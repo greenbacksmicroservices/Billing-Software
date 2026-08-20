@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GBL Billing</title>
+    <!-- Google Fonts Inter & Caveat -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body class="login-page-body">
+    <div class="login-split-container">
+        <!-- Left: Form Panel -->
+        <div class="login-form-panel">
+            <!-- Brand Logo & Name -->
+            <div class="login-brand-header">
+                <div class="login-brand-logo">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <span class="login-brand-name">GBL Billing</span>
+            </div>
+
+            <!-- Artistic Welcome Heading -->
+            <h1 class="welcome-text">
+                <span class="blue-part">Wel</span><span class="orange-part">come</span>
+            </h1>
+
+            <!-- Django Authentication Errors -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="login-error-container">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- Username/Email Field -->
+                <div class="login-form-group">
+                    <label for="username" class="login-form-label">Email Address / Username</label>
+                    <div class="login-input-wrapper">
+                        <i class="fa-regular fa-envelope login-input-icon"></i>
+                        <input type="text" name="username" id="username" class="login-input" placeholder="Enter username or email" required autofocus>
+                        <i class="fa-solid fa-circle-check login-input-action" style="color: #10b981; display: none; font-size: 0.95rem; cursor: default;" id="username-check-icon"></i>
+                    </div>
+                </div>
+                
+                <!-- Password Field with inline Forgot link & show/hide toggle -->
+                <div class="login-form-group">
+                    <label for="password" class="login-form-label">Password</label>
+                    <div class="login-input-wrapper">
+                        <i class="fa-solid fa-lock login-input-icon"></i>
+                        <input type="password" name="password" id="password" class="login-input" placeholder="••••••••" required style="padding-right: 5.5rem;">
+                        <div style="position: absolute; right: 1rem; display: flex; align-items: center; gap: 0.75rem; z-index: 10;">
+                            <i class="fa-regular fa-eye" id="toggle-password-visibility" style="color: #94a3b8; cursor: pointer; font-size: 0.95rem;" title="Toggle Password Visibility"></i>
+                            <a href="{% url 'forgot_password' %}" class="login-input-action-forgot" style="font-size: 0.8rem; font-weight: 600; color: #0284c7; text-decoration: none;" id="forgot-link">Forgot?</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remember Me Controls -->
+                <div class="login-controls-row">
+                    <label class="login-checkbox-label">
+                        <input type="checkbox" name="remember" class="login-checkbox">
+                        Remember Me
+                    </label>
+                </div>
+
+                <!-- Action Button -->
+                <button type="submit" class="login-submit-btn">
+                    <span>Log in</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket" style="font-size: 0.9rem;"></i>
+                </button>
+            </form>
+
+            <!-- Social Logins Section -->
+            <div class="login-social-divider">or continue with</div>
+            <div class="login-social-grid">
+                <button type="button" class="login-social-pill" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
+                <button type="button" class="login-social-pill" title="Google"><i class="fa-brands fa-google"></i></button>
+                <button type="button" class="login-social-pill" title="Apple"><i class="fa-brands fa-apple"></i></button>
+            </div>
+        </div>
+
+        <!-- Right: Image/Illustration Panel -->
+        <div class="login-illustration-panel">
+            <div class="login-illustration-overlay"></div>
+            
+            <!-- Floating Glassmorphic Navbar -->
+            <div class="login-nav-header">
+                
+            </div>
+
+            <!-- Overlapping SVG Waves at the bottom -->
+            <div class="login-waves-container">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 220" preserveAspectRatio="none">
+                    <!-- Multiple wave layers for organic feeling -->
+                    <path fill="#ffffff" fill-opacity="0.3" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
+                    <path fill="#ffffff" fill-opacity="0.6" d="M0,160L48,149.3C96,139,192,117,288,117C384,117,480,139,576,149.3C672,160,768,160,864,144C960,128,1056,96,1152,96C1248,96,1344,128,1392,144L1440,160L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
+                    <path fill="#ffffff" fill-opacity="1" d="M0,192L48,181.3C96,171,192,149,288,138.7C384,128,480,128,576,138.7C672,149,768,171,864,170.7C960,171,1056,149,1152,138.7C1248,128,1344,128,1392,128L1440,128L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side Interactive Features Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Password Show/Hide Toggle
+            const passwordInput = document.getElementById('password');
+            const togglePassword = document.getElementById('toggle-password-visibility');
+            
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // Toggle classes for the eye icon
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
+
+            // Username Field Checkmark validation (simple visual response)
+            const usernameInput = document.getElementById('username');
+            const checkIcon = document.getElementById('username-check-icon');
+            
+            function validateUsername() {
+                const value = usernameInput.value.trim();
+                // If it looks like a valid username/email (at least 3 characters)
+                if (value.length >= 3) {
+                    checkIcon.style.display = 'block';
+                } else {
+                    checkIcon.style.display = 'none';
+                }
+            }
+            
+            usernameInput.addEventListener('input', validateUsername);
+            // Run on load in case browser autofills
+            setTimeout(validateUsername, 300);
+
+            // Forgot link has been wired to the backend URL.
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}System Audit Logs{% endblock %}
+{% block nav_audit %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Platform Audit Logs</h1>
+    <div>
+        {% include 'common_table_search.html' with placeholder="Search logs, action, IP..." %}
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Company</th>
+                    <th>Action</th>
+                    <th>Module</th>
+                    <th>IP Address</th>
+                    <th>User Agent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"d M Y H:i:s" }}</td>
+                        <td><strong>{{ log.user.username|default:"System" }}</strong></td>
+                        <td>{{ log.company.name|default:"-" }}</td>
+                        <td><code>{{ log.action }}</code></td>
+                        <td>{{ log.module }}</td>
+                        <td><code>{{ log.ip_address|default:"-" }}</code></td>
+                        <td><small style="color: var(--muted-foreground);" title="{{ log.user_agent }}">{{ log.user_agent|slice:":30" }}...</small></td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No logs recorded yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

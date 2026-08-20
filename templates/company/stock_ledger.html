@@ -1,0 +1,73 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Stock Ledger - Inventory{% endblock %}
+{% block sub_stock_ledger %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Stock Ledger (Movements log)</h1>
+</div>
+
+<!-- Filters -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1rem;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center;">
+            <div style="flex-grow: 1;">
+                <select name="product" class="form-control">
+                    <option value="">-- All Products --</option>
+                    {% for p in products %}
+                        <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Filter Ledger</button>
+            <a href="{% url 'stock_ledger' %}" class="btn btn-secondary">Reset</a>
+        </form>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Product Name</th>
+                    <th>Warehouse</th>
+                    <th>Movement Type</th>
+                    <th style="text-align: right;">Quantity change</th>
+                    <th>Doc Reference</th>
+                    <th>Authorized By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for movement in movements %}
+                    <tr>
+                        <td>{{ movement.created_at|date:"d M Y H:i" }}</td>
+                        <td><strong>{{ movement.product.name }}</strong></td>
+                        <td>{{ movement.warehouse.name }}</td>
+                        <td>
+                            <span class="badge {% if movement.quantity > 0 %}badge-success{% else %}badge-danger{% endif %}">
+                                {{ movement.get_movement_type_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: right; font-weight: 700; {% if movement.quantity > 0 %}color: var(--success);{% else %}color: var(--destructive);{% endif %}">
+                            {{ movement.quantity }}
+                        </td>
+                        <td><code>{{ movement.reference_no|default:"-" }}</code></td>
+                        <td>{{ movement.created_by.username }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No stock movements logged.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

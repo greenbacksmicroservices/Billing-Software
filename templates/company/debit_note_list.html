@@ -1,0 +1,57 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Debit Notes{% endblock %}
+{% block sub_debit_notes %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Debit Notes (Purchase Returns)</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search debit note, bill..." %}
+        <a href="{% url 'debit_note_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Issue Debit Note
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Note Number</th>
+                    <th>Date</th>
+                    <th>Bill Reference</th>
+                    <th>Reason</th>
+                    <th>Total Adjustment</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in debit_notes %}
+                    <tr>
+                        <td><strong>{{ note.note_number }}</strong></td>
+                        <td>{{ note.note_date|date:"d M Y" }}</td>
+                        <td>{{ note.purchase_bill.supplier_bill_no }}</td>
+                        <td>{{ note.get_reason_display }}</td>
+                        <td style="font-weight: 600; color: var(--destructive);">₹{{ note.grand_total }}</td>
+                        <td>
+                            <span class="badge badge-success">
+                                {{ note.status }}
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No debit notes recorded.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

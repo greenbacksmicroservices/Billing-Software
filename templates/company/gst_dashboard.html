@@ -1,0 +1,99 @@
+{% extends 'base_company.html' %}
+
+{% block title %}GST Dashboard{% endblock %}
+{% block sub_gst_dash %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">GST Compliance Dashboard</h1>
+</div>
+
+<!-- GST Status overview -->
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span>Output Tax Liability</span>
+            <i class="fa-solid fa-arrow-up-right-from-square" style="color: var(--destructive);"></i>
+        </div>
+        <div class="stat-card-value">₹{{ output_tax }}</div>
+        <div class="stat-card-footer">Tax collected on outward sales</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span>Eligible Input Tax Credit (ITC)</span>
+            <i class="fa-solid fa-arrow-down-left-and-arrow-up-right-to-center" style="color: var(--success);"></i>
+        </div>
+        <div class="stat-card-value">₹{{ input_tax }}</div>
+        <div class="stat-card-footer">Tax paid on business purchases</div>
+    </div>
+
+    <div class="stat-card" style="border-left: 4px solid var(--primary);">
+        <div class="stat-card-header">Estimated Net GST Payable</div>
+        <div class="stat-card-value">₹{{ net_payable }}</div>
+        <div class="stat-card-footer">Formula: Output - ITC</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
+    <!-- Output GST split -->
+    <div class="card-container">
+        <div class="card-header"><h3 class="card-title">Output GST (Sales) Split</h3></div>
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 1rem;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Output CGST:</span>
+                <strong>₹{{ out_cgst }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Output SGST:</span>
+                <strong>₹{{ out_sgst }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Output IGST:</span>
+                <strong>₹{{ out_igst }}</strong>
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                <span>Total Taxable Value (Outward):</span>
+                <span>₹{{ out_taxable }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input GST split -->
+    <div class="card-container">
+        <div class="card-header"><h3 class="card-title">Input Tax Credit (ITC) Split</h3></div>
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 1rem;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Eligible Input CGST:</span>
+                <strong>₹{{ in_cgst }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Eligible Input SGST:</span>
+                <strong>₹{{ in_sgst }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Eligible Input IGST:</span>
+                <strong>₹{{ in_igst }}</strong>
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                <span>Total Taxable Value (Inward):</span>
+                <span>₹{{ in_taxable }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card-container" style="margin-top: 2rem;">
+    <div class="card-header"><h3 class="card-title">Filing Preparations Hub</h3></div>
+    <div class="card-body" style="display: flex; gap: 1rem;">
+        <a href="{% url 'gst_report_gstr1' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-file-export"></i> Prepare GSTR-1 (Outward Supplies)
+        </a>
+        <a href="{% url 'gst_report_gstr3b' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-file-shield"></i> Prepare GSTR-3B (Summary Return)
+        </a>
+    </div>
+</div>
+{% endblock %}

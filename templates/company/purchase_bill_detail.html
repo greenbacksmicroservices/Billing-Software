@@ -1,0 +1,150 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Purchase Bill {{ bill.supplier_bill_no }}{% endblock %}
+{% block sub_purchase_bills %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Purchase Bill {{ bill.supplier_bill_no }}</h1>
+        <p style="color: var(--muted-foreground);">Vendor: {{ bill.supplier.name }}</p>
+    </div>
+    
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'purchase_bill_list' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        
+        {% if bill.status != 'CANCELLED' and bill.status != 'PAID' %}
+            <a href="{% url 'purchase_bill_cancel' bill.id %}" class="btn btn-danger" onclick="return confirm('Cancel this purchase bill? This will reduce inventory and adjust supplier payables.');">
+                <i class="fa-solid fa-ban"></i> Cancel Bill
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Bill Details and Items -->
+    <div>
+        <div class="card-container" style="margin-bottom: 1.5rem;">
+            <div class="card-body" style="display: flex; justify-content: space-between;">
+                <div>
+                    <h4 style="color: var(--primary);">Supplier Invoice Details:</h4>
+                    <p><strong>{{ bill.supplier.name }}</strong></p>
+                    <p style="color: var(--muted-foreground);">
+                        {{ bill.supplier.address }}<br>
+                        {{ bill.supplier.city }}, {{ bill.supplier.state }} - {{ bill.supplier.pincode }}<br>
+                        GSTIN: <code>{{ bill.supplier.gstin|default:"Unregistered" }}</code>
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <p><strong>Bill Date:</strong> {{ bill.bill_date|date:"d M Y" }}</p>
+                    <p><strong>Due Date:</strong> {{ bill.due_date|date:"d M Y" }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if bill.status == 'PAID' %}badge-success{% elif bill.status == 'PARTIALLY_PAID' %}badge-info{% elif bill.status == 'DRAFT' %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ bill.get_status_display }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-container">
+            <div class="card-header"><h3 class="card-title">Inward Supplies Table</h3></div>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Sr.</th>
+                            <th>Product Description</th>
+                            <th>Qty</th>
+                            <th>Cost Rate</th>
+                            <th>Disc</th>
+                            <th>GST %</th>
+                            <th style="text-align: right;">Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in bill.items.all %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>{{ item.quantity }} {{ item.product.unit.name|default:"PCS" }}</td>
+                                <td>₹{{ item.rate }}</td>
+                                <td>₹{{ item.discount }}</td>
+                                <td>{{ item.gst_rate }}%</td>
+                                <td style="text-align: right; font-weight: 600;">₹{{ item.total_amount }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calculations -->
+    <div>
+        <div class="card-container">
+            <div class="card-header"><h3 class="card-title">Financial Summary</h3></div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gross Subtotal:</span>
+                    <span>₹{{ bill.subtotal }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: var(--success);">
+                    <span>Discount:</span>
+                    <span>-₹{{ bill.discount_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                    <span>Taxable Value:</span>
+                    <span>₹{{ bill.taxable_value }}</span>
+                </div>
+                
+                <hr style="border: none; border-top: 1px solid var(--border);">
+                
+                {% if bill.cgst_total > 0 or bill.sgst_total > 0 %}
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                        <span>CGST:</span>
+                        <span>₹{{ bill.cgst_total }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                        <span>SGST:</span>
+                        <span>₹{{ bill.sgst_total }}</span>
+                    </div>
+                {% endif %}
+                
+                {% if bill.igst_total > 0 %}
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                        <span>IGST:</span>
+                        <span>₹{{ bill.igst_total }}</span>
+                    </div>
+                {% endif %}
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>Round Off:</span>
+                    <span>₹{{ bill.round_off }}</span>
+                </div>
+                
+                <hr style="border: none; border-top: 1px solid var(--border);">
+
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
+                    <span>Grand Total:</span>
+                    <span>₹{{ bill.grand_total }}</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>Paid Amount:</span>
+                    <span>₹{{ bill.paid_amount }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 600; color: var(--destructive); background-color: rgba(239,68,68,0.05); padding: 0.4rem; border-radius: var(--radius);">
+                    <span>Outstanding Payable:</span>
+                    <span>₹{{ bill.outstanding_amount }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

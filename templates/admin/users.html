@@ -1,0 +1,159 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}System Users - SaaS Control{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">SaaS Platform Users & Accountants</h1>
+    <div>
+        {% include 'common_table_search.html' with placeholder="Search users, company, role..." %}
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Company Context</th>
+                    <th>Role Group</th>
+                    <th>Status</th>
+                    <th style="text-align: right; width: 160px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td><strong>{{ u.username }}</strong></td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.mobile|default:"-" }}</td>
+                        <td>
+                            {% if u.company %}
+                                <a href="{% url 'admin_company_view' u.company.id %}" style="color: var(--primary); font-weight: 500;">
+                                    {{ u.company.name }}
+                                </a>
+                            {% else %}
+                                <span style="color: var(--muted-foreground);">System Admin Owner</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge badge-info">{{ u.get_role_display }}</span></td>
+                        <td>
+                            <span class="badge {% if u.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if u.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="openUserPasswordModal({{ u.id }}, '{{ u.username }}')" style="padding: 0.25rem 0.5rem;" title="Change Password">
+                                    <i class="fa-solid fa-key"></i> Password
+                                </button>
+                                <button class="btn btn-secondary" onclick="triggerGlobalDelete('/api/delete/user/{{ u.id }}/', '{{ u.username }}')" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete User">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No platform users logged.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+
+<!-- Password Change Modal -->
+<div id="userPasswordModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 450px; padding: 1.25rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Password Management</h3>
+            <button type="button" onclick="closeUserPasswordModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form onsubmit="submitUserPasswordChange(event)">
+            <input type="hidden" id="pass_user_id" value="">
+            <div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--muted-foreground);">
+                Changing password for account: <strong id="pass_username_display" style="color: var(--foreground);"></strong>
+            </div>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">New Password *</label>
+                <input type="password" id="pass_new" class="form-control" placeholder="At least 6 characters" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Confirm Password *</label>
+                <input type="password" id="pass_confirm" class="form-control" placeholder="Re-enter new password" required>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeUserPasswordModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="savePassBtn" class="btn btn-primary">Change Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openUserPasswordModal(id, username) {
+        document.getElementById('pass_user_id').value = id;
+        document.getElementById('pass_username_display').innerText = username;
+        document.getElementById('pass_new').value = '';
+        document.getElementById('pass_confirm').value = '';
+        document.getElementById('userPasswordModal').style.display = 'flex';
+    }
+
+    function closeUserPasswordModal() {
+        document.getElementById('userPasswordModal').style.display = 'none';
+    }
+
+    function submitUserPasswordChange(e) {
+        e.preventDefault();
+        const id = document.getElementById('pass_user_id').value;
+        const passNew = document.getElementById('pass_new').value;
+        const passConf = document.getElementById('pass_confirm').value;
+
+        if (passNew !== passConf) {
+            showToast('error', 'New password and confirm password do not match.');
+            return;
+        }
+
+        const btn = document.getElementById('savePassBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Changing Password...';
+
+        fetch(`/admin/users/${id}/change-password/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                new_password: passNew,
+                confirm_password: passConf
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = 'Change Password';
+            if (data.status === 'success') {
+                closeUserPasswordModal();
+                showToast('success', data.message);
+            } else {
+                showToast('error', data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = 'Change Password';
+            showToast('error', 'Failed to change password.');
+        });
+    }
+</script>
+{% endblock %}

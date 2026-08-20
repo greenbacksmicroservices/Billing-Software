@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GBL Billing - HSN/SAC Code Assignment Master</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; font-size: 11px; color: #000; background: #fff; margin: 15px; }
+        .header { text-align: center; margin-bottom: 15px; }
+        .header h1 { margin: 0 0 4px 0; font-size: 18px; }
+        .header p { margin: 0; color: #555; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+        th { background-color: #f1f5f9; font-weight: 600; }
+        .text-right { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>GBL Billing - HSN/SAC Master Assignment Report</h1>
+        <p>Generated on {{ current_time|date:"d M Y h:i A" }} | Total Codes: {{ summary.total_codes }}</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Sr.</th>
+                <th>Type</th>
+                <th>HSN/SAC Code</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Sub Category</th>
+                <th class="text-right">GST %</th>
+                <th class="text-right">CGST %</th>
+                <th class="text-right">SGST %</th>
+                <th class="text-right">IGST %</th>
+                <th>UQC</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in object_list %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ item.type }}</strong></td>
+                    <td><code>{{ item.code }}</code></td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.category|default:"-" }}</td>
+                    <td>{{ item.sub_category|default:"-" }}</td>
+                    <td class="text-right">{{ item.gst_rate }}%</td>
+                    <td class="text-right">{{ item.get_cgst_rate }}%</td>
+                    <td class="text-right">{{ item.get_sgst_rate }}%</td>
+                    <td class="text-right">{{ item.get_igst_rate }}%</td>
+                    <td>{{ item.uqc|default:"PCS" }}</td>
+                    <td>{% if item.is_active %}Active{% else %}Inactive{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="12" style="text-align: center;">No HSN/SAC records found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <script>
+        window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

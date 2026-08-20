@@ -1,0 +1,71 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Purchase Bills - Expenditures{% endblock %}
+{% block sub_purchase_bills %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Purchase Bills</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search bill, supplier..." %}
+        <a href="{% url 'purchase_bill_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Record Purchase Bill
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Bill Number</th>
+                    <th>Supplier</th>
+                    <th>Date</th>
+                    <th>Grand Total</th>
+                    <th>Paid Amount</th>
+                    <th>Outstanding</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in bills %}
+                    <tr>
+                        <td><strong>{{ bill.supplier_bill_no }}</strong></td>
+                        <td>{{ bill.supplier.name }}</td>
+                        <td>{{ bill.bill_date|date:"d M Y" }}</td>
+                        <td>{{ bill.grand_total|indian_currency }}</td>
+                        <td>{{ bill.paid_amount|indian_currency }}</td>
+                        <td style="font-weight: 600; color: var(--warning);">{{ bill.outstanding_amount|indian_currency }}</td>
+                        <td>
+                            <span class="badge {% if bill.status == 'PAID' %}badge-success{% elif bill.status == 'PARTIALLY_PAID' %}badge-info{% elif bill.status == 'DRAFT' %}badge-warning{% else %}badge-danger{% endif %}">
+                                {{ bill.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <a href="{% url 'purchase_bill_view' bill.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/purchase-bill/{{ bill.id }}/', '{{ bill.supplier_bill_no }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Bill">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No purchase bills logged yet. Click "Record Purchase Bill" to document stock inwards.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

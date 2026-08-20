@@ -1,0 +1,135 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Log Supplier Payment{% endblock %}
+
+{% block content %}
+<style>
+    .btn-supplier-payment {
+        background-color: #2563eb;
+        color: #ffffff !important;
+        border: 1px solid #1d4ed8;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+    .btn-supplier-payment:hover, .btn-supplier-payment:focus {
+        background-color: #1d4ed8;
+        color: #ffffff !important;
+        border-color: #1e40af;
+    }
+</style>
+
+<div class="page-header">
+    <h1 class="page-title">Record Payment to Supplier</h1>
+    <a href="{% url 'payment_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Logs
+    </a>
+</div>
+
+<form method="POST" id="paymentPageForm" class="card-container" style="max-width: 600px;" onsubmit="handleFormSubmit(event)">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Payment Payout Details</h3></div>
+    <div class="card-body">
+        {% if form.errors %}
+            <div class="message-item error">
+                {% for field, errors in form.errors.items %}
+                    <div><strong>{{ field|title }}:</strong> {{ errors|striptags }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label">Select Supplier *</label>
+            {{ form.supplier }}
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Against Purchase Bill (Optional)</label>
+            {{ form.purchase_bill }}
+            <small style="color: var(--muted-foreground);">Leave blank to log as "On Account" general debit.</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Payment Date *</label>
+                {{ form.payment_date }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount Paid (INR) *</label>
+                {{ form.amount }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Payment Method *</label>
+                {{ form.payment_method }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ref Transaction / Cheque #</label>
+                {{ form.reference_no }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            {{ form.notes }}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+            <a href="{% url 'payment_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="savePaymentBtn" class="btn-supplier-payment">Save Payment</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const supplierSelect = document.getElementById('id_supplier');
+    const billSelect = document.getElementById('id_purchase_bill');
+
+    if (supplierSelect && billSelect) {
+        supplierSelect.addEventListener('change', function() {
+            const suppId = this.value;
+            billSelect.innerHTML = '<option value="">---------</option>';
+            if (!suppId) return;
+
+            fetch(`/api/company/suppliers/${suppId}/unpaid-bills/`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'success' && d.bills) {
+                        d.bills.forEach(b => {
+                            billSelect.innerHTML += `<option value="${b.id}" data-due="${b.outstanding_amount}">${b.bill_number} (Due: ₹${b.outstanding_amount})</option>`;
+                        });
+                    }
+                });
+        });
+
+        billSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (opt && opt.dataset.due) {
+                const amtInput = document.getElementById('id_amount');
+                if (amtInput) amtInput.value = opt.dataset.due;
+            }
+        });
+    }
+
+    function handleFormSubmit(e) {
+        const btn = document.getElementById('savePaymentBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        }
+    }
+</script>
+{% endblock %}

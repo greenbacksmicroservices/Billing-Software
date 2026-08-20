@@ -1,0 +1,96 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}HSN / SAC Summary Report - GBL Billing{% endblock %}
+{% block nav_reports %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">HSN / SAC Summary Report</h1>
+        <p style="color: var(--muted-foreground); font-size: 0.9rem;">Consolidated HSN/SAC wise Tax & Quantity Summary</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+    </div>
+</div>
+
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body">
+        <form method="GET" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+            <div class="form-group">
+                <label class="form-label">Transaction Type</label>
+                <select name="type" class="form-control">
+                    <option value="SALES" {% if selected_type == 'SALES' %}selected{% endif %}>Sales (Outward)</option>
+                    <option value="PURCHASE" {% if selected_type == 'PURCHASE' %}selected{% endif %}>Purchases (Inward)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">HSN/SAC Filter</label>
+                <input type="text" name="hsn_code" class="form-control" placeholder="e.g. 8471" value="{{ hsn_code }}">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fa-solid fa-filter"></i> Apply Filter</button>
+                <a href="{% url 'report_hsn_sac' %}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card-container">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">HSN / SAC Summary Results</h3>
+        <span class="badge" style="background-color: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: 600;">
+            Type: {{ selected_type }}
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>HSN/SAC Code</th>
+                    <th>UQC Unit</th>
+                    <th>GST %</th>
+                    <th style="text-align: right;">Total Quantity</th>
+                    <th style="text-align: right;">Taxable Value</th>
+                    <th style="text-align: right;">CGST</th>
+                    <th style="text-align: right;">SGST</th>
+                    <th style="text-align: right;">IGST</th>
+                    <th style="text-align: right;">Total Tax</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in hsn_summary %}
+                    <tr>
+                        <td><code>{{ h.hsn_sac_code|default:"N/A" }}</code></td>
+                        <td>{{ h.uqc_unit|default:"NOS" }}</td>
+                        <td>{{ h.gst_rate }}%</td>
+                        <td style="text-align: right;">{{ h.total_qty|indian_qty }}</td>
+                        <td style="text-align: right;">{{ h.total_taxable|indian_currency }}</td>
+                        <td style="text-align: right;">{{ h.total_cgst|indian_currency }}</td>
+                        <td style="text-align: right;">{{ h.total_sgst|indian_currency }}</td>
+                        <td style="text-align: right;">{{ h.total_igst|indian_currency }}</td>
+                        <td style="text-align: right; font-weight: 600;">
+                            {{ h.total_cgst|add:h.total_sgst|add:h.total_igst|indian_currency }}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">
+                            No transaction records found matching selected filter criteria.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

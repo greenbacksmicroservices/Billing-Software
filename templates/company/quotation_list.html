@@ -1,0 +1,70 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Sales Quotations{% endblock %}
+{% block sub_quotations %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="page-title" style="margin: 0;">Sales Quotations</h1>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        {% include 'common_table_search.html' with placeholder="Search quotation, customer..." %}
+        <a href="{% url 'quotation_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Create Quotation
+        </a>
+    </div>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Quotation Number</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Valid Until</th>
+                    <th>Grand Total</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in quotations %}
+                    <tr>
+                        <td><strong>{{ q.quotation_number }}</strong></td>
+                        <td>{{ q.customer.name }}</td>
+                        <td>{{ q.date|date:"d M Y" }}</td>
+                        <td>{{ q.valid_until|date:"d M Y" }}</td>
+                        <td>₹{{ q.grand_total }}</td>
+                        <td>
+                            <span class="badge {% if q.status == 'CONVERTED' %}badge-success{% elif q.status == 'SENT' %}badge-info{% else %}badge-warning{% endif %}">
+                                {{ q.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <a href="{% url 'quotation_view' q.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i class="fa-regular fa-eye"></i> View</a>
+                                {% if q.status != 'CONVERTED' %}
+                                    <a href="{% url 'quotation_edit' q.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i class="fa-regular fa-pen-to-square"></i> Edit</a>
+                                    <a href="{% url 'quotation_convert' q.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;"><i class="fa-solid fa-arrows-spin"></i> Convert to Invoice</a>
+                                {% endif %}
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/quotation/{{ q.id }}/', '{{ q.quotation_number }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Quotation">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No quotations logged.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Issue Debit Note{% endblock %}
+{% block sub_debit_notes %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Issue Debit Note</h1>
+    <a href="{% url 'debit_note_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" class="card-container" style="max-width: 600px;" novalidate>
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Debit Note Details</h3></div>
+    <div class="card-body">
+        
+        <div class="form-group">
+            <label class="form-label" for="id_purchase_bill">Select Purchase Bill reference *</label>
+            {{ form.purchase_bill }}
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="id_note_number">Debit Note Number *</label>
+                {{ form.note_number }}
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_note_date">Note Date *</label>
+                {{ form.note_date }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="id_reason">Adjustment Reason *</label>
+                {{ form.reason }}
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_subtotal">Taxable Value (Subtotal) *</label>
+                {{ form.subtotal }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_notes">Remarks / Explanation</label>
+            {{ form.notes }}
+        </div>
+
+        <div id="form-error-toast" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+            <a href="{% url 'debit_note_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="submit-btn" class="btn btn-primary">Save Debit Note</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('form.card-container');
+        if (!form) return;
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const errorToast = document.getElementById('form-error-toast');
+            if (errorToast) errorToast.style.display = 'none';
+
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            const formData = new FormData(form);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' || data.success) {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('success', data.message || 'Debit note saved successfully');
+                    }
+                    window.location.href = data.redirect_url || '{% url "debit_note_list" %}';
+                } else {
+                    const msg = data.message || 'Unable to save debit note.';
+                    if (errorToast) {
+                        errorToast.innerText = msg;
+                        errorToast.style.display = 'block';
+                    }
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('error', msg);
+                    }
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (errorToast) {
+                    errorToast.innerText = 'Server error occurred. Please try again.';
+                    errorToast.style.display = 'block';
+                }
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', 'Server error occurred. Please try again.');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    });
+</script>
+{% endblock %}

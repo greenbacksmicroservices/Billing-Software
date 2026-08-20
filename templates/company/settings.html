@@ -1,0 +1,609 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Business Settings & Profile - GBL Billing{% endblock %}
+{% block nav_settings %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Business Settings & Profile</h1>
+        <p style="color: var(--muted-foreground); font-size: 0.9rem; margin-top: 0.25rem;">
+            Manage your business information, branding, users, and activity logs.
+        </p>
+    </div>
+</div>
+
+<div class="settings-layout-container" style="display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; align-items: start;">
+    
+    <!-- Settings Navigation (Left Sidebar / Tabs) -->
+    <div class="card-container" style="padding: 0.5rem; position: sticky; top: 80px;">
+        <div style="padding: 0.5rem 0.75rem; font-weight: 700; font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem;">
+            Settings Navigation
+        </div>
+        <div class="settings-nav-list" style="display: flex; flex-direction: column; gap: 0.25rem;">
+            
+            <button type="button" class="settings-nav-btn active" id="tab-btn-profile" onclick="switchSettingsSection('profile')">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-building" style="width: 18px; text-align: center;"></i>
+                    <span>Business Profile</span>
+                </div>
+                <i class="fa-solid fa-chevron-right nav-chevron"></i>
+            </button>
+
+            <button type="button" class="settings-nav-btn" id="tab-btn-users" onclick="switchSettingsSection('users')">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-users-gear" style="width: 18px; text-align: center;"></i>
+                    <span>Business Users</span>
+                </div>
+                <i class="fa-solid fa-chevron-right nav-chevron"></i>
+            </button>
+
+            <button type="button" class="settings-nav-btn" id="tab-btn-logs" onclick="switchSettingsSection('logs')">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-shield-halved" style="width: 18px; text-align: center;"></i>
+                    <span>Audit Logs (Company)</span>
+                </div>
+                <i class="fa-solid fa-chevron-right nav-chevron"></i>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Right Content Area -->
+    <div class="settings-content-area">
+        
+        <!-- ==================== SECTION 1: BUSINESS PROFILE ==================== -->
+        <div id="section-profile" class="settings-section">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                    <div class="message-item error" style="margin-bottom: 1.5rem;">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        Please resolve the errors highlighted below before saving.
+                    </div>
+                {% endif %}
+
+                <!-- Card 1: Business Information -->
+                <div class="card-container" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-id-card" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Business Information & GST</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Legal Business Name <span style="color: var(--danger);">*</span></label>
+                                {{ form.name }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Trade / Brand Name</label>
+                                {{ form.trade_name }}
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Business Type</label>
+                                {{ form.business_type }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">GST Status</label>
+                                {{ form.gst_status }}
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">GSTIN (GST Identification Number)</label>
+                                {{ form.gstin }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">PAN Number</label>
+                                {{ form.pan }}
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Business Email</label>
+                                {{ form.email }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Mobile Number</label>
+                                {{ form.mobile }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Website</label>
+                                {{ form.website }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Business Address -->
+                <div class="card-container" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-location-dot" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Registered Office Address</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Full Street Address</label>
+                            {{ form.address }}
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">City</label>
+                                {{ form.city }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">State</label>
+                                {{ form.state }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">State Code</label>
+                                {{ form.state_code }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Pincode</label>
+                                {{ form.pincode }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Branding & Document Assets -->
+                <div class="card-container" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-photo-film" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Branding Assets (Logo, Signature & Stamp)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+                            
+                            <!-- Logo Box -->
+                            <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--background);">
+                                <label class="form-label" style="font-weight: 700;">Company Logo</label>
+                                <div id="logo-preview-container" style="margin: 0.75rem 0; text-align: center; min-height: 90px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); overflow: hidden;">
+                                    {% if request.user.company.logo %}
+                                        <img src="{{ request.user.company.get_logo_url }}" id="logo-preview-img" style="max-width: 100%; max-height: 85px; object-fit: contain;">
+                                    {% else %}
+                                        <span id="logo-preview-placeholder" style="color: var(--muted-foreground); font-size: 0.8rem;">No logo uploaded</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="logo-filename">
+                                    {% if request.user.company.logo %}File Name: {{ request.user.company.get_logo_filename }}{% endif %}
+                                </div>
+                                <input type="file" id="logo-file-input" accept=".png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleBrandingUpload('logo')">
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('logo-file-input').click()" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; flex: 1;">
+                                        <i class="fa-solid fa-upload"></i> Choose
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="btn-remove-logo" onclick="handleBrandingRemove('logo')" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; {% if not request.user.company.logo %}display: none;{% endif %}">
+                                        <i class="fa-regular fa-trash-can"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Signature Box -->
+                            <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--background);">
+                                <label class="form-label" style="font-weight: 700;">Authorised Signature</label>
+                                <div id="signature-preview-container" style="margin: 0.75rem 0; text-align: center; min-height: 90px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); overflow: hidden;">
+                                    {% if request.user.company.signature %}
+                                        <img src="{{ request.user.company.get_signature_url }}" id="signature-preview-img" style="max-width: 100%; max-height: 85px; object-fit: contain;">
+                                    {% else %}
+                                        <span id="signature-preview-placeholder" style="color: var(--muted-foreground); font-size: 0.8rem;">No signature uploaded</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="signature-filename">
+                                    {% if request.user.company.signature %}File Name: {{ request.user.company.get_signature_filename }}{% endif %}
+                                </div>
+                                <input type="file" id="signature-file-input" accept=".png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleBrandingUpload('signature')">
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('signature-file-input').click()" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; flex: 1;">
+                                        <i class="fa-solid fa-upload"></i> Choose
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="btn-remove-signature" onclick="handleBrandingRemove('signature')" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; {% if not request.user.company.signature %}display: none;{% endif %}">
+                                        <i class="fa-regular fa-trash-can"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Stamp Box -->
+                            <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--background);">
+                                <label class="form-label" style="font-weight: 700;">Company Stamp</label>
+                                <div id="stamp-preview-container" style="margin: 0.75rem 0; text-align: center; min-height: 90px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); overflow: hidden;">
+                                    {% if request.user.company.stamp %}
+                                        <img src="{{ request.user.company.get_stamp_url }}" id="stamp-preview-img" style="max-width: 100%; max-height: 85px; object-fit: contain;">
+                                    {% else %}
+                                        <span id="stamp-preview-placeholder" style="color: var(--muted-foreground); font-size: 0.8rem;">No stamp uploaded</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="stamp-filename">
+                                    {% if request.user.company.stamp %}File Name: {{ request.user.company.get_stamp_filename }}{% endif %}
+                                </div>
+                                <input type="file" id="stamp-file-input" accept=".png, .jpg, .jpeg, .webp" style="display: none;" onchange="handleBrandingUpload('stamp')">
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('stamp-file-input').click()" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; flex: 1;">
+                                        <i class="fa-solid fa-upload"></i> Choose
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="btn-remove-stamp" onclick="handleBrandingRemove('stamp')" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; {% if not request.user.company.stamp %}display: none;{% endif %}">
+                                        <i class="fa-regular fa-trash-can"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Bank Details -->
+                <div class="card-container" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-building-columns" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Bank & UPI Settlement Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Bank Name</label>
+                                {{ form.bank_name }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Account Holder Name</label>
+                                {{ form.account_holder }}
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Account Number</label>
+                                {{ form.account_number }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">IFSC Code</label>
+                                {{ form.ifsc }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Branch Name</label>
+                                {{ form.branch }}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">UPI ID for Invoice QR Payments</label>
+                            {{ form.upi_id }}
+                            <small style="color: var(--muted-foreground); display: block; margin-top: 0.25rem;">Used to render the dynamic UPI Pay QR Code on GST Tax Invoices.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 5: Invoice Sequence & Signatory -->
+                <div class="card-container" style="margin-bottom: 1.5rem;">
+                    <div class="card-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-file-invoice" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Invoice Sequencing & Signatory</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Invoice Prefix</label>
+                                {{ form.invoice_prefix }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Next Sequence Number</label>
+                                {{ form.invoice_next_number }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Number Padding</label>
+                                {{ form.invoice_padding }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Financial Year (FY)</label>
+                                {{ form.financial_year }}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Authorized Signatory Name</label>
+                            {{ form.authorized_signature_name }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Default Terms and Conditions</label>
+                            {{ form.terms_and_conditions }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Submit Button -->
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; font-weight: 600;">
+                        <i class="fa-solid fa-circle-check"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ==================== SECTION 2: BUSINESS USERS ==================== -->
+        <div id="section-users" class="settings-section" style="display: none;">
+            <div class="card-container">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-users-gear" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Business Team Users</h3>
+                    </div>
+                    <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: 600;">
+                        Total Users: {{ users.count }}
+                    </span>
+                </div>
+                
+                <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--background-alt, rgba(0,0,0,0.01));">
+                    <input type="text" id="user-search-input" class="form-control" placeholder="Search team members by username or role..." onkeyup="filterUsersTable()" style="max-width: 320px;">
+                </div>
+
+                <div class="table-responsive">
+                    <table class="custom-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Username / Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Account Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                                <tr>
+                                    <td style="font-weight: 600;">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                                {{ u.username|slice:":1"|upper }}
+                                            </div>
+                                            <span>{{ u.get_full_name|default:u.username }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ u.email|default:"N/A" }}</td>
+                                    <td>
+                                        <span class="badge" style="background: var(--background-alt); border: 1px solid var(--border); color: var(--foreground); font-weight: 600;">
+                                            {{ u.get_role_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if u.is_active %}
+                                            <span class="badge badge-success" style="padding: 0.25rem 0.6rem;"><i class="fa-solid fa-circle-check"></i> Active</span>
+                                        {% else %}
+                                            <span class="badge badge-danger" style="padding: 0.25rem 0.6rem;"><i class="fa-solid fa-circle-xmark"></i> Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">
+                                        No users registered under this company.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 3: AUDIT LOGS (COMPANY) ==================== -->
+        <div id="section-logs" class="settings-section" style="display: none;">
+            <div class="card-container">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i>
+                        <h3 class="card-title">Company Activity Audit Logs</h3>
+                    </div>
+                    <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 600;">
+                        Recent {{ logs.count }} Activity Events
+                    </span>
+                </div>
+
+                <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--background-alt, rgba(0,0,0,0.01));">
+                    <input type="text" id="log-search-input" class="form-control" placeholder="Filter audit logs by action, module, or user..." onkeyup="filterAuditLogsTable()" style="max-width: 320px;">
+                </div>
+
+                <div class="table-responsive">
+                    <table class="custom-table" id="audit-logs-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Module</th>
+                                <th>Reference ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                                <tr>
+                                    <td style="font-size: 0.85rem; color: var(--muted-foreground);">
+                                        <i class="fa-regular fa-clock" style="margin-right: 0.35rem;"></i>
+                                        {{ log.timestamp|date:"d M Y, H:i:s" }}
+                                    </td>
+                                    <td style="font-weight: 600;">
+                                        {{ log.user.username|default:"System" }}
+                                    </td>
+                                    <td>
+                                        <code style="background: rgba(37, 99, 235, 0.08); color: var(--primary); padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                                            {{ log.action }}
+                                        </code>
+                                    </td>
+                                    <td style="font-weight: 500;">{{ log.module }}</td>
+                                    <td style="color: var(--muted-foreground); font-size: 0.85rem;">
+                                        {% if log.record_id %}
+                                            #{{ log.record_id }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">
+                                        No recent company audit activity logged.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// --- SECTION SWITCHER LOGIC ---
+function switchSettingsSection(sectionId) {
+    // Hide all section panes
+    document.querySelectorAll('.settings-section').forEach(sec => {
+        sec.style.display = 'none';
+    });
+    
+    // Deactivate all navigation buttons
+    document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show target section pane & activate button
+    const targetSection = document.getElementById('section-' + sectionId);
+    const targetBtn = document.getElementById('tab-btn-' + sectionId);
+
+    if (targetSection && targetBtn) {
+        targetSection.style.display = 'block';
+        targetBtn.classList.add('active');
+        if (history.replaceState) {
+            history.replaceState(null, null, '#' + sectionId);
+        } else {
+            window.location.hash = sectionId;
+        }
+    }
+}
+
+// Restore section on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (['profile', 'users', 'logs'].includes(hash)) {
+        switchSettingsSection(hash);
+    } else {
+        switchSettingsSection('profile');
+    }
+});
+
+// --- CLIENT-SIDE TABLE FILTERING ---
+function filterUsersTable() {
+    const query = document.getElementById('user-search-input').value.toLowerCase();
+    const rows = document.querySelectorAll('#users-table tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+function filterAuditLogsTable() {
+    const query = document.getElementById('log-search-input').value.toLowerCase();
+    const rows = document.querySelectorAll('#audit-logs-table tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+// --- BRANDING ASSET AJAX UPLOAD / REMOVE LOGIC ---
+function handleBrandingUpload(type) {
+    const fileInput = document.getElementById(type + '-file-input');
+    if (!fileInput.files.length) return;
+    
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append(type, file);
+    
+    const filenameDiv = document.getElementById(type + '-filename');
+    const container = document.getElementById(type + '-preview-container');
+    const removeBtn = document.getElementById('btn-remove-' + type);
+    
+    container.innerHTML = `<span style="color:var(--muted-foreground); font-size:0.8rem;"><i class="fa-solid fa-spinner fa-spin"></i> Uploading...</span>`;
+    filenameDiv.innerText = 'Uploading: ' + file.name;
+    
+    fetch('/api/company/branding/upload/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            container.innerHTML = `<img src="${data.url}" id="${type}-preview-img" style="max-width:100%; max-height:85px; object-fit:contain;">`;
+            filenameDiv.innerText = 'File Name: ' + data.filename;
+            removeBtn.style.display = 'inline-block';
+            
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message);
+            }
+        } else {
+            alert(data.message || 'Upload failed.');
+            resetUploaderUI(type);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred during upload.');
+        resetUploaderUI(type);
+    });
+}
+
+function handleBrandingRemove(type) {
+    if (!confirm('Are you sure you want to delete this branding asset? This change will reflect immediately on all invoice views.')) return;
+    
+    const removeBtn = document.getElementById('btn-remove-' + type);
+    
+    fetch('/api/company/branding/remove/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ type: type })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resetUploaderUI(type);
+            removeBtn.style.display = 'none';
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message);
+            }
+        } else {
+            alert(data.message || 'Removal failed.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred during removal.');
+    });
+}
+
+function resetUploaderUI(type) {
+    const container = document.getElementById(type + '-preview-container');
+    const filenameDiv = document.getElementById(type + '-filename');
+    const fileInput = document.getElementById(type + '-file-input');
+    
+    container.innerHTML = `<span id="${type}-preview-placeholder" style="color:var(--muted-foreground); font-size:0.8rem;">No ${type} uploaded</span>`;
+    filenameDiv.innerText = '';
+    fileInput.value = '';
+}
+</script>
+{% endblock %}

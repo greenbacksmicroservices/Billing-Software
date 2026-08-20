@@ -1,0 +1,515 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Record Purchase Bill - Expenditures{% endblock %}
+{% block sub_purchase_bills %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Record Purchase Bill</h1>
+    <a href="{% url 'purchase_bill_list' %}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Back to Directory
+    </a>
+</div>
+
+<form id="purchase-bill-form" method="POST" onsubmit="submitBill(event)" class="card-container" novalidate>
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Purchase Bill Details</h3></div>
+    <div class="card-body">
+        
+        <div id="form-error-toast" class="message-item error" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <!-- Meta headers -->
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="supplier">Select Supplier *</label>
+                <select id="supplier" class="form-control" onchange="onSupplierChange(this)" required>
+                    <option value="">-- Select Supplier --</option>
+                    {% for s in suppliers %}
+                        <option value="{{ s.id }}" data-state-code="{{ s.state_code }}">{{ s.name }} {% if s.business_name %}({{ s.business_name }}){% endif %}</option>
+                    {% endfor %}
+                    <option value="other">Other</option>
+                </select>
+
+                <!-- Quick Add Input Box (Shows only when 'Other' selected) -->
+                <div id="new-supplier-box" style="display: none; margin-top: 0.75rem; border: 1px dashed var(--border); padding: 0.75rem; border-radius: 6px; background: var(--card);">
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">New Supplier Name *</label>
+                    <input type="text" id="new-supplier-name" class="form-control" placeholder="Enter supplier name" style="margin-bottom: 0.5rem; height: calc(1.5em + 0.5rem + 2px); padding: 0.25rem 0.5rem; font-size: 0.85rem;">
+                    <div id="new-supplier-error" style="color: var(--danger); font-size: 0.75rem; margin-bottom: 0.5rem; display: none;"></div>
+                    <button type="button" id="btn-add-supplier" class="btn btn-primary" onclick="handleQuickAddSupplier()" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; width: 100%;">
+                        <i class="fa-solid fa-plus"></i> Add Supplier
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="bill-number">Supplier Bill Number *</label>
+                <input type="text" id="bill-number" class="form-control" placeholder="e.g. BILL-987" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="bill-date">Bill Date *</label>
+                <input type="date" id="bill-date" class="form-control" value="2026-08-14" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="due-date">Due Date *</label>
+                <input type="date" id="due-date" class="form-control" value="2026-09-13" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="warehouse">Destination Warehouse *</label>
+                <select id="warehouse" class="form-control" required>
+                    {% for w in warehouses %}
+                        <option value="{{ w.id }}">{{ w.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Items Grid -->
+        <h4 style="margin: 2rem 0 1rem 0; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--primary);">Items Grid</h4>
+        <div class="table-responsive">
+            <table class="custom-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Product Description *</th>
+                        <th style="width: 15%;">HSN/SAC</th>
+                        <th>Qty *</th>
+                        <th>Rate *</th>
+                        <th>Disc (INR)</th>
+                        <th>GST %</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right; width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                    <!-- Rows dynamic insertion -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="addRow()">
+                <i class="fa-solid fa-plus"></i> Add Item Row
+            </button>
+        </div>
+
+        <!-- Summary -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div>
+                <div class="form-group">
+                    <label class="form-label" for="notes">Notes</label>
+                    <textarea id="notes" class="form-control" rows="3" placeholder="Enter notes..."></textarea>
+                </div>
+            </div>
+            
+            <div style="font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gross Subtotal:</span>
+                    <strong id="summary-subtotal">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Taxable Value:</span>
+                    <strong id="summary-taxable">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cgst-row">
+                    <span>CGST:</span>
+                    <strong id="summary-cgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="sgst-row">
+                    <span>SGST:</span>
+                    <strong id="summary-sgst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="igst-row">
+                    <span>IGST:</span>
+                    <strong id="summary-igst">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;" id="cess-row">
+                    <span>Cess:</span>
+                    <strong id="summary-cess">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
+                    <span>Grand Total:</span>
+                    <strong id="summary-grand">₹0.00</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <a href="{% url 'purchase_bill_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Post Purchase Bill
+            </button>
+        </div>
+
+    </div>
+</form>
+
+<script id="products-data" type="application/json">
+{{ products_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let products = [];
+    try {
+        products = JSON.parse(document.getElementById('products-data').textContent || '[]');
+    } catch(e) { console.error('Error parsing products JSON:', e); products = []; }
+    const companyStateCode = "{{ request.user.company.state_code }}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        addRow();
+    });
+
+    function addRow() {
+        const tbody = document.getElementById('items-tbody');
+        const rowId = 'row-' + Date.now();
+        
+        let selectOptions = '<option value="">-- Select Product --</option>';
+        products.forEach(p => {
+            selectOptions += `<option value="${p.id}">${p.name} (Cost: ₹${p.price})</option>`;
+        });
+
+        const rowHtml = `
+            <tr id="${rowId}" class="item-row">
+                <td>
+                    <select class="form-control prod-select" onchange="onProductSelect('${rowId}')" required>
+                        ${selectOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control hsn-input" readonly placeholder="HSN/SAC">
+                </td>
+                <td>
+                    <input type="number" class="form-control qty-input" value="1" min="1" step="any" oninput="recalculateAll()" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control rate-input" value="0.00" min="0" step="any" oninput="recalculateAll()" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control disc-input" value="0.00" min="0" step="any" oninput="recalculateAll()">
+                </td>
+                <td>
+                    <input type="number" class="form-control gst-input" value="0.00" min="0" max="100" step="any" readonly>
+                </td>
+                <td style="text-align: right; font-weight: 600;" class="row-total">
+                    ₹0.00
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; background: none; color: var(--destructive);" onclick="removeRow('${rowId}')">
+                        <i class="fa-regular fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function removeRow(rowId) {
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.remove();
+        }
+        recalculateAll();
+    }
+
+    function onProductSelect(rowId) {
+        const row = document.getElementById(rowId);
+        const prodId = row.querySelector('.prod-select').value;
+        const prod = products.find(p => p.id == prodId);
+        
+        const oldWarning = row.querySelector('.hsn-warning');
+        if (oldWarning) oldWarning.remove();
+        
+        if (prod) {
+            row.querySelector('.rate-input').value = prod.price.toFixed(2);
+            row.querySelector('.gst-input').value = prod.gst_rate.toFixed(2);
+            row.querySelector('.hsn-input').value = prod.hsn_code || '';
+            
+            if (!prod.hsn_code) {
+                row.querySelector('.hsn-input').insertAdjacentHTML('afterend', '<small class="hsn-warning" style="color: var(--destructive); display: block; font-size: 0.75rem; margin-top: 0.25rem;">GST rate is not configured.</small>');
+            }
+        } else {
+            row.querySelector('.rate-input').value = '0.00';
+            row.querySelector('.gst-input').value = '0.00';
+            row.querySelector('.hsn-input').value = '';
+        }
+        recalculateAll();
+    }
+
+    function recalculateAll() {
+        const rows = document.querySelectorAll('.item-row');
+        const supplierSelect = document.getElementById('supplier');
+        const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
+        const posCode = selectedOption && selectedOption.value ? (selectedOption.getAttribute('data-state-code') || '').trim().padStart(2, '0') : companyStateCode.trim().padStart(2, '0');
+        const companyStateCodeNormalized = companyStateCode.trim().padStart(2, '0');
+        
+        let subtotal = 0;
+        let discountTotal = 0;
+        let taxableTotal = 0;
+        let cgstTotal = 0;
+        let sgstTotal = 0;
+        let igstTotal = 0;
+        let cessTotal = 0;
+        
+        const isSameState = (posCode === companyStateCodeNormalized);
+        
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+            const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            const gstRate = parseFloat(row.querySelector('.gst-input').value) || 0;
+            
+            const prodId = row.querySelector('.prod-select').value;
+            const prod = products.find(p => p.id == prodId);
+            const cessRate = prod ? parseFloat(prod.cess_rate || 0) : 0;
+            
+            const gross = qty * rate;
+            const taxable = gross - disc;
+            const rowGst = taxable * (gstRate / 100);
+            const rowCess = taxable * (cessRate / 100);
+            const rowTotal = taxable + rowGst + rowCess;
+            
+            row.querySelector('.row-total').innerText = window.formatIndianCurrency(rowTotal);
+            
+            subtotal += gross;
+            discountTotal += disc;
+            taxableTotal += taxable;
+            cessTotal += rowCess;
+            
+            if (isSameState) {
+                cgstTotal += rowGst / 2;
+                sgstTotal += rowGst / 2;
+            } else {
+                igstTotal += rowGst;
+            }
+        });
+
+        const totalTaxableAndTax = taxableTotal + cgstTotal + sgstTotal + igstTotal + cessTotal;
+        const roundedGrand = Math.round(totalTaxableAndTax);
+        const roundOff = roundedGrand - totalTaxableAndTax;
+        
+        document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
+        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discountTotal);
+        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxableTotal);
+        
+        document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
+        document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
+        document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
+        document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
+        document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
+        document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+    }
+
+    function submitBill(e) {
+        if (e) e.preventDefault();
+        const errorToast = document.getElementById('form-error-toast');
+        errorToast.style.display = 'none';
+        
+        const supplierId = document.getElementById('supplier').value;
+        const billNo = document.getElementById('bill-number').value;
+        const billDate = document.getElementById('bill-date').value;
+        const dueDate = document.getElementById('due-date').value;
+        const whId = document.getElementById('warehouse').value;
+        const notes = document.getElementById('notes').value;
+        
+        if (!supplierId || !billNo || !billDate || !dueDate || !whId) {
+            const msg = "Please complete all purchase bill header fields.";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const rows = document.querySelectorAll('.item-row');
+        const items = [];
+        let hasIncompleteRow = false;
+        
+        rows.forEach(row => {
+            const prodId = row.querySelector('.prod-select').value;
+            const qty = parseFloat(row.querySelector('.qty-input').value);
+            const rate = parseFloat(row.querySelector('.rate-input').value);
+            const disc = parseFloat(row.querySelector('.disc-input').value) || 0;
+            
+            if (prodId) {
+                if (isNaN(qty) || qty <= 0 || isNaN(rate)) {
+                    hasIncompleteRow = true;
+                } else {
+                    items.push({
+                        product_id: parseInt(prodId),
+                        quantity: qty,
+                        rate: rate,
+                        discount: disc
+                    });
+                }
+            }
+        });
+
+        if (items.length === 0) {
+            const msg = "Please select at least one valid product in the items grid (quantity > 0).";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (hasIncompleteRow) {
+            const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
+            errorToast.innerText = msg;
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        const payload = {
+            supplier_id: parseInt(supplierId),
+            supplier_bill_no: billNo,
+            bill_date: billDate,
+            due_date: dueDate,
+            warehouse_id: parseInt(whId),
+            notes: notes,
+            items: items
+        };
+
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Posting...';
+
+        fetch('{% url "purchase_bill_add" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Purchase bill posted successfully');
+                }
+                window.location.href = data.redirect_url || '/company/purchase-bills/';
+            } else {
+                const msg = data.message || "Unable to post purchase bill.";
+                errorToast.innerText = "Error: " + msg;
+                errorToast.style.display = 'block';
+                if (typeof window.showToast === 'function') {
+                    window.showToast('error', msg);
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            errorToast.innerText = "Server connection lost. Try saving again.";
+            errorToast.style.display = 'block';
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Server connection lost. Try saving again.');
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+
+    function onSupplierChange(select) {
+        const box = document.getElementById('new-supplier-box');
+        const input = document.getElementById('new-supplier-name');
+        const err = document.getElementById('new-supplier-error');
+        
+        if (select.value === 'other') {
+            box.style.display = 'block';
+            input.focus();
+        } else {
+            box.style.display = 'none';
+            input.value = '';
+            err.style.display = 'none';
+            err.innerText = '';
+        }
+        recalculateAll();
+    }
+
+    function handleQuickAddSupplier() {
+        const input = document.getElementById('new-supplier-name');
+        const err = document.getElementById('new-supplier-error');
+        const btn = document.getElementById('btn-add-supplier');
+        const select = document.getElementById('supplier');
+        
+        err.style.display = 'none';
+        err.innerText = '';
+        
+        const name = input.value.trim();
+        if (!name) {
+            err.innerText = "Supplier name is required.";
+            err.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding Supplier...';
+
+        fetch('/company/suppliers/quick-add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ name: name })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Supplier';
+            
+            if (data.status === 'success') {
+                const opt = document.createElement('option');
+                opt.value = data.supplier.id;
+                opt.setAttribute('data-state-code', data.supplier.state_code);
+                opt.text = data.supplier.name + (data.supplier.business_name ? ` (${data.supplier.business_name})` : '');
+                
+                select.insertBefore(opt, select.options[select.options.length - 1]);
+                select.value = data.supplier.id;
+                onSupplierChange(select);
+                
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', 'Supplier added successfully.');
+                } else {
+                    alert('Supplier added successfully.');
+                }
+            } else if (data.status === 'duplicate') {
+                select.value = data.supplier.id;
+                onSupplierChange(select);
+                
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', 'Supplier already exists. Automatically selected.');
+                } else {
+                    alert('Supplier already exists. Automatically selected.');
+                }
+            } else {
+                err.innerText = data.message || 'Unable to add supplier. Please try again.';
+                err.style.display = 'block';
+            }
+        })
+        .catch(errObj => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Supplier';
+            console.error(errObj);
+            err.innerText = 'Unable to add supplier. Please try again.';
+            err.style.display = 'block';
+        });
+    }
+</script>
+{% endblock %}

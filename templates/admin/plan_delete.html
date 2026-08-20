@@ -1,0 +1,24 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Delete Subscription Plan{% endblock %}
+{% block nav_plans %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Delete Subscription Plan</h1>
+</div>
+
+<form method="POST" class="card-container" style="max-width: 500px; margin: auto;">
+    {% csrf_token %}
+    <div class="card-header"><h3 class="card-title">Confirm Deletion</h3></div>
+    <div class="card-body">
+        <p>Are you sure you want to permanently delete the subscription plan: <strong>{{ object.name }}</strong>?</p>
+        <p style="color: var(--destructive); font-size: 0.9rem; margin-top: 0.5rem;">Warning: This action cannot be undone.</p>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+            <a href="{% url 'admin_plans' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-danger">Confirm Delete</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
