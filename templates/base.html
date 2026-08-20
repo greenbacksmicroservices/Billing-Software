@@ -401,6 +401,30 @@
             currentDeleteUrl = null;
         };
 
+        window.showGlobalMessage = function(type, message) {
+            const container = document.getElementById('page-messages-container');
+            if (!container) return;
+            const msgItem = document.createElement('div');
+            let alertTag = type;
+            if (type === 'danger' || type === 'error') alertTag = 'danger';
+            
+            msgItem.className = `toast-item ${alertTag}`;
+            msgItem.style.cssText = "position: static; min-width: 100%; margin-bottom: 0.75rem; box-shadow: var(--shadow-sm); border-radius: 6px;";
+            
+            let icon = 'fa-circle-info';
+            if (alertTag === 'success') icon = 'fa-circle-check';
+            if (alertTag === 'danger' || alertTag === 'error') icon = 'fa-circle-exclamation';
+            if (alertTag === 'warning') icon = 'fa-triangle-exclamation';
+
+            msgItem.innerHTML = `
+                <i class="fa-solid ${icon}" style="font-size: 1.1rem;"></i>
+                <div class="toast-message" style="font-weight: 500; font-size: 0.9rem;">${message}</div>
+                <button type="button" class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            container.appendChild(msgItem);
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        };
+
         window.confirmExecuteDelete = function() {
             if (!currentDeleteUrl) return;
             const btn = document.getElementById('globalConfirmDeleteBtn');
@@ -417,15 +441,33 @@
                 btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
                 closeGlobalDeleteModal();
 
-                if (data.status === 'success' || data.status === 'warning') {
+                if (data.success === true || data.status === 'success' || data.status === 'warning') {
                     showToast(data.status === 'success' ? 'success' : 'warning', data.message || 'Record deleted successfully.');
                     const container = document.getElementById('table-container');
                     if (container && typeof window.loadAjaxTable === 'function') {
-                        window.loadAjaxTable(window.location.href, 'table-container');
+                        let reloadUrl = window.location.href;
+                        const tbody = container.querySelector('tbody');
+                        const rows = tbody ? tbody.querySelectorAll('tr') : [];
+                        const hasEmptyState = tbody && tbody.querySelector('td[colspan]');
+                        
+                        if (tbody && rows.length === 1 && !hasEmptyState) {
+                            try {
+                                const urlObj = new URL(window.location.href);
+                                let pageVal = parseInt(urlObj.searchParams.get('page'));
+                                if (pageVal && pageVal > 1) {
+                                    urlObj.searchParams.set('page', pageVal - 1);
+                                    reloadUrl = urlObj.toString();
+                                }
+                            } catch (e) {
+                                console.error('Error adjusting page parameter:', e);
+                            }
+                        }
+                        window.loadAjaxTable(reloadUrl, 'table-container');
                     } else {
                         window.location.reload();
                     }
                 } else {
+                    showGlobalMessage('danger', data.message || 'Unable to delete record.');
                     showToast('error', data.message || 'Unable to delete record.');
                 }
             })
@@ -433,6 +475,7 @@
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
                 closeGlobalDeleteModal();
+                showGlobalMessage('danger', 'Something went wrong. Please try again.');
                 showToast('error', 'Something went wrong. Please try again.');
             });
         };

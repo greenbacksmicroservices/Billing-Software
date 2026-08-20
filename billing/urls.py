@@ -104,6 +104,7 @@ urlpatterns = [
     path('company/sales-orders/', views.SalesOrderListView.as_view(), name='sales_order_list'),
     path('company/sales-orders/add/', views.SalesOrderCreateView.as_view(), name='sales_order_add'),
     path('company/sales-orders/<int:pk>/', views.SalesOrderDetailView.as_view(), name='sales_order_view'),
+    path('company/sales-orders/<int:pk>/pdf/', views.SalesOrderPDFView.as_view(), name='sales_order_pdf'),
     path('company/sales-orders/<int:pk>/convert/', views.sales_order_convert_to_invoice, name='sales_order_convert'),
 
     path('company/invoices/', views.InvoiceListView.as_view(), name='invoice_list'),
@@ -116,6 +117,7 @@ urlpatterns = [
     path('company/credit-notes/', views.CreditNoteListView.as_view(), name='credit_note_list'),
     path('company/credit-notes/add/', views.CreditNoteCreateView.as_view(), name='credit_note_add'),
     path('company/credit-notes/<int:pk>/', views.CreditNoteDetailView.as_view(), name='credit_note_view'),
+    path('company/credit-notes/<int:pk>/pdf/', views.CreditNotePDFView.as_view(), name='credit_note_pdf'),
 
     # Purchase Transactions
     path('company/purchase-bills/', views.PurchaseBillListView.as_view(), name='purchase_bill_list'),
@@ -152,4 +154,10 @@ urlpatterns = [
     path('company/my-account/<int:pk>/', views.company_user_detail_api, name='company_user_detail_api'),
     path('company/my-account/<int:pk>/edit/', views.company_user_edit_api, name='company_user_edit_api'),
     path('company/my-account/<int:pk>/change-password/', views.company_user_change_password_api, name='company_user_change_password_api'),
+
+    # Transaction PDF Emailing
+    path('company/quotations/<int:pk>/send-email/', views.company_quotation_send_email, name='quotation_send_email'),
+    path('company/sales-orders/<int:pk>/send-email/', views.company_sales_order_send_email, name='sales_order_send_email'),
+    path('company/invoices/<int:pk>/send-email/', views.company_invoice_send_email, name='invoice_send_email'),
+    path('company/credit-notes/<int:pk>/send-email/', views.company_credit_note_send_email, name='credit_note_send_email'),
 ]

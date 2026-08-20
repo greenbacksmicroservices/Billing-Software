@@ -28,41 +28,41 @@
 
 <!-- SaaS KPI Cards -->
 <div class="dashboard-grid">
-    <div class="stat-card kpi-sales">
+    <a href="{% url 'admin_companies_list' %}" class="stat-card kpi-sales" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Total Companies</span>
             <i class="fa-solid fa-building" style="color: var(--primary); font-size: 1.1rem;"></i>
         </div>
         <div class="stat-card-value">{{ total_companies }}</div>
         <div class="stat-card-footer">Registered accounts</div>
-    </div>
+    </a>
     
-    <div class="stat-card kpi-purchases">
+    <a href="{% url 'admin_companies_list' %}?status=ACTIVE" class="stat-card kpi-purchases" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Active Businesses</span>
             <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.1rem;"></i>
         </div>
         <div class="stat-card-value" style="color: var(--success);">{{ active_companies }}</div>
         <div class="stat-card-footer">Paying subscribers</div>
-    </div>
+    </a>
     
-    <div class="stat-card kpi-alerts">
+    <a href="{% url 'admin_companies_list' %}?status=TRIAL" class="stat-card kpi-alerts" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Free Trials</span>
             <i class="fa-solid fa-clock" style="color: var(--warning); font-size: 1.1rem;"></i>
         </div>
         <div class="stat-card-value" style="color: var(--warning);">{{ trial_companies }}</div>
         <div class="stat-card-footer">Evaluation accounts</div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-payable">
+    <a href="{% url 'admin_companies_list' %}?status=SUSPENDED" class="stat-card kpi-payable" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Suspended / Expired</span>
             <i class="fa-solid fa-circle-exclamation" style="color: var(--danger); font-size: 1.1rem;"></i>
         </div>
         <div class="stat-card-value" style="color: var(--danger);">{{ expired_companies|add:suspended_companies }}</div>
         <div class="stat-card-footer">Require attention</div>
-    </div>
+    </a>
 </div>
 
 <!-- Graphs Grid Row 1 -->

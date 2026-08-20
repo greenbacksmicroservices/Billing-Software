@@ -32,7 +32,7 @@
 
 <!-- KPI Cards Row 1 -->
 <div class="dashboard-grid">
-    <div class="stat-card kpi-sales">
+    <a href="{% url 'invoice_list' %}" class="stat-card kpi-sales" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Today's Sales</span>
             <i class="fa-solid fa-money-bill-wave" style="color: var(--primary); font-size: 1.1rem;"></i>
@@ -45,9 +45,9 @@
             </span>
             <span>from yesterday</span>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-purchases">
+    <a href="{% url 'purchase_bill_list' %}" class="stat-card kpi-purchases" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Today's Purchases</span>
             <i class="fa-solid fa-basket-shopping" style="color: #10b981; font-size: 1.1rem;"></i>
@@ -60,9 +60,9 @@
             </span>
             <span>from yesterday</span>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-collections">
+    <a href="{% url 'payment_list' %}" class="stat-card kpi-collections" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Today's Collections</span>
             <i class="fa-solid fa-hand-holding-dollar" style="color: #8b5cf6; font-size: 1.1rem;"></i>
@@ -75,9 +75,9 @@
             </span>
             <span>from yesterday</span>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-alerts">
+    <a href="{% url 'product_list' %}" class="stat-card kpi-alerts" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Low Stock Alerts</span>
             <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 1.1rem;"></i>
@@ -86,30 +86,30 @@
         <div class="stat-card-footer">
             <span>Items require re-ordering</span>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- KPI Cards Row 2 -->
 <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-    <div class="stat-card kpi-receivable">
+    <a href="{% url 'customer_list' %}" class="stat-card kpi-receivable" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">Total Outstanding Receivables</div>
         <div class="stat-card-value" style="color: var(--primary);">{{ receivable|indian_currency }}</div>
         <div class="stat-card-footer">Due from customers</div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-payable">
+    <a href="{% url 'supplier_list' %}" class="stat-card kpi-payable" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">Total Outstanding Payables</div>
         <div class="stat-card-value" style="color: var(--danger);">{{ payable|indian_currency }}</div>
         <div class="stat-card-footer">Due to suppliers</div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-stock">
+    <a href="{% url 'product_list' %}" class="stat-card kpi-stock" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">Estimated Stock Value</div>
         <div class="stat-card-value" style="color: var(--success);">{{ total_stock_value|indian_currency }}</div>
         <div class="stat-card-footer">At current selling rates</div>
-    </div>
+    </a>
 
-    <div class="stat-card kpi-profit">
+    <a href="{% url 'report_profit_loss' %}" class="stat-card kpi-profit" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">Total Profit (MTD)</div>
         <div class="stat-card-value" style="color: #06b6d4;">{{ profit_mtd|indian_currency }}</div>
         <div class="stat-card-footer">
@@ -119,7 +119,7 @@
             </span>
             <span>vs last month</span>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- Main Graphs Grid Row 1 -->

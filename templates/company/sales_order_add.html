@@ -265,18 +265,22 @@
 
     function submitOrder(e) {
         if (e) e.preventDefault();
-        const error = document.getElementById('form-error-toast');
-        error.style.display = 'none';
+        window.setElementDisplay('form-error-toast', 'none');
         
-        const customerId = document.getElementById('customer').value;
-        const soNo = document.getElementById('order-number').value.trim();
-        const soDate = document.getElementById('order-date').value;
-        const expected = document.getElementById('expected-delivery').value;
+        const customerEl = document.getElementById('customer');
+        const orderNoEl = document.getElementById('order-number');
+        const orderDateEl = document.getElementById('order-date');
+        const expectedEl = document.getElementById('expected-delivery');
+
+        const customerId = customerEl ? customerEl.value : '';
+        const soNo = orderNoEl ? orderNoEl.value.trim() : '';
+        const soDate = orderDateEl ? orderDateEl.value : '';
+        const expected = expectedEl ? expectedEl.value : '';
         
         if (!customerId || !soNo || !soDate || !expected) {
             const msg = "Please complete all sales order fields.";
-            error.innerText = msg;
-            error.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -287,10 +291,15 @@
         let hasIncompleteRow = false;
 
         rows.forEach(row => {
-            const pId = row.querySelector('.prod-select').value;
-            const qty = window.parseMoney(row.querySelector('.qty-input').value);
-            const rate = window.parseMoney(row.querySelector('.rate-input').value);
-            const disc = window.parseMoney(row.querySelector('.disc-input').value);
+            const prodEl = row.querySelector('.prod-select');
+            const qtyEl = row.querySelector('.qty-input');
+            const rateEl = row.querySelector('.rate-input');
+            const discEl = row.querySelector('.disc-input');
+
+            const pId = prodEl ? prodEl.value : '';
+            const qty = qtyEl ? window.parseMoney(qtyEl.value) : 0;
+            const rate = rateEl ? window.parseMoney(rateEl.value) : 0;
+            const disc = discEl ? window.parseMoney(discEl.value) : 0;
             
             if (pId) {
                 if (qty <= 0 || rate < 0) {
@@ -303,8 +312,8 @@
 
         if (items.length === 0) {
             const msg = "Please select at least one valid product in the items grid (quantity > 0).";
-            error.innerText = msg;
-            error.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -312,8 +321,8 @@
 
         if (hasIncompleteRow) {
             const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
-            error.innerText = msg;
-            error.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -325,9 +334,12 @@
         }
 
         const submitBtn = document.getElementById('submit-btn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Order...';
+        let originalText = '';
+        if (submitBtn) {
+            originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Order...';
+        }
 
         fetch('{% url "sales_order_add" %}', {
             method: 'POST',
@@ -347,27 +359,31 @@
                 window.location.href = data.redirect_url || '{% url "sales_order_list" %}';
             } else {
                 const msg = data.message || "Unable to save sales order.";
-                error.innerText = msg;
-                error.style.display = 'block';
+                window.setElementText('form-error-toast', msg);
+                window.setElementDisplay('form-error-toast', 'block');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
             }
         })
         .catch(err => {
             console.error(err);
             const msg = "Something went wrong while communicating with the server. Please check your connection.";
-            error.innerText = msg;
-            error.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
                 window.showToast('error', msg);
             }
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
         });
     }
 </script>

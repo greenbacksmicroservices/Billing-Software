@@ -308,33 +308,38 @@
     }
 
     function openReceiptModal() {
-        document.getElementById('rcpt_date').value = todayStr;
-        document.getElementById('receiptModalError').style.display = 'none';
-        document.getElementById('customerReceiptForm').reset();
-        document.getElementById('rcpt_date').value = todayStr;
+        const rcptDate = document.getElementById('rcpt_date');
+        if (rcptDate) rcptDate.value = todayStr;
+        window.setElementDisplay('receiptModalError', 'none');
+        const rcptForm = document.getElementById('customerReceiptForm');
+        if (rcptForm) rcptForm.reset();
+        if (rcptDate) rcptDate.value = todayStr;
         loadCustomers();
-        document.getElementById('customerReceiptModal').style.display = 'flex';
+        window.setElementDisplay('customerReceiptModal', 'flex');
     }
 
     function closeReceiptModal() {
-        document.getElementById('customerReceiptModal').style.display = 'none';
+        window.setElementDisplay('customerReceiptModal', 'none');
     }
 
     function openPaymentModal() {
-        document.getElementById('pymt_date').value = todayStr;
-        document.getElementById('paymentModalError').style.display = 'none';
-        document.getElementById('supplierPaymentForm').reset();
-        document.getElementById('pymt_date').value = todayStr;
+        const pymtDate = document.getElementById('pymt_date');
+        if (pymtDate) pymtDate.value = todayStr;
+        window.setElementDisplay('paymentModalError', 'none');
+        const pymtForm = document.getElementById('supplierPaymentForm');
+        if (pymtForm) pymtForm.reset();
+        if (pymtDate) pymtDate.value = todayStr;
         loadSuppliers();
-        document.getElementById('supplierPaymentModal').style.display = 'flex';
+        window.setElementDisplay('supplierPaymentModal', 'flex');
     }
 
     function closePaymentModal() {
-        document.getElementById('supplierPaymentModal').style.display = 'none';
+        window.setElementDisplay('supplierPaymentModal', 'none');
     }
 
     function onCustomerChange(custId) {
         const invSelect = document.getElementById('rcpt_invoice');
+        if (!invSelect) return;
         invSelect.innerHTML = '<option value="">-- On Account (General Credit) --</option>';
         if (!custId) return;
 
@@ -352,12 +357,14 @@
     function onInvoiceChange(selectEl) {
         const selectedOpt = selectEl.options[selectEl.selectedIndex];
         if (selectedOpt && selectedOpt.dataset.due) {
-            document.getElementById('rcpt_amount').value = selectedOpt.dataset.due;
+            const rcptAmount = document.getElementById('rcpt_amount');
+            if (rcptAmount) rcptAmount.value = selectedOpt.dataset.due;
         }
     }
 
     function onSupplierChange(suppId) {
         const billSelect = document.getElementById('pymt_bill');
+        if (!billSelect) return;
         billSelect.innerHTML = '<option value="">-- On Account (General Debit) --</option>';
         if (!suppId) return;
 
@@ -375,33 +382,44 @@
     function onBillChange(selectEl) {
         const selectedOpt = selectEl.options[selectEl.selectedIndex];
         if (selectedOpt && selectedOpt.dataset.due) {
-            document.getElementById('pymt_amount').value = selectedOpt.dataset.due;
+            const pymtAmount = document.getElementById('pymt_amount');
+            if (pymtAmount) pymtAmount.value = selectedOpt.dataset.due;
         }
     }
 
     function submitCustomerReceipt(e) {
         e.preventDefault();
-        const errBox = document.getElementById('receiptModalError');
-        const btn = document.getElementById('rcptSubmitBtn');
-        errBox.style.display = 'none';
+        window.setElementDisplay('receiptModalError', 'none');
 
-        const customer = document.getElementById('rcpt_customer').value;
-        const amount = document.getElementById('rcpt_amount').value;
+        const customerEl = document.getElementById('rcpt_customer');
+        const amountEl = document.getElementById('rcpt_amount');
+        const btn = document.getElementById('rcptSubmitBtn');
+
+        if (!customerEl || !amountEl) {
+            console.error('Customer receipt form elements not found in DOM.');
+            return;
+        }
+
+        const customer = customerEl.value;
+        const amount = amountEl.value;
 
         if (!customer) {
-            errBox.innerText = 'Please select a customer.';
-            errBox.style.display = 'block';
+            window.setElementText('receiptModalError', 'Please select a customer.');
+            window.setElementDisplay('receiptModalError', 'block');
             return;
         }
 
         if (!amount || parseFloat(amount) <= 0) {
-            errBox.innerText = 'Please enter a valid amount greater than zero.';
-            errBox.style.display = 'block';
+            window.setElementText('receiptModalError', 'Please enter a valid amount greater than zero.');
+            window.setElementDisplay('receiptModalError', 'block');
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        const originalText = btn ? btn.innerHTML : 'Save Receipt';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        }
 
         const formData = new FormData(document.getElementById('customerReceiptForm'));
 
@@ -414,8 +432,10 @@
         })
         .then(r => r.json())
         .then(data => {
-            btn.disabled = false;
-            btn.innerHTML = 'Customer Receipt';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
 
             if (data.status === 'success' || data.success) {
                 closeReceiptModal();
@@ -426,18 +446,20 @@
                     window.location.reload();
                 }
             } else {
-                errBox.innerText = data.message || 'Error saving receipt.';
-                errBox.style.display = 'block';
+                window.setElementText('receiptModalError', data.message || 'Error saving receipt.');
+                window.setElementDisplay('receiptModalError', 'block');
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', data.message || 'Error saving receipt.');
                 }
             }
         })
         .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = 'Customer Receipt';
-            errBox.innerText = 'Network error occurred. Please try again.';
-            errBox.style.display = 'block';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            window.setElementText('receiptModalError', 'Network error occurred. Please try again.');
+            window.setElementDisplay('receiptModalError', 'block');
             if (typeof window.showToast === 'function') {
                 window.showToast('error', 'Network error occurred. Please try again.');
             }
@@ -446,27 +468,37 @@
 
     function submitSupplierPayment(e) {
         e.preventDefault();
-        const errBox = document.getElementById('paymentModalError');
-        const btn = document.getElementById('pymtSubmitBtn');
-        errBox.style.display = 'none';
+        window.setElementDisplay('paymentModalError', 'none');
 
-        const supplier = document.getElementById('pymt_supplier').value;
-        const amount = document.getElementById('pymt_amount').value;
+        const supplierEl = document.getElementById('pymt_supplier');
+        const amountEl = document.getElementById('pymt_amount');
+        const btn = document.getElementById('pymtSubmitBtn');
+
+        if (!supplierEl || !amountEl) {
+            console.error('Supplier payment form elements not found in DOM.');
+            return;
+        }
+
+        const supplier = supplierEl.value;
+        const amount = amountEl.value;
 
         if (!supplier) {
-            errBox.innerText = 'Please select a supplier.';
-            errBox.style.display = 'block';
+            window.setElementText('paymentModalError', 'Please select a supplier.');
+            window.setElementDisplay('paymentModalError', 'block');
             return;
         }
 
         if (!amount || parseFloat(amount) <= 0) {
-            errBox.innerText = 'Please enter a valid amount greater than zero.';
-            errBox.style.display = 'block';
+            window.setElementText('paymentModalError', 'Please enter a valid amount greater than zero.');
+            window.setElementDisplay('paymentModalError', 'block');
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        const originalText = btn ? btn.innerHTML : 'Supplier Payment';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        }
 
         const formData = new FormData(document.getElementById('supplierPaymentForm'));
 
@@ -479,8 +511,10 @@
         })
         .then(r => r.json())
         .then(data => {
-            btn.disabled = false;
-            btn.innerHTML = 'Supplier Payment';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
 
             if (data.status === 'success' || data.success) {
                 closePaymentModal();
@@ -491,18 +525,20 @@
                     window.location.reload();
                 }
             } else {
-                errBox.innerText = data.message || 'Error recording payment.';
-                errBox.style.display = 'block';
+                window.setElementText('paymentModalError', data.message || 'Error recording payment.');
+                window.setElementDisplay('paymentModalError', 'block');
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', data.message || 'Error recording payment.');
                 }
             }
         })
         .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = 'Supplier Payment';
-            errBox.innerText = 'Network error occurred. Please try again.';
-            errBox.style.display = 'block';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            window.setElementText('paymentModalError', 'Network error occurred. Please try again.');
+            window.setElementDisplay('paymentModalError', 'block');
             if (typeof window.showToast === 'function') {
                 window.showToast('error', 'Network error occurred. Please try again.');
             }

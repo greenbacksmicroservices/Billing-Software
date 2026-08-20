@@ -130,16 +130,20 @@
 {% block extra_js %}
 <script>
     function openCreditNoteModal() {
-        document.getElementById('cn-error-msg').style.display = 'none';
-        document.getElementById('cn-invoice').value = '';
-        document.getElementById('cn-customer-name').value = '';
-        document.getElementById('cn-subtotal').value = '';
-        document.getElementById('cn-notes').value = '';
-        document.getElementById('credit-note-modal').style.display = 'flex';
+        window.setElementDisplay('cn-error-msg', 'none');
+        const invoice = document.getElementById('cn-invoice');
+        if (invoice) invoice.value = '';
+        const custName = document.getElementById('cn-customer-name');
+        if (custName) custName.value = '';
+        const subtotal = document.getElementById('cn-subtotal');
+        if (subtotal) subtotal.value = '';
+        const notes = document.getElementById('cn-notes');
+        if (notes) notes.value = '';
+        window.setElementDisplay('credit-note-modal', 'flex');
     }
 
     function closeCreditNoteModal() {
-        document.getElementById('credit-note-modal').style.display = 'none';
+        window.setElementDisplay('credit-note-modal', 'none');
     }
 
     // Close on escape key
@@ -150,62 +154,85 @@
     });
 
     // Close when clicking outside modal card
-    document.getElementById('credit-note-modal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('credit-note-modal')) {
-            closeCreditNoteModal();
-        }
-    });
+    const cnModal = document.getElementById('credit-note-modal');
+    if (cnModal) {
+        cnModal.addEventListener('click', (e) => {
+            if (e.target === cnModal) {
+                closeCreditNoteModal();
+            }
+        });
+    }
 
     function onInvoiceChange() {
         const select = document.getElementById('cn-invoice');
+        if (!select) return;
         const selected = select.options[select.selectedIndex];
+        const custName = document.getElementById('cn-customer-name');
+        const subtotalEl = document.getElementById('cn-subtotal');
         if (selected && selected.value) {
             const customer = selected.getAttribute('data-customer');
             const taxable = window.parseMoney(selected.getAttribute('data-taxable')) || 0;
-            document.getElementById('cn-customer-name').value = customer;
-            document.getElementById('cn-subtotal').placeholder = `Max: ${window.formatIndianCurrency(taxable)}`;
-            document.getElementById('cn-subtotal').dataset.max = taxable;
+            if (custName) custName.value = customer;
+            if (subtotalEl) {
+                subtotalEl.placeholder = `Max: ${window.formatIndianCurrency(taxable)}`;
+                subtotalEl.dataset.max = taxable;
+            }
         } else {
-            document.getElementById('cn-customer-name').value = '';
-            document.getElementById('cn-subtotal').placeholder = 'Max: ₹0.00';
-            delete document.getElementById('cn-subtotal').dataset.max;
+            if (custName) custName.value = '';
+            if (subtotalEl) {
+                subtotalEl.placeholder = 'Max: ₹0.00';
+                delete subtotalEl.dataset.max;
+            }
         }
     }
 
     function submitCreditNote() {
-        const errorMsg = document.getElementById('cn-error-msg');
-        errorMsg.style.display = 'none';
+        window.setElementDisplay('cn-error-msg', 'none');
 
-        const invoiceId = document.getElementById('cn-invoice').value;
-        const noteNo = document.getElementById('cn-note_number').value.trim();
-        const noteDate = document.getElementById('cn-note_date').value;
-        const reason = document.getElementById('cn-reason').value;
-        const subtotal = window.parseMoney(document.getElementById('cn-subtotal').value);
-        const notes = document.getElementById('cn-notes').value;
+        const invoiceEl = document.getElementById('cn-invoice');
+        const noteNoEl = document.getElementById('cn-note_number');
+        const noteDateEl = document.getElementById('cn-note_date');
+        const reasonEl = document.getElementById('cn-reason');
+        const subtotalEl = document.getElementById('cn-subtotal');
+        const notesEl = document.getElementById('cn-notes');
+
+        if (!invoiceEl || !noteNoEl || !noteDateEl || !reasonEl || !subtotalEl) {
+            console.error('Credit note form elements not found in DOM.');
+            return;
+        }
+
+        const invoiceId = invoiceEl.value;
+        const noteNo = noteNoEl.value.trim();
+        const noteDate = noteDateEl.value;
+        const reason = reasonEl.value;
+        const subtotal = window.parseMoney(subtotalEl.value);
+        const notes = notesEl ? notesEl.value : '';
 
         if (!invoiceId) {
-            errorMsg.innerText = "Please select a sales invoice reference.";
-            errorMsg.style.display = 'block';
+            window.setElementText('cn-error-msg', "Please select a sales invoice reference.");
+            window.setElementDisplay('cn-error-msg', 'block');
             return;
         }
 
         if (!noteNo || !noteDate || !reason || subtotal <= 0) {
-            errorMsg.innerText = "Please fill in all required fields and provide a valid taxable value greater than 0.";
-            errorMsg.style.display = 'block';
+            window.setElementText('cn-error-msg', "Please fill in all required fields and provide a valid taxable value greater than 0.");
+            window.setElementDisplay('cn-error-msg', 'block');
             return;
         }
 
-        const maxTaxable = window.parseMoney(document.getElementById('cn-subtotal').dataset.max) || 0;
+        const maxTaxable = window.parseMoney(subtotalEl.dataset.max) || 0;
         if (maxTaxable > 0 && subtotal > maxTaxable) {
-            errorMsg.innerText = `Credit note taxable value (${window.formatIndianCurrency(subtotal)}) cannot exceed original invoice taxable value (${window.formatIndianCurrency(maxTaxable)}).`;
-            errorMsg.style.display = 'block';
+            window.setElementText('cn-error-msg', `Credit note taxable value (${window.formatIndianCurrency(subtotal)}) cannot exceed original invoice taxable value (${window.formatIndianCurrency(maxTaxable)}).`);
+            window.setElementDisplay('cn-error-msg', 'block');
             return;
         }
 
         const submitBtn = document.getElementById('cn-submit-btn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Issuing...';
+        const originalText = submitBtn ? submitBtn.innerHTML : 'Issue Credit';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Issuing...';
+        }
 
         const payload = {
             invoice: parseInt(invoiceId),
@@ -234,18 +261,22 @@
                 closeCreditNoteModal();
                 window.location.reload();
             } else {
-                errorMsg.innerText = data.message || "Unable to issue credit note.";
-                errorMsg.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                window.setElementText('cn-error-msg', data.message || "Unable to issue credit note.");
+                window.setElementDisplay('cn-error-msg', 'block');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
             }
         })
         .catch(err => {
             console.error(err);
-            errorMsg.innerText = "Connection lost. Please try again.";
-            errorMsg.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            window.setElementText('cn-error-msg', "Connection lost. Please try again.");
+            window.setElementDisplay('cn-error-msg', 'block');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
         });
     }
 </script>

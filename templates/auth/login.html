@@ -5,147 +5,437 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - GBL Billing</title>
-    <!-- Google Fonts Inter & Caveat -->
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Full screen video background */
+        .login-video-wrapper {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -3;
+        }
+
+        .login-background-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+        }
+
+        /* Dark overlay above video */
+        .login-video-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(10, 20, 35, 0.45) 0%, rgba(3, 7, 18, 0.85) 100%),
+                        linear-gradient(to bottom, rgba(10, 15, 30, 0.6) 0%, rgba(3, 7, 18, 0.9) 100%);
+            z-index: -2;
+        }
+
+        /* Login Card */
+        .login-card {
+            background: rgba(10, 20, 35, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 520px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Card header style */
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.25rem;
+        }
+
+        .login-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.025em;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Accent line */
+        .accent-line {
+            width: 60px;
+            height: 3.5px;
+            background: linear-gradient(90deg, #ff7187, #e91e4d);
+            border-radius: 2px;
+            margin: 0 auto;
+        }
+
+        /* Form styling */
+        .login-form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .login-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .login-input-icon {
+            position: absolute;
+            left: 1.25rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 1.1rem;
+            pointer-events: none;
+            transition: color 0.2s ease;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 1.1rem 1.25rem 1.1rem 3.25rem;
+            background: rgba(15, 23, 42, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .login-input::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .login-input:focus {
+            border-color: #ff7187;
+            background: rgba(15, 23, 42, 0.65);
+            box-shadow: 0 0 0 3px rgba(255, 113, 135, 0.2);
+        }
+
+        .login-input:focus + .login-input-icon {
+            color: #ff7187;
+        }
+
+        /* Password input specific toggles */
+        .password-controls {
+            position: absolute;
+            right: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 10;
+        }
+
+        .toggle-password {
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: color 0.2s ease;
+        }
+
+        .toggle-password:hover {
+            color: #ff7187;
+        }
+
+        /* Controls row (Remember + Forgot) */
+        .login-controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            font-size: 0.88rem;
+        }
+
+        .login-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.7);
+            user-select: none;
+        }
+
+        .login-checkbox {
+            appearance: none;
+            width: 17px;
+            height: 17px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.45);
+            cursor: pointer;
+            display: grid;
+            place-content: center;
+            outline: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .login-checkbox:checked {
+            background: #e91e4d;
+            border-color: #ff7187;
+        }
+
+        .login-checkbox:checked::before {
+            content: "\f00c";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: white;
+            font-size: 0.7rem;
+        }
+
+        .login-forgot-link {
+            color: #ff7187;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+        }
+
+        .login-forgot-link:hover {
+            color: #e91e4d;
+            text-decoration: underline;
+        }
+
+        /* Error Messages inside the card */
+        .login-error-container {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #fca5a5;
+            font-size: 0.88rem;
+        }
+
+        .login-error-container i {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        /* Submit Button */
+        .login-submit-btn {
+            width: 100%;
+            height: 54px;
+            background: linear-gradient(90deg, #ff7187, #e91e4d);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: opacity 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 14px rgba(233, 30, 77, 0.35);
+        }
+
+        .login-submit-btn:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(233, 30, 77, 0.5);
+        }
+
+        .login-submit-btn:active {
+            transform: translateY(1px);
+        }
+
+        .login-submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Register text */
+        .register-section {
+            text-align: center;
+            margin-top: 1.75rem;
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .register-link {
+            color: #ff7187;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+            margin-left: 0.25rem;
+        }
+
+        .register-link:hover {
+            color: #e91e4d;
+            text-decoration: underline;
+        }
+
+        /* Footer styling */
+        .login-footer {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+            width: 90%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Responsive design Adjustments */
+        @media (max-width: 576px) {
+            .login-card {
+                width: 92%;
+                padding: 2.25rem 1.5rem;
+                margin: 1rem;
+            }
+            .login-title {
+                font-size: 1.75rem;
+            }
+            .login-controls-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            body {
+                justify-content: flex-start;
+                padding-top: 10vh;
+            }
+        }
+    </style>
 </head>
-<body class="login-page-body">
-    <div class="login-split-container">
-        <!-- Left: Form Panel -->
-        <div class="login-form-panel">
-            <!-- Brand Logo & Name -->
-            <div class="login-brand-header">
-                <div class="login-brand-logo">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                </div>
-                <span class="login-brand-name">GBL Billing</span>
-            </div>
+<body>
 
-            <!-- Artistic Welcome Heading -->
-            <h1 class="welcome-text">
-                <span class="blue-part">Wel</span><span class="orange-part">come</span>
-            </h1>
+    <!-- Full screen video background -->
+    <div class="login-video-wrapper">
+        <video class="login-background-video" autoplay muted loop playsinline>
+            <source src="{% static 'Video/Login_Video.mp4' %}" type="video/mp4">
+        </video>
+        <div class="login-video-overlay"></div>
+    </div>
 
-            <!-- Django Authentication Errors -->
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="login-error-container">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>{{ message }}</span>
-                    </div>
-                {% endfor %}
-            {% endif %}
-
-            <!-- Login Form -->
-            <form method="POST">
-                {% csrf_token %}
-                
-                <!-- Username/Email Field -->
-                <div class="login-form-group">
-                    <label for="username" class="login-form-label">Email Address / Username</label>
-                    <div class="login-input-wrapper">
-                        <i class="fa-regular fa-envelope login-input-icon"></i>
-                        <input type="text" name="username" id="username" class="login-input" placeholder="Enter username or email" required autofocus>
-                        <i class="fa-solid fa-circle-check login-input-action" style="color: #10b981; display: none; font-size: 0.95rem; cursor: default;" id="username-check-icon"></i>
-                    </div>
-                </div>
-                
-                <!-- Password Field with inline Forgot link & show/hide toggle -->
-                <div class="login-form-group">
-                    <label for="password" class="login-form-label">Password</label>
-                    <div class="login-input-wrapper">
-                        <i class="fa-solid fa-lock login-input-icon"></i>
-                        <input type="password" name="password" id="password" class="login-input" placeholder="••••••••" required style="padding-right: 5.5rem;">
-                        <div style="position: absolute; right: 1rem; display: flex; align-items: center; gap: 0.75rem; z-index: 10;">
-                            <i class="fa-regular fa-eye" id="toggle-password-visibility" style="color: #94a3b8; cursor: pointer; font-size: 0.95rem;" title="Toggle Password Visibility"></i>
-                            <a href="{% url 'forgot_password' %}" class="login-input-action-forgot" style="font-size: 0.8rem; font-weight: 600; color: #0284c7; text-decoration: none;" id="forgot-link">Forgot?</a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Remember Me Controls -->
-                <div class="login-controls-row">
-                    <label class="login-checkbox-label">
-                        <input type="checkbox" name="remember" class="login-checkbox">
-                        Remember Me
-                    </label>
-                </div>
-
-                <!-- Action Button -->
-                <button type="submit" class="login-submit-btn">
-                    <span>Log in</span>
-                    <i class="fa-solid fa-arrow-right-to-bracket" style="font-size: 0.9rem;"></i>
-                </button>
-            </form>
-
-            <!-- Social Logins Section -->
-            <div class="login-social-divider">or continue with</div>
-            <div class="login-social-grid">
-                <button type="button" class="login-social-pill" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
-                <button type="button" class="login-social-pill" title="Google"><i class="fa-brands fa-google"></i></button>
-                <button type="button" class="login-social-pill" title="Apple"><i class="fa-brands fa-apple"></i></button>
-            </div>
+    <!-- Centered Glassmorphic Card -->
+    <div class="login-card">
+        <div class="login-header">
+            <h2 class="login-title">Login</h2>
+            <div class="accent-line"></div>
         </div>
 
-        <!-- Right: Image/Illustration Panel -->
-        <div class="login-illustration-panel">
-            <div class="login-illustration-overlay"></div>
+        <!-- Django Authentication Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="login-error-container">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Form submission -->
+        <form method="POST" id="loginForm">
+            {% csrf_token %}
             
-            <!-- Floating Glassmorphic Navbar -->
-            <div class="login-nav-header">
-                
+            <!-- Email Field -->
+            <div class="login-form-group">
+                <div class="login-input-wrapper">
+                    <input type="text" name="username" id="username" class="login-input" placeholder="Enter your email" required autofocus>
+                    <i class="fa-regular fa-envelope login-input-icon"></i>
+                </div>
             </div>
 
-            <!-- Overlapping SVG Waves at the bottom -->
-            <div class="login-waves-container">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 220" preserveAspectRatio="none">
-                    <!-- Multiple wave layers for organic feeling -->
-                    <path fill="#ffffff" fill-opacity="0.3" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
-                    <path fill="#ffffff" fill-opacity="0.6" d="M0,160L48,149.3C96,139,192,117,288,117C384,117,480,139,576,149.3C672,160,768,160,864,144C960,128,1056,96,1152,96C1248,96,1344,128,1392,144L1440,160L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
-                    <path fill="#ffffff" fill-opacity="1" d="M0,192L48,181.3C96,171,192,149,288,138.7C384,128,480,128,576,138.7C672,149,768,171,864,170.7C960,171,1056,149,1152,138.7C1248,128,1344,128,1392,128L1440,128L1440,220L1392,220C1344,220,1248,220,1152,220C1056,220,960,220,864,220C768,220,672,220,576,220C480,220,384,220,288,220C192,220,96,220,48,220L0,220Z"></path>
-                </svg>
+            <!-- Password Field -->
+            <div class="login-form-group">
+                <div class="login-input-wrapper">
+                    <input type="password" name="password" id="password" class="login-input" placeholder="Enter your password" required>
+                    <i class="fa-solid fa-lock login-input-icon"></i>
+                    <div class="password-controls">
+                        <i class="fa-regular fa-eye toggle-password" id="toggle-password-visibility" title="Toggle Password Visibility"></i>
+                    </div>
+                </div>
             </div>
+
+            <!-- Control links -->
+            <div class="login-controls-row">
+                <label class="login-checkbox-label">
+                    <input type="checkbox" name="remember" class="login-checkbox">
+                    Remember me
+                </label>
+                <a href="{% url 'forgot_password' %}" class="login-forgot-link">Forgot password?</a>
+            </div>
+
+            <!-- Action submit -->
+            <button type="submit" class="login-submit-btn" id="loginSubmitBtn">
+                Log In
+            </button>
+        </form>
+
+        <!-- Register call to action -->
+        <div class="register-section">
+            Don't have an account? <a href="#" class="register-link">Register</a>
         </div>
     </div>
 
-    <!-- Client-side Interactive Features Script -->
+    <!-- Footer Copyright -->
+    <div class="login-footer">
+        &copy; 2026 Greenbacks Lexverse Pvt. Ltd. All rights reserved.
+    </div>
+
+    <!-- Interaction scripting -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Password Show/Hide Toggle
+            // Password visibility toggle
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('toggle-password-visibility');
             
             togglePassword.addEventListener('click', function() {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
                 
-                // Toggle classes for the eye icon
+                // Toggle eye icon class
                 this.classList.toggle('fa-eye');
                 this.classList.toggle('fa-eye-slash');
             });
 
-            // Username Field Checkmark validation (simple visual response)
-            const usernameInput = document.getElementById('username');
-            const checkIcon = document.getElementById('username-check-icon');
-            
-            function validateUsername() {
-                const value = usernameInput.value.trim();
-                // If it looks like a valid username/email (at least 3 characters)
-                if (value.length >= 3) {
-                    checkIcon.style.display = 'block';
-                } else {
-                    checkIcon.style.display = 'none';
-                }
-            }
-            
-            usernameInput.addEventListener('input', validateUsername);
-            // Run on load in case browser autofills
-            setTimeout(validateUsername, 300);
-
-            // Forgot link has been wired to the backend URL.
+            // Prevent double submits
+            const form = document.getElementById('loginForm');
+            form.addEventListener('submit', function() {
+                const btn = document.getElementById('loginSubmitBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging in...';
+            });
         });
     </script>
 </body>

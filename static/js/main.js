@@ -358,3 +358,23 @@ window.formatIndianCurrency = function(num) {
     return (isNeg ? '-₹' : '₹') + intPart + decPart;
 };
 
+// Safe UI display / text helpers
+window.setElementDisplay = function(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.display = value;
+    } else {
+        console.warn(`Element #${id} not found.`);
+    }
+};
+
+window.setElementText = function(id, text) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.innerText = text;
+    } else {
+        console.warn(`Element #${id} not found.`);
+    }
+};
+
+

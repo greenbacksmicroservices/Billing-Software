@@ -366,23 +366,32 @@
 
     function submitInvoice(e) {
         if (e) e.preventDefault();
-        const errorToast = document.getElementById('form-error-toast');
-        errorToast.style.display = 'none';
+        window.setElementDisplay('form-error-toast', 'none');
         
-        const customerId = document.getElementById('customer').value;
-        const invNo = document.getElementById('invoice-number').value.trim();
-        const invDate = document.getElementById('invoice-date').value;
-        const dueDate = document.getElementById('due-date').value;
-        const pos = document.getElementById('place-of-supply').value;
-        const posCode = document.getElementById('place-of-supply-code').value;
-        const whId = document.getElementById('warehouse').value;
-        const reverse = document.getElementById('reverse-charge').checked;
-        const notes = document.getElementById('notes').value;
+        const customerEl = document.getElementById('customer');
+        const invNoEl = document.getElementById('invoice-number');
+        const invDateEl = document.getElementById('invoice-date');
+        const dueDateEl = document.getElementById('due-date');
+        const posEl = document.getElementById('place-of-supply');
+        const posCodeEl = document.getElementById('place-of-supply-code');
+        const warehouseEl = document.getElementById('warehouse');
+        const reverseEl = document.getElementById('reverse-charge');
+        const notesEl = document.getElementById('notes');
+
+        const customerId = customerEl ? customerEl.value : '';
+        const invNo = invNoEl ? invNoEl.value.trim() : '';
+        const invDate = invDateEl ? invDateEl.value : '';
+        const dueDate = dueDateEl ? dueDateEl.value : '';
+        const pos = posEl ? posEl.value : '';
+        const posCode = posCodeEl ? posCodeEl.value : '';
+        const whId = warehouseEl ? warehouseEl.value : '';
+        const reverse = reverseEl ? reverseEl.checked : false;
+        const notes = notesEl ? notesEl.value : '';
         
         if (!customerId || !invNo || !invDate || !dueDate || !pos) {
             const msg = "Please fill in all required fields marked with * (Customer, Invoice No, Dates, Place of Supply).";
-            errorToast.innerText = msg;
-            errorToast.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -393,10 +402,15 @@
         let hasIncompleteRow = false;
         
         rows.forEach(row => {
-            const prodId = row.querySelector('.prod-select').value;
-            const qty = window.parseMoney(row.querySelector('.qty-input').value);
-            const rate = window.parseMoney(row.querySelector('.rate-input').value);
-            const disc = window.parseMoney(row.querySelector('.disc-input').value);
+            const prodEl = row.querySelector('.prod-select');
+            const qtyEl = row.querySelector('.qty-input');
+            const rateEl = row.querySelector('.rate-input');
+            const discEl = row.querySelector('.disc-input');
+
+            const prodId = prodEl ? prodEl.value : '';
+            const qty = qtyEl ? window.parseMoney(qtyEl.value) : 0;
+            const rate = rateEl ? window.parseMoney(rateEl.value) : 0;
+            const disc = discEl ? window.parseMoney(discEl.value) : 0;
             
             if (prodId) {
                 if (qty <= 0 || rate < 0) {
@@ -414,8 +428,8 @@
 
         if (items.length === 0) {
             const msg = "Please select at least one valid product in the items grid (quantity > 0).";
-            errorToast.innerText = msg;
-            errorToast.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -423,8 +437,8 @@
 
         if (hasIncompleteRow) {
             const msg = "One or more item rows are incomplete. Please specify quantity > 0 and valid rate.";
-            errorToast.innerText = msg;
-            errorToast.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
@@ -449,9 +463,12 @@
         };
 
         const submitBtn = document.getElementById('submit-btn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Invoice...';
+        let originalText = '';
+        if (submitBtn) {
+            originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Invoice...';
+        }
 
         fetch('{% url "invoice_add" %}', {
             method: 'POST',
@@ -471,27 +488,31 @@
                 window.location.href = data.redirect_url || '{% url "invoice_list" %}';
             } else {
                 const msg = data.message || "Unable to post and save invoice.";
-                errorToast.innerText = msg;
-                errorToast.style.display = 'block';
+                window.setElementText('form-error-toast', msg);
+                window.setElementDisplay('form-error-toast', 'block');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (typeof window.showToast === 'function') {
                     window.showToast('error', msg);
                 }
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
             }
         })
         .catch(err => {
             console.error(err);
             const msg = "Something went wrong while communicating with the server. Please check your connection.";
-            errorToast.innerText = msg;
-            errorToast.style.display = 'block';
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             if (typeof window.showToast === 'function') {
                 window.showToast('error', msg);
             }
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
         });
     }
 </script>

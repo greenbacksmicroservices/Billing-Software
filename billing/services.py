@@ -237,7 +237,7 @@ class QuotationService:
                 total_amount=tot
             )
 
-            subtotal += gross_rate if 'gross_rate' in locals() else gross
+            subtotal += gross
             taxable_total += taxable_item
             cgst_total += cgst_item
             sgst_total += sgst_item

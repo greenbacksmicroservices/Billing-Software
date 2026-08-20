@@ -17,6 +17,9 @@
         <a href="{% url 'invoice_pdf' invoice.id %}" target="_blank" class="btn btn-secondary">
             <i class="fa-solid fa-print"></i> Print / Download PDF
         </a>
+        <button type="button" class="btn btn-secondary" onclick="openSendEmailModal()">
+            <i class="fa-solid fa-envelope"></i> Send to Email
+        </button>
         
         {% if invoice.status == 'DRAFT' %}
             <a href="{% url 'invoice_post' invoice.id %}" class="btn btn-primary">
@@ -488,5 +491,90 @@
             });
         }
     });
+
+    function openSendEmailModal() {
+        document.getElementById('email_err_box').style.display = 'none';
+        document.getElementById('sendEmailModal').style.display = 'flex';
+    }
+    function closeSendEmailModal() {
+        document.getElementById('sendEmailModal').style.display = 'none';
+    }
+    // Close modal on click outside (overlay) or ESC key
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('sendEmailModal');
+        if (event.target === modal) {
+            closeSendEmailModal();
+        }
+    });
+    window.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.key === 'Esc') {
+            closeSendEmailModal();
+        }
+    });
+
+    function submitSendEmail(e) {
+        e.preventDefault();
+        const email = document.getElementById('recipient_email').value.trim();
+        const errBox = document.getElementById('email_err_box');
+        errBox.style.display = 'none';
+
+        if (!email || !email.includes('@')) {
+            errBox.innerText = "Please enter a valid email address.";
+            errBox.style.display = 'block';
+            return;
+        }
+
+        const btn = document.getElementById('emailSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+        fetch('{% url "invoice_send_email" invoice.id %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerText = 'Send PDF';
+            if (data.success) {
+                closeSendEmailModal();
+                showToast('success', data.message || 'Email sent successfully.');
+            } else {
+                errBox.innerText = data.message || 'Failed to send email.';
+                errBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = 'Send PDF';
+            errBox.innerText = 'Network error occurred. Try again.';
+            errBox.style.display = 'block';
+        });
+    }
 </script>
+
+<!-- Modal: Send Email -->
+<div id="sendEmailModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+    <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 450px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-envelope"></i> Send Invoice PDF</h3>
+            <button type="button" onclick="closeSendEmailModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form onsubmit="submitSendEmail(event)">
+            <div id="email_err_box" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; display: block;">Recipient Email *</label>
+                <input type="email" id="recipient_email" class="form-control" required placeholder="customer@email.com" value="{{ invoice.customer.email|default:'' }}" style="width: 100%; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" onclick="closeSendEmailModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="emailSubmitBtn" class="btn btn-primary">Send PDF</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

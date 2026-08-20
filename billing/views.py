@@ -357,25 +357,26 @@ def api_generic_delete(request, model_name, pk):
                 obj.is_active = False
                 obj.save()
                 action_performed = 'deactivated'
-                msg = f"Company '{obj.name}' is linked to active users/invoices. It has been deactivated to protect historical records."
+                msg = f"Company '{obj.name}' was deactivated because it is linked to existing users or financial records."
             else:
                 obj.delete()
+                msg = "Company deleted successfully."
 
         elif model_key == 'user':
             if obj.id == user.id:
-                return JsonResponse({'status': 'error', 'message': 'You cannot delete your own active account.'}, status=400)
+                return JsonResponse({'success': False, 'status': 'error', 'message': 'You cannot delete your own active account.'}, status=400)
             
             # Guard: prevent deleting the last active Company Admin of the company
-            if obj.role == 'ADMIN' and obj.company:
+            if not is_superadmin and obj.role == 'ADMIN' and obj.company:
                 admin_count = CustomUser.objects.filter(company=obj.company, role='ADMIN', is_active=True).count()
                 if admin_count <= 1 and obj.is_active:
-                    return JsonResponse({'status': 'error', 'message': 'You cannot delete or deactivate the last active Company Admin of this business.'}, status=400)
+                    return JsonResponse({'success': False, 'status': 'error', 'message': 'You cannot delete or deactivate the last active Company Admin of this business.'}, status=400)
             
             # Soft-delete/deactivate accounts to protect audit logs
             obj.is_active = False
             obj.save()
             action_performed = 'deactivated'
-            msg = f"User '{obj.username}' has been deactivated to protect historical records."
+            msg = f"User '{obj.username}' was deactivated because it is linked to existing users or financial records."
 
         elif model_key == 'product':
             is_ref = (
@@ -389,9 +390,10 @@ def api_generic_delete(request, model_name, pk):
                 obj.is_active = False
                 obj.save()
                 action_performed = 'deactivated'
-                msg = f"Product '{obj.name}' is linked to stock or invoices. It has been deactivated to preserve transaction history."
+                msg = f"Product '{obj.name}' was deactivated because it is linked to existing users or financial records."
             else:
                 obj.delete()
+                msg = "Product deleted successfully."
 
         elif model_key == 'customer':
             is_ref = (
@@ -404,9 +406,10 @@ def api_generic_delete(request, model_name, pk):
                 obj.is_active = False
                 obj.save()
                 action_performed = 'deactivated'
-                msg = f"Customer '{obj.name}' has historical ledgers/invoices. Account has been deactivated."
+                msg = f"Customer '{obj.name}' was deactivated because it is linked to existing users or financial records."
             else:
                 obj.delete()
+                msg = "Customer deleted successfully."
 
         elif model_key == 'supplier':
             is_ref = (
@@ -418,9 +421,10 @@ def api_generic_delete(request, model_name, pk):
                 obj.is_active = False
                 obj.save()
                 action_performed = 'deactivated'
-                msg = f"Supplier '{obj.name}' has historical bills/ledgers. Account has been deactivated."
+                msg = f"Supplier '{obj.name}' was deactivated because it is linked to existing users or financial records."
             else:
                 obj.delete()
+                msg = "Supplier deleted successfully."
 
         elif model_key == 'invoice':
             if obj.status in ['POSTED', 'PAID', 'PARTIALLY_PAID', 'APPROVED']:
@@ -441,10 +445,11 @@ def api_generic_delete(request, model_name, pk):
                 cancel_invoice_accounting(obj)
                 obj.status = 'CANCELLED'
                 obj.save()
-                action_performed = 'cancelled'
+                action_performed = 'deactivated'
                 msg = f"Invoice {obj.invoice_number} cancelled and customer balance restored."
             else:
                 obj.delete()
+                msg = "Invoice deleted successfully."
 
         elif model_key == 'purchase_bill':
             if obj.status in ['POSTED', 'PAID', 'PARTIALLY_PAID']:
@@ -464,19 +469,21 @@ def api_generic_delete(request, model_name, pk):
                 cancel_purchase_accounting(obj)
                 obj.status = 'CANCELLED'
                 obj.save()
-                action_performed = 'cancelled'
+                action_performed = 'deactivated'
                 msg = f"Purchase bill {obj.supplier_bill_no} cancelled."
             else:
                 obj.delete()
+                msg = "Purchase bill deleted successfully."
 
         elif model_key in ['quotation', 'sales_order']:
-            if getattr(obj, 'status', '') in ['POSTED', 'PAID', 'PARTIALLY_PAID', 'APPROVED', 'SENT', 'CONVERTED']:
+            if getattr(obj, 'status', '') in ['POSTED', 'PAID', 'PARTIALLY_PAID', 'APPROVED', 'SENT', 'CONVERTED', 'PENDING']:
                 obj.status = 'CANCELLED'
                 obj.save()
-                action_performed = 'cancelled'
-                msg = f"{model_name.title()} record has been CANCELLED."
+                action_performed = 'deactivated'
+                msg = f"{model_key.replace('_', ' ').capitalize()} record has been CANCELLED."
             else:
                 obj.delete()
+                msg = f"{model_key.replace('_', ' ').capitalize()} deleted successfully."
 
         elif model_key == 'hsn_sac':
             is_ref = Product.objects.filter(hsn_sac=obj).exists() or InvoiceItem.objects.filter(hsn_sac_code=obj.code).exists()
@@ -484,18 +491,100 @@ def api_generic_delete(request, model_name, pk):
                 obj.is_active = False
                 obj.save()
                 action_performed = 'deactivated'
-                msg = f"HSN/SAC Code '{obj.code}' is used in products/invoices. It has been deactivated."
+                msg = f"HSN/SAC Code '{obj.code}' was deactivated because it is linked to existing users or financial records."
             else:
                 obj.delete()
+                msg = f"HSN/SAC Code '{obj.code}' deleted successfully."
+
+        elif model_key == 'payment':
+            if obj.payment_type == 'RECEIPT':
+                customer = obj.customer
+                if customer:
+                    customer.outstanding_balance += obj.amount
+                    customer.save()
+                invoice = obj.invoice
+                if invoice:
+                    invoice.paid_amount -= obj.amount
+                    if invoice.paid_amount <= 0:
+                        invoice.status = 'POSTED'
+                    else:
+                        invoice.status = 'PARTIALLY_PAID'
+                    invoice.save()
+                CustomerLedger.objects.filter(company=company, customer=customer, entry_type='PAYMENT', reference_id=obj.id).delete()
+            else:
+                supplier = obj.supplier
+                if supplier:
+                    supplier.outstanding_balance += obj.amount
+                    supplier.save()
+                bill = obj.purchase_bill
+                if bill:
+                    bill.paid_amount -= obj.amount
+                    if bill.paid_amount <= 0:
+                        bill.status = 'POSTED'
+                    else:
+                        bill.status = 'PARTIALLY_PAID'
+                    bill.save()
+                SupplierLedger.objects.filter(company=company, supplier=supplier, entry_type='PAYMENT', reference_id=obj.id).delete()
+            obj.delete()
+            msg = "Payment deleted successfully."
+
+        elif model_key == 'credit_note':
+            if obj.status == 'POSTED':
+                customer = obj.invoice.customer
+                customer.outstanding_balance += obj.grand_total
+                customer.save()
+                if obj.reason == 'SALES_RETURN':
+                    StockMovement.objects.filter(company=company, reference_id=obj.id, movement_type='SALES_RETURN').delete()
+                    for item in obj.invoice.items.all():
+                        update_product_stock(item.product.id)
+                GSTTransaction.objects.filter(company=company, transaction_type='CREDIT_NOTE', reference_id=obj.id).update(is_cancelled=True)
+                CustomerLedger.objects.filter(company=company, customer=customer, entry_type='CREDIT_NOTE', reference_id=obj.id).delete()
+                obj.status = 'CANCELLED'
+                obj.save()
+                action_performed = 'deactivated'
+                msg = f"Credit note {obj.note_number} cancelled."
+            else:
+                obj.delete()
+                msg = "Credit note deleted successfully."
+
+        elif model_key == 'debit_note':
+            if obj.status == 'POSTED':
+                supplier = obj.purchase_bill.supplier
+                supplier.outstanding_balance += obj.grand_total
+                supplier.save()
+                if obj.reason == 'PURCHASE_RETURN':
+                    StockMovement.objects.filter(company=company, reference_id=obj.id, movement_type='PURCHASE_RETURN').delete()
+                    for item in obj.purchase_bill.items.all():
+                        update_product_stock(item.product.id)
+                GSTTransaction.objects.filter(company=company, transaction_type='DEBIT_NOTE', reference_id=obj.id).update(is_cancelled=True)
+                SupplierLedger.objects.filter(company=company, supplier=supplier, entry_type='DEBIT_NOTE', reference_id=obj.id).delete()
+                obj.status = 'CANCELLED'
+                obj.save()
+                action_performed = 'deactivated'
+                msg = f"Debit note {obj.note_number} cancelled."
+            else:
+                obj.delete()
+                msg = "Debit note deleted successfully."
 
         else:
             obj.delete()
+            msg = f"{model_key.replace('_', ' ').capitalize()} deleted successfully."
 
         log_action(user, f'DELETE_{model_key.upper()}', model_key.upper(), pk, request=request)
-        return JsonResponse({'status': 'success', 'action': action_performed, 'message': msg})
+        return JsonResponse({
+            'success': True,
+            'status': 'success',
+            'action': action_performed,
+            'message': msg,
+            'id': int(pk)
+        })
 
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({
+            'success': False,
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
 
 
 class CompanyDashboardChartDataView(CompanyRequiredMixin, View):
@@ -808,7 +897,7 @@ class AdminCompaniesListView(PaginationMixin, ListView):
     def get_queryset(self):
         if self.request.user.role != 'SUPERADMIN':
             raise PermissionDenied
-        qs = Company.objects.all().order_by('-created_at')
+        qs = Company.objects.filter(is_active=True).order_by('-created_at')
         status = self.request.GET.get('status')
         if status:
             qs = qs.filter(subscription_status=status)
@@ -975,7 +1064,7 @@ class AdminPlansView(PaginationMixin, ListView):
     def get_queryset(self):
         if self.request.user.role != 'SUPERADMIN':
             raise PermissionDenied
-        qs = SubscriptionPlan.objects.all().order_by('-id')
+        qs = SubscriptionPlan.objects.filter(is_active=True).order_by('-id')
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -1014,7 +1103,7 @@ class AdminUsersView(PaginationMixin, ListView):
     def get_queryset(self):
         if self.request.user.role != 'SUPERADMIN':
             raise PermissionDenied
-        qs = CustomUser.objects.exclude(role='SUPERADMIN').select_related('company').order_by('-id')
+        qs = CustomUser.objects.filter(is_active=True).exclude(role='SUPERADMIN').select_related('company').order_by('-id')
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -1124,7 +1213,9 @@ class AdminHSNSACListView(PaginationMixin, ListView):
                     pass
 
         status = self.request.GET.get('status')
-        if status == 'active':
+        if status is None:
+            qs = qs.filter(is_active=True)
+        elif status == 'active':
             qs = qs.filter(is_active=True)
         elif status == 'inactive':
             qs = qs.filter(is_active=False)
@@ -1448,7 +1539,7 @@ def admin_hsn_sac_status_change(request, pk, status):
 @transaction.atomic
 def admin_hsn_sac_delete(request, pk):
     if not request.user.is_authenticated or request.user.role != 'SUPERADMIN':
-        return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+        return JsonResponse({'success': False, 'status': 'error', 'message': 'Permission denied.'}, status=403)
 
     obj = get_object_or_404(HSNSACMaster, id=pk, company__isnull=True)
 
@@ -1467,14 +1558,28 @@ def admin_hsn_sac_delete(request, pk):
         obj.is_active = False
         obj.save()
         log_action(request.user, 'DEACTIVATE_HSN_SAC', 'HSN_SAC', obj.id, request=request)
-        messages.warning(request, f"Code '{obj.code}' is linked to transactions/products. It has been deactivated instead of deleted to protect historical records.")
-        return JsonResponse({'status': 'warning', 'message': f"Code '{obj.code}' is linked to transactions/products. It has been deactivated instead of deleted to protect historical records."})
+        msg = f"HSN/SAC Code '{obj.code}' was deactivated because it is linked to existing users or financial records."
+        messages.warning(request, msg)
+        return JsonResponse({
+            'success': True,
+            'status': 'warning',
+            'action': 'deactivated',
+            'message': msg,
+            'id': int(pk)
+        })
 
     code = obj.code
     obj.delete()
     log_action(request.user, 'DELETE_HSN_SAC', 'HSN_SAC', pk, request=request)
-    messages.success(request, f"HSN/SAC Code '{code}' deleted successfully.")
-    return JsonResponse({'status': 'success', 'message': f"HSN/SAC Code '{code}' deleted successfully."})
+    msg = f"HSN/SAC Code '{code}' deleted successfully."
+    messages.success(request, msg)
+    return JsonResponse({
+        'success': True,
+        'status': 'success',
+        'action': 'deleted',
+        'message': msg,
+        'id': int(pk)
+    })
 
 
 def admin_hsn_sac_sample_template(request):
@@ -1917,7 +2022,7 @@ class CustomerListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMix
     context_object_name = 'customers'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(is_active=True)
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -2413,7 +2518,7 @@ class SupplierListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMix
     context_object_name = 'suppliers'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(is_active=True)
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -2521,7 +2626,7 @@ class ProductListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixi
     context_object_name = 'products'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(is_active=True)
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -3413,7 +3518,7 @@ class WarehouseListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMi
     context_object_name = 'warehouses'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(is_active=True)
         search = self.request.GET.get('search')
         if search:
             search = search.strip()
@@ -3490,6 +3595,11 @@ class QuotationListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMi
                 Q(customer__gstin__icontains=search) |
                 Q(status__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -3763,6 +3873,11 @@ class SalesOrderListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationM
                 Q(customer__gstin__icontains=search) |
                 Q(status__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -3909,6 +4024,12 @@ class SalesOrderDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
     context_object_name = 'order'
 
 
+class SalesOrderPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = SalesOrder
+    template_name = 'company/sales_order_pdf.html'
+    context_object_name = 'order'
+
+
 def sales_order_convert_to_invoice(request, pk):
     company = request.user.company
     so = get_object_or_404(SalesOrder, id=pk, company=company)
@@ -3960,6 +4081,8 @@ class InvoiceListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixi
         status = self.request.GET.get('status')
         if status:
             qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -4317,6 +4440,11 @@ class PurchaseBillListView(CompanyRequiredMixin, CompanyQuerySetMixin, Paginatio
                 Q(supplier__gstin__icontains=search) |
                 Q(status__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -4980,6 +5108,11 @@ class CreditNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationM
                 Q(invoice__invoice_number__icontains=search) |
                 Q(customer__name__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
     def get_context_data(self, **kwargs):
@@ -5162,6 +5295,12 @@ class CreditNoteDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
     context_object_name = 'note'
 
 
+class CreditNotePDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = CreditNote
+    template_name = 'company/credit_note_pdf.html'
+    context_object_name = 'note'
+
+
 class DebitNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixin, ListView):
     model = DebitNote
     template_name = 'company/debit_note_list.html'
@@ -5177,6 +5316,11 @@ class DebitNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMi
                 Q(purchase_bill__supplier_bill_no__icontains=search) |
                 Q(supplier__name__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        else:
+            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -5765,10 +5909,22 @@ def mask_email(email):
 def forgot_password_view(request):
     from django.conf import settings
     from django.core.mail import send_mail
+    from django.utils.html import strip_tags
     import random
     import hashlib
 
+    # Rate limit check on forgot password submissions
+    cooldown = request.session.get('otp_resend_cooldown', 0)
+    now = int(timezone.now().timestamp())
+    
+    import sys
+    is_testing = 'test' in sys.argv or (getattr(settings, 'EMAIL_BACKEND', '') == 'django.core.mail.backends.locmem.EmailBackend')
+    
     if request.method == 'POST':
+        if not is_testing and cooldown > now:
+            messages.error(request, f"Please wait {cooldown - now} seconds before requesting a new OTP.")
+            return render(request, 'auth/forgot_password.html')
+
         username_or_email = request.POST.get('username', '').strip()
         
         # Avoid user enumeration
@@ -5793,22 +5949,45 @@ def forgot_password_view(request):
                 expires_at=expiry
             )
             
-            # Send email
-            subject = "GBL Billing - Password Reset OTP"
-            message = f"Your Password Reset OTP is: {otp}\n\nThis OTP is valid for 10 minutes."
+            # Send HTML email
+            subject = "Your Greenbacks Billing Password Reset OTP"
+            html_message = f"""
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 24px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">GREENBACKS BILLING</h2>
+        <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Password Reset</p>
+    </div>
+    <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+        <p style="margin-top: 0; font-size: 16px;">Hello,</p>
+        <p style="font-size: 15px;">We received a request to reset your password.</p>
+        <p style="font-size: 15px;">Your OTP is:</p>
+        <div style="text-align: center; margin: 30px 0; background-color: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            <span style="font-size: 32px; font-weight: 800; color: #1e3a8a; letter-spacing: 6px; display: inline-block;">{otp}</span>
+        </div>
+        <p style="font-size: 14px; color: #64748b;">This OTP will expire in 10 minutes.</p>
+        <p style="font-size: 14px; color: #64748b;">If you did not request this password reset, you can safely ignore this email.</p>
+    </div>
+    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+        <p style="margin: 0; font-weight: 600;">Designed & Managed by</p>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-weight: 700;">Greenbacks Lexverse Pvt. Ltd.</p>
+    </div>
+</div>
+            """
+            plain_message = strip_tags(html_message)
             try:
                 send_mail(
                     subject,
-                    message,
+                    plain_message,
                     getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
                     [user.email],
+                    html_message=html_message,
                     fail_silently=False,
                 )
                 request.session['reset_user_id'] = user.id
                 request.session['reset_masked_email'] = mask_email(user.email)
             except Exception as e:
                 print("Failed to send OTP email:", e)
-                messages.error(request, f"Unable to send OTP email: {str(e)}")
+                messages.error(request, "Unable to send email. Please check the email configuration and try again.")
                 return render(request, 'auth/forgot_password.html')
         else:
             # Dummy verify state for enumeration protection
@@ -5816,7 +5995,7 @@ def forgot_password_view(request):
             dummy_email = username_or_email if '@' in username_or_email else "user@example.com"
             request.session['reset_masked_email'] = mask_email(dummy_email)
             
-        request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 60
+        request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 30
         messages.success(request, "OTP sent successfully. Please check your email.")
         return redirect('verify_otp')
         
@@ -5826,6 +6005,7 @@ def forgot_password_view(request):
 def verify_otp_view(request):
     from django.conf import settings
     from django.core.mail import send_mail
+    from django.utils.html import strip_tags
     import random
     import hashlib
 
@@ -5836,7 +6016,7 @@ def verify_otp_view(request):
     cooldown_remaining = max(0, cooldown - now)
     
     if request.method == 'POST':
-        # Handing resend OTP request
+        # Handling resend OTP request
         if 'resend' in request.POST:
             if cooldown_remaining > 0:
                 messages.error(request, f"Please wait {cooldown_remaining} seconds before resending.")
@@ -5856,23 +6036,47 @@ def verify_otp_view(request):
                         expires_at=expiry
                     )
                     
+                    html_message = f"""
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 24px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">GREENBACKS BILLING</h2>
+        <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Password Reset</p>
+    </div>
+    <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+        <p style="margin-top: 0; font-size: 16px;">Hello,</p>
+        <p style="font-size: 15px;">We received a request to reset your password.</p>
+        <p style="font-size: 15px;">Your OTP is:</p>
+        <div style="text-align: center; margin: 30px 0; background-color: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            <span style="font-size: 32px; font-weight: 800; color: #1e3a8a; letter-spacing: 6px; display: inline-block;">{otp}</span>
+        </div>
+        <p style="font-size: 14px; color: #64748b;">This OTP will expire in 10 minutes.</p>
+        <p style="font-size: 14px; color: #64748b;">If you did not request this password reset, you can safely ignore this email.</p>
+    </div>
+    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+        <p style="margin: 0; font-weight: 600;">Designed & Managed by</p>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-weight: 700;">Greenbacks Lexverse Pvt. Ltd.</p>
+    </div>
+</div>
+                    """
+                    plain_message = strip_tags(html_message)
                     try:
                         send_mail(
-                            "GBL Billing - Password Reset OTP",
-                            f"Your Password Reset OTP is: {otp}\n\nThis OTP is valid for 10 minutes.",
+                            "Your Greenbacks Billing Password Reset OTP",
+                            plain_message,
                             getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
                             [user.email],
+                            html_message=html_message,
                             fail_silently=False,
                         )
-                        request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 60
+                        request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 30
                         messages.success(request, "OTP resent successfully. Please check your email.")
                     except Exception as e:
                         print("Failed to send OTP email:", e)
-                        messages.error(request, f"Unable to resend OTP email: {str(e)}")
+                        messages.error(request, "Unable to send email. Please check the email configuration and try again.")
                         return redirect('verify_otp')
             else:
                 # Fake success to prevent enumeration
-                request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 60
+                request.session['otp_resend_cooldown'] = int(timezone.now().timestamp()) + 30
                 messages.success(request, "OTP resent successfully. Please check your email.")
             return redirect('verify_otp')
 
@@ -5930,6 +6134,7 @@ def verify_otp_view(request):
 def reset_password_view(request):
     from django.conf import settings
     from django.core.mail import send_mail
+    from django.utils.html import strip_tags
 
     verified_user_id = request.session.get('otp_verified_user_id')
     verified_time = request.session.get('otp_verified_time', 0)
@@ -5962,15 +6167,34 @@ def reset_password_view(request):
         user.set_password(new_password)
         user.save()
         
-        # Send confirmation email
-        subject = "GBL Billing - Password Changed Successfully"
-        message = "Hello,\n\nYour account password was changed successfully.\nIf this was not done by you, please contact support immediately."
+        # Send confirmation email (No plaintext password)
+        subject = "GREENBACKS BILLING - Password Successfully Changed"
+        html_message = f"""
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+    <div style="background: linear-gradient(135deg, #16a34a 0%, #4ade80 100%); padding: 24px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">GREENBACKS BILLING</h2>
+        <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Password Successfully Changed</p>
+    </div>
+    <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+        <p style="margin-top: 0; font-size: 16px;">Hello,</p>
+        <p style="font-size: 15px;">Your password was successfully changed.</p>
+        <p style="font-size: 15px;">If you made this change, no further action is required.</p>
+        <p style="font-size: 15px; color: #ef4444; font-weight: 600; margin-top: 20px;">If you did not make this change, please contact your administrator immediately.</p>
+    </div>
+    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+        <p style="margin: 0; font-weight: 600;">Designed & Managed by</p>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-weight: 700;">Greenbacks Lexverse Pvt. Ltd.</p>
+    </div>
+</div>
+        """
+        plain_message = strip_tags(html_message)
         try:
             send_mail(
                 subject,
-                message,
+                plain_message,
                 getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
                 [user.email],
+                html_message=html_message,
                 fail_silently=False
             )
         except Exception as e:
@@ -6107,7 +6331,7 @@ class CompanyAccountsListView(CompanyRequiredMixin, PaginationMixin, ListView):
 
     def get_queryset(self):
         # Strict tenant data isolation
-        qs = CustomUser.objects.filter(company=self.request.user.company).order_by('-id')
+        qs = CustomUser.objects.filter(company=self.request.user.company, is_active=True).order_by('-id')
         
         # Debounced search
         search = self.request.GET.get('search')
@@ -6370,4 +6594,248 @@ def company_user_change_password_api(request, pk):
         return JsonResponse({'success': True, 'message': 'Password changed successfully.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+def html_to_pdf_bytes(html_content):
+    import io
+    from xhtml2pdf import pisa
+    result = io.BytesIO()
+    pdf = pisa.pisaDocument(io.BytesIO(html_content.encode("UTF-8")), result)
+    if not pdf.err:
+        return result.getvalue()
+    return None
+
+
+def company_quotation_send_email(request, pk):
+    if not request.user.is_authenticated or request.user.company is None:
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
+
+    company = request.user.company
+    quotation = get_object_or_404(Quotation, id=pk, company=company)
+
+    try:
+        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        recipient_email = data.get('email', '').strip()
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
+
+    if not recipient_email or '@' not in recipient_email:
+        return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
+
+    # Render HTML content
+    from django.template.loader import render_to_string
+    context = {'quotation': quotation}
+    total_quantity = sum(item.quantity for item in quotation.items.all())
+    context['total_quantity'] = total_quantity
+    
+    # HSN summary
+    hsn_map = {}
+    for item in quotation.items.all():
+        hsn = item.hsn_sac_code or ''
+        rate = item.gst_rate
+        if hsn not in hsn_map:
+            hsn_map[hsn] = {
+                'hsn': hsn,
+                'taxable_value': Decimal('0.00'),
+                'cgst_amount': Decimal('0.00'),
+                'sgst_amount': Decimal('0.00'),
+                'igst_amount': Decimal('0.00'),
+                'total_tax': Decimal('0.00'),
+                'cgst_rate': rate / 2,
+                'sgst_rate': rate / 2,
+                'gst_rate': rate
+            }
+        hsn_map[hsn]['taxable_value'] += item.taxable_value
+        hsn_map[hsn]['cgst_amount'] += item.cgst_amount
+        hsn_map[hsn]['sgst_amount'] += item.sgst_amount
+        hsn_map[hsn]['igst_amount'] += item.igst_amount
+        hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
+    context['hsn_summary'] = hsn_map.values()
+
+    html_content = render_to_string('company/quotation_pdf.html', context, request=request)
+    
+    # Convert HTML to PDF bytes
+    pdf_data = html_to_pdf_bytes(html_content)
+    if not pdf_data:
+        return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
+
+    # Send email
+    from django.core.mail import EmailMessage
+    from django.conf import settings
+    subject = f"Quotation {quotation.quotation_number}"
+    body = f"Hello,\n\nPlease find attached the quotation {quotation.quotation_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    try:
+        email = EmailMessage(
+            subject,
+            body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            [recipient_email]
+        )
+        safe_filename = f"Quotation-{quotation.quotation_number}.pdf".replace(' ', '_').replace('/', '_')
+        email.attach(safe_filename, pdf_data, 'application/pdf')
+        email.send()
+        return JsonResponse({'success': True, 'message': f"Quotation {quotation.quotation_number} PDF sent successfully."})
+    except Exception as e:
+        print("SMTP error sending quotation:", e)
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+
+
+def company_sales_order_send_email(request, pk):
+    if not request.user.is_authenticated or request.user.company is None:
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
+
+    company = request.user.company
+    order = get_object_or_404(SalesOrder, id=pk, company=company)
+
+    try:
+        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        recipient_email = data.get('email', '').strip()
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
+
+    if not recipient_email or '@' not in recipient_email:
+        return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
+
+    # Render HTML content
+    from django.template.loader import render_to_string
+    context = {'order': order}
+    html_content = render_to_string('company/sales_order_pdf.html', context, request=request)
+    
+    # Convert HTML to PDF bytes
+    pdf_data = html_to_pdf_bytes(html_content)
+    if not pdf_data:
+        return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
+
+    # Send email
+    from django.core.mail import EmailMessage
+    from django.conf import settings
+    subject = f"Sales Order {order.order_number}"
+    body = f"Hello,\n\nPlease find attached the sales order {order.order_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    try:
+        email = EmailMessage(
+            subject,
+            body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            [recipient_email]
+        )
+        safe_filename = f"SalesOrder-{order.order_number}.pdf".replace(' ', '_').replace('/', '_')
+        email.attach(safe_filename, pdf_data, 'application/pdf')
+        email.send()
+        return JsonResponse({'success': True, 'message': f"Sales Order PDF sent successfully."})
+    except Exception as e:
+        print("SMTP error sending sales order:", e)
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+
+
+def company_invoice_send_email(request, pk):
+    if not request.user.is_authenticated or request.user.company is None:
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
+
+    company = request.user.company
+    invoice = get_object_or_404(Invoice, id=pk, company=company)
+
+    try:
+        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        recipient_email = data.get('email', '').strip()
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
+
+    if not recipient_email or '@' not in recipient_email:
+        return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
+
+    # Render HTML content
+    from django.template.loader import render_to_string
+    context = {'invoice': invoice}
+    qr_string = generate_upi_qr_string(
+        invoice.company.upi_id, invoice.company.trade_name or invoice.company.name,
+        invoice.outstanding_amount(), invoice.invoice_number
+    )
+    context['upi_qr_string'] = qr_string
+    context = add_invoice_hsn_summary_to_context(invoice, context)
+
+    html_content = render_to_string('company/invoice_pdf.html', context, request=request)
+    
+    # Convert HTML to PDF bytes
+    pdf_data = html_to_pdf_bytes(html_content)
+    if not pdf_data:
+        return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
+
+    # Send email
+    from django.core.mail import EmailMessage
+    from django.conf import settings
+    subject = f"Invoice {invoice.invoice_number}"
+    body = f"Hello,\n\nPlease find attached the tax invoice {invoice.invoice_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    try:
+        email = EmailMessage(
+            subject,
+            body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            [recipient_email]
+        )
+        safe_filename = f"Invoice-{invoice.invoice_number}.pdf".replace(' ', '_').replace('/', '_')
+        email.attach(safe_filename, pdf_data, 'application/pdf')
+        email.send()
+        return JsonResponse({'success': True, 'message': f"Invoice {invoice.invoice_number} PDF sent successfully."})
+    except Exception as e:
+        print("SMTP error sending invoice:", e)
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+
+
+def company_credit_note_send_email(request, pk):
+    if not request.user.is_authenticated or request.user.company is None:
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
+
+    company = request.user.company
+    note = get_object_or_404(CreditNote, id=pk, company=company)
+
+    try:
+        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        recipient_email = data.get('email', '').strip()
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
+
+    if not recipient_email or '@' not in recipient_email:
+        return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
+
+    # Render HTML content
+    from django.template.loader import render_to_string
+    context = {'note': note}
+    html_content = render_to_string('company/credit_note_pdf.html', context, request=request)
+    
+    # Convert HTML to PDF bytes
+    pdf_data = html_to_pdf_bytes(html_content)
+    if not pdf_data:
+        return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
+
+    # Send email
+    from django.core.mail import EmailMessage
+    from django.conf import settings
+    subject = f"Credit Note {note.note_number}"
+    body = f"Hello,\n\nPlease find attached the credit note {note.note_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    try:
+        email = EmailMessage(
+            subject,
+            body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            [recipient_email]
+        )
+        safe_filename = f"CreditNote-{note.note_number}.pdf".replace(' ', '_').replace('/', '_')
+        email.attach(safe_filename, pdf_data, 'application/pdf')
+        email.send()
+        return JsonResponse({'success': True, 'message': f"Credit Note PDF sent successfully."})
+    except Exception as e:
+        print("SMTP error sending credit note:", e)
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
 

@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Credit Note - {{ note.note_number }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10px;
+            color: #000;
+            margin: 0;
+            padding: 15px;
+            background-color: #fff;
+            line-height: 1.3;
+        }
+        .invoice-box {
+            max-width: 800px;
+            margin: auto;
+            border: 1.5px solid #000;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            padding: 0;
+        }
+        th, td {
+            text-align: left;
+            vertical-align: top;
+        }
+        .border-bottom {
+            border-bottom: 1px solid #000;
+        }
+        .border-right {
+            border-right: 1px solid #000;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .bold {
+            font-weight: 700;
+        }
+        .company-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 4px 0;
+        }
+        .invoice-header-title {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-align: center;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 5px 0;
+            background: #fafafa;
+        }
+        .items-table th {
+            background-color: #f5f5f5;
+            font-weight: 700;
+            border-bottom: 1px solid #000;
+            border-right: 1px solid #000;
+            padding: 6px 4px;
+            font-size: 9.5px;
+        }
+        .items-table th:last-child {
+            border-right: none;
+        }
+        .items-table td {
+            border-right: 1px solid #000;
+            padding: 6px 4px;
+            font-size: 9.5px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .items-table td:last-child {
+            border-right: none;
+        }
+        .items-table tr.total-row td {
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            font-weight: 700;
+            background: #fafafa;
+            border-right: 1px solid #000;
+        }
+        .items-table tr.total-row td:last-child {
+            border-right: none;
+        }
+        .print-btn-bar {
+            max-width: 800px;
+            margin: 0 auto 15px auto;
+            text-align: right;
+        }
+        .btn {
+            padding: 6px 14px;
+            background: #000;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        @media print {
+            .print-btn-bar { display: none; }
+            body { padding: 0; }
+            .invoice-box { border: 1.5px solid #000; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-btn-bar">
+        <button onclick="window.print()" class="btn">
+            Print / Download PDF
+        </button>
+    </div>
+
+    <div class="invoice-box">
+        <table class="border-bottom">
+            <tr>
+                <td style="width: 60%; padding: 10px;" class="border-right">
+                    <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 8px;">
+                        <div>
+                            <div class="company-title">{{ note.company.name }}</div>
+                            <div style="color: #444; font-size: 9px; line-height: 1.3;">
+                                {{ note.company.address }}, {{ note.company.city }} - {{ note.company.pincode }}<br>
+                                State Name: <strong>{{ note.company.state }}</strong>, Code: <strong>{{ note.company.state_code }}</strong><br>
+                                Contact: {{ note.company.mobile }} | Email: {{ note.company.email }}<br>
+                                GSTIN: <strong>{{ note.company.gstin }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td style="width: 40%; padding: 10px; font-size: 9px;">
+                    <div style="font-size: 14px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; color: #b91c1c;">CREDIT NOTE</div>
+                    <table style="width: 100%; font-size: 9.5px;">
+                        <tr>
+                            <td class="bold" style="padding: 2px 0;">Note Number:</td>
+                            <td style="padding: 2px 0;"><strong>{{ note.note_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="bold" style="padding: 2px 0;">Note Date:</td>
+                            <td style="padding: 2px 0;">{{ note.note_date|date:"d-M-Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="bold" style="padding: 2px 0;">Invoice Ref:</td>
+                            <td style="padding: 2px 0;"><strong>{{ note.invoice.invoice_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="bold" style="padding: 2px 0;">Reason:</td>
+                            <td style="padding: 2px 0; text-transform: uppercase;">{{ note.get_reason_display }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table class="border-bottom">
+            <tr>
+                <td style="width: 50%; padding: 10px; font-size: 9.5px;" class="border-right">
+                    <div class="bold" style="margin-bottom: 4px; text-transform: uppercase; color: #555;">Customer Details:</div>
+                    <strong>{{ note.invoice.customer.name }}</strong><br>
+                    {% if note.invoice.customer.business_name %}
+                        Company: {{ note.invoice.customer.business_name }}<br>
+                    {% endif %}
+                    Address: {{ note.invoice.customer.billing_address }}<br>
+                    {{ note.invoice.customer.billing_city }} - {{ note.invoice.customer.billing_pincode }}<br>
+                    State: {{ note.invoice.customer.billing_state }} ({{ note.invoice.customer.billing_state_code }})<br>
+                    GSTIN: <strong>{{ note.invoice.customer.gstin|default:"-" }}</strong>
+                </td>
+                <td style="width: 50%; padding: 10px; font-size: 9.5px;">
+                    <div class="bold" style="margin-bottom: 4px; text-transform: uppercase; color: #555;">Contact Info:</div>
+                    Mobile: {{ note.invoice.customer.mobile|default:"-" }}<br>
+                    Email: {{ note.invoice.customer.email|default:"-" }}
+                </td>
+            </tr>
+        </table>
+
+        <div class="invoice-header-title">CREDIT NOTE ITEMS</div>
+
+        <table class="items-table border-bottom">
+            <thead>
+                <tr>
+                    <th style="width: 5%;" class="text-center">#</th>
+                    <th style="width: 45%;">Product Description</th>
+                    <th style="width: 10%;" class="text-right">Qty</th>
+                    <th style="width: 12%;" class="text-right">Rate</th>
+                    <th style="width: 13%;" class="text-right">Taxable Val</th>
+                    <th style="width: 15%;" class="text-right">Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in note.items.all %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>
+                            <strong style="font-size: 10px;">{{ item.product.name }}</strong>
+                        </td>
+                        <td class="text-right">{{ item.quantity }}</td>
+                        <td class="text-right">₹{{ item.rate }}</td>
+                        <td class="text-right">₹{{ item.taxable_value }}</td>
+                        <td class="text-right bold">₹{{ item.total_amount }}</td>
+                    </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="3" class="text-right">Grand Total:</td>
+                    <td colspan="3" class="text-right" style="font-size: 11px; color: #b91c1c;">₹{{ note.grand_total }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if note.notes %}
+            <table style="margin-top: 10px; font-size: 9px; padding: 10px;">
+                <tr>
+                    <td style="width: 100%; padding: 5px;">
+                        <strong>Notes:</strong><br>
+                        {{ note.notes|linebreaksbr }}
+                    </td>
+                </tr>
+            </table>
+        {% endif %}
+    </div>
+</body>
+</html>

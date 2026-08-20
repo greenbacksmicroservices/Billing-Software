@@ -10,29 +10,29 @@
 
 <!-- GST Status overview -->
 <div class="dashboard-grid">
-    <div class="stat-card">
+    <a href="{% url 'gst_report_gstr1' %}" class="stat-card" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Output Tax Liability</span>
             <i class="fa-solid fa-arrow-up-right-from-square" style="color: var(--destructive);"></i>
         </div>
         <div class="stat-card-value">₹{{ output_tax }}</div>
         <div class="stat-card-footer">Tax collected on outward sales</div>
-    </div>
+    </a>
     
-    <div class="stat-card">
+    <a href="{% url 'gst_report_gstr3b' %}" class="stat-card" style="text-decoration: none; color: inherit;">
         <div class="stat-card-header">
             <span>Eligible Input Tax Credit (ITC)</span>
             <i class="fa-solid fa-arrow-down-left-and-arrow-up-right-to-center" style="color: var(--success);"></i>
         </div>
         <div class="stat-card-value">₹{{ input_tax }}</div>
         <div class="stat-card-footer">Tax paid on business purchases</div>
-    </div>
+    </a>
 
-    <div class="stat-card" style="border-left: 4px solid var(--primary);">
+    <a href="{% url 'gst_report_gstr3b' %}" class="stat-card" style="border-left: 4px solid var(--primary); text-decoration: none; color: inherit;">
         <div class="stat-card-header">Estimated Net GST Payable</div>
         <div class="stat-card-value">₹{{ net_payable }}</div>
         <div class="stat-card-footer">Formula: Output - ITC</div>
-    </div>
+    </a>
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">

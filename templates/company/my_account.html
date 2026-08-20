@@ -562,6 +562,10 @@
             .catch(err => showToast('error', 'Network error while fetching user details.'));
     }
 
+    function closeViewAccountModal() {
+        document.getElementById('viewAccountModal').style.display = 'none';
+    }
+
     // Modal Change Password actions
     function openChangePasswordModal(id, username) {
         document.getElementById('pass_err_box').style.display = 'none';
@@ -628,5 +632,47 @@
             errBox.style.display = 'block';
         });
     }
+
+    // Close modals on click outside (overlay)
+    window.addEventListener('click', function(event) {
+        const viewModal = document.getElementById('viewAccountModal');
+        if (event.target === viewModal) {
+            closeViewAccountModal();
+        }
+        const addModal = document.getElementById('addAccountModal');
+        if (event.target === addModal) {
+            closeAddAccountModal();
+        }
+        const editModal = document.getElementById('editAccountModal');
+        if (event.target === editModal) {
+            closeEditAccountModal();
+        }
+        const passModal = document.getElementById('changePasswordModal');
+        if (event.target === passModal) {
+            closeChangePasswordModal();
+        }
+    });
+
+    // Close modals on ESC key
+    window.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.key === 'Esc') {
+            const viewModal = document.getElementById('viewAccountModal');
+            if (viewModal && viewModal.style.display === 'flex') {
+                closeViewAccountModal();
+            }
+            const addModal = document.getElementById('addAccountModal');
+            if (addModal && addModal.style.display === 'flex') {
+                closeAddAccountModal();
+            }
+            const editModal = document.getElementById('editAccountModal');
+            if (editModal && editModal.style.display === 'flex') {
+                closeEditAccountModal();
+            }
+            const passModal = document.getElementById('changePasswordModal');
+            if (passModal && passModal.style.display === 'flex') {
+                closeChangePasswordModal();
+            }
+        }
+    });
 </script>
 {% endblock %}
