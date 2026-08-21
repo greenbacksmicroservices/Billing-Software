@@ -4,26 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Login - GBL Billing{% endblock %}</title>
+    <title>{% block title %}Forgot Password - GBL Billing{% endblock %}</title>
     <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="auth-wrapper">
     
+    <!-- Full screen video background with subtle blur -->
+    <div class="auth-video-wrapper">
+        <video class="auth-background-video" autoplay muted loop playsinline preload="auto">
+            <source src="{% block video_source %}{% static 'Video/Forget Video.mp4' %}{% endblock %}" type="video/mp4">
+        </video>
+        <div class="auth-video-overlay"></div>
+    </div>
+
     <div class="auth-card">
         <div class="auth-header">
             <h1 class="auth-title">{% block heading %}GBL Billing{% endblock %}</h1>
-            <p style="color: var(--muted-foreground); font-size: 0.9rem;">{% block subheading %}Access your panel{% endblock %}</p>
+            <div class="auth-accent-line"></div>
+            <p class="auth-subheading">{% block subheading %}Access your panel{% endblock %}</p>
         </div>
 
         {% if messages %}
-            <ul class="messages">
+            <ul class="auth-messages">
                 {% for message in messages %}
-                    <li class="message-item {{ message.tags }}">{{ message }}</li>
+                    <li class="auth-message-item {{ message.tags }}">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>{{ message }}</span>
+                    </li>
                 {% endfor %}
             </ul>
         {% endif %}
@@ -32,7 +45,12 @@
         {% endblock %}
     </div>
 
+    <div class="auth-footer">
+        &copy; 2026 Greenbacks Lexverse Pvt. Ltd. All rights reserved.
+    </div>
+
     <!-- Custom JS -->
     <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
