@@ -2079,3 +2079,234 @@ button, input, select, textarea {
     color: #f8fafc !important;
 }
 
+/* Premium Delete Confirmation Modal Styling */
+.delete-modal-card {
+    background: #ffffff;
+    border-radius: 28px;
+    width: 100%;
+    max-width: 460px;
+    padding: 2.25rem 2rem 2rem 2rem;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    text-align: center;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.delete-modal-close-btn {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.delete-modal-close-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    transform: rotate(90deg);
+}
+
+.delete-illustration-wrapper {
+    position: relative;
+    width: 140px;
+    height: 125px;
+    margin: 0 auto 0.75rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-glow-bg {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 182, 193, 0.55) 0%, rgba(255, 241, 242, 0.85) 60%, rgba(255, 255, 255, 0) 100%);
+    z-index: 1;
+}
+
+.delete-decorations {
+    position: absolute;
+    width: 180px;
+    height: 130px;
+    top: -5px;
+    left: -20px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.delete-3d-trash-svg {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    z-index: 3;
+}
+
+.delete-modal-title {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.delete-highlight {
+    background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+}
+
+.confirmation-text {
+    color: #1e293b;
+    display: inline-block;
+}
+
+.delete-modal-divider {
+    position: relative;
+    width: 90px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #fecdd3, transparent);
+    margin: 0.5rem auto 1rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.divider-shield-icon {
+    background: #ff4757;
+    color: #ffffff;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+}
+
+.delete-modal-message {
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+    font-weight: 500;
+}
+
+.delete-modal-message strong, .delete-item-name {
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 800;
+    display: block;
+    margin-top: 0.35rem;
+    word-break: break-word;
+}
+
+.delete-warning-box {
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-radius: 16px;
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.06);
+}
+
+.warning-icon-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.warning-box-text {
+    color: #78350f;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.delete-modal-actions {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+}
+
+.delete-btn-cancel {
+    flex: 1;
+    height: 50px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    color: #334155;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.delete-btn-cancel:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.delete-btn-confirm {
+    flex: 1.1;
+    height: 50px;
+    background: linear-gradient(135deg, #ff4757 0%, #ff2a4b 100%);
+    border: none;
+    border-radius: 14px;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 8px 20px -4px rgba(255, 71, 87, 0.5);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.delete-btn-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px -4px rgba(255, 71, 87, 0.65);
+    filter: brightness(1.05);
+}
+
+.delete-btn-confirm:active {
+    transform: translateY(0);
+}
+
+.delete-btn-confirm:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+

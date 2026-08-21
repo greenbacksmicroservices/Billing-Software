@@ -389,7 +389,7 @@
             currentDeleteUrl = url;
             const msg = document.getElementById('globalDeleteMessage');
             if (msg) {
-                msg.innerHTML = `Are you sure you want to delete <strong>${recordName}</strong>?<br><small style="color: var(--muted-foreground);">This action cannot be undone.</small>`;
+                msg.innerHTML = `Are you sure you want to delete<br><strong class="delete-item-name">${recordName}?</strong>`;
             }
             const modal = document.getElementById('globalDeleteModal');
             if (modal) modal.style.display = 'flex';
@@ -438,7 +438,7 @@
             .then(res => res.json())
             .then(data => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
+                btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Yes, Delete';
                 closeGlobalDeleteModal();
 
                 if (data.success === true || data.status === 'success' || data.status === 'warning') {
@@ -473,7 +473,7 @@
             })
             .catch(err => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete';
+                btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Yes, Delete';
                 closeGlobalDeleteModal();
                 showGlobalMessage('danger', 'Something went wrong. Please try again.');
                 showToast('error', 'Something went wrong. Please try again.');
@@ -507,19 +507,363 @@
         };
     </script>
 
-    <!-- Global Reusable Delete Confirmation Modal -->
-    <div id="globalDeleteModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
-        <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 420px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); text-align: center;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 1rem auto;">
-                <i class="fa-solid fa-triangle-exclamation"></i>
+    <!-- Global Reusable Premium Delete Confirmation Modal -->
+    <style>
+        #globalDeleteModal {
+            display: none;
+            position: fixed;
+            z-index: 99999;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+            box-sizing: border-box;
+            animation: fadeInModal 0.25s ease-out forwards;
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .delete-modal-card {
+            background: #ffffff;
+            border-radius: 28px;
+            width: 100%;
+            max-width: 460px;
+            padding: 2.25rem 2rem 2rem 2rem;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            position: relative;
+            box-sizing: border-box;
+            transform: scale(0.92);
+            animation: popUpModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes popUpModal {
+            to { transform: scale(1); }
+        }
+
+        .delete-modal-close-btn {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.25rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 1.25rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .delete-modal-close-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            transform: rotate(90deg);
+        }
+
+        .delete-illustration-wrapper {
+            position: relative;
+            width: 140px;
+            height: 125px;
+            margin: 0 auto 0.75rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-glow-bg {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 182, 193, 0.55) 0%, rgba(255, 241, 242, 0.85) 60%, rgba(255, 255, 255, 0) 100%);
+            z-index: 1;
+        }
+
+        .delete-decorations {
+            position: absolute;
+            width: 180px;
+            height: 130px;
+            top: -5px;
+            left: -20px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .delete-3d-trash-svg {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            z-index: 3;
+        }
+
+        .delete-modal-title {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.9rem;
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .delete-highlight {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .confirmation-text {
+            color: #1e293b;
+            display: inline-block;
+        }
+
+        .delete-modal-divider {
+            position: relative;
+            width: 90px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #fecdd3, transparent);
+            margin: 0.5rem auto 1rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .divider-shield-icon {
+            background: #ff4757;
+            color: #ffffff;
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+        }
+
+        .delete-modal-message {
+            color: #475569;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.25rem;
+            font-weight: 500;
+        }
+
+        .delete-modal-message strong, .delete-item-name {
+            color: #0f172a;
+            font-size: 1.15rem;
+            font-weight: 800;
+            display: block;
+            margin-top: 0.35rem;
+            word-break: break-word;
+        }
+
+        .delete-warning-box {
+            background: #fffbeb;
+            border: 1.5px solid #fde68a;
+            border-radius: 16px;
+            padding: 0.85rem 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.06);
+        }
+
+        .warning-icon-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .warning-box-text {
+            color: #78350f;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .delete-modal-actions {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .delete-btn-cancel {
+            flex: 1;
+            height: 50px;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            color: #334155;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .delete-btn-cancel:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .delete-btn-confirm {
+            flex: 1.1;
+            height: 50px;
+            background: linear-gradient(135deg, #ff4757 0%, #ff2a4b 100%);
+            border: none;
+            border-radius: 14px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 8px 20px -4px rgba(255, 71, 87, 0.5);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .delete-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px -4px rgba(255, 71, 87, 0.65);
+            filter: brightness(1.05);
+        }
+
+        .delete-btn-confirm:active {
+            transform: translateY(0);
+        }
+
+        .delete-btn-confirm:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
+
+    <div id="globalDeleteModal" class="modal">
+        <div class="delete-modal-card">
+            <!-- Close Button Top-Right -->
+            <button type="button" class="delete-modal-close-btn" onclick="closeGlobalDeleteModal()" title="Close">&times;</button>
+            
+            <!-- Top Visual Section: 3D Illustration & Decorative Floating Elements -->
+            <div class="delete-illustration-wrapper">
+                <div class="delete-glow-bg"></div>
+                
+                <svg class="delete-decorations" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="85" r="5" stroke="#ff7187" stroke-width="2.5" fill="none" opacity="0.75" />
+                    <circle cx="165" cy="45" r="4" stroke="#a78bfa" stroke-width="2" fill="none" opacity="0.7" />
+                    <path d="M40 40H48M44 36V44" stroke="#ff7187" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+                    <path d="M45 125H51M48 122V128" stroke="#ff7187" stroke-width="1.8" stroke-linecap="round" opacity="0.4" />
+                    <path d="M162 105L168 111M168 105L162 111" stroke="#ff7187" stroke-width="2" stroke-linecap="round" opacity="0.6" />
+                    <path d="M125 30L130 35M130 30L125 35" stroke="#f472b6" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
+                </svg>
+
+                <svg class="delete-3d-trash-svg" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="trashBodyGrad" x1="20" y1="40" x2="100" y2="130" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ff6584" />
+                            <stop offset="50%" stop-color="#ff3366" />
+                            <stop offset="100%" stop-color="#e6004c" />
+                        </linearGradient>
+                        <linearGradient id="trashLidGrad" x1="15" y1="20" x2="95" y2="50" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ff7b95" />
+                            <stop offset="100%" stop-color="#ff2e63" />
+                        </linearGradient>
+                        <linearGradient id="badgeGrad" x1="65" y1="65" x2="115" y2="115" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ff477e" />
+                            <stop offset="100%" stop-color="#d90429" />
+                        </linearGradient>
+                        <filter id="trashShadow" x="-10" y="-10" width="160" height="160" filterUnits="userSpaceOnUse">
+                            <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#e6004c" flood-opacity="0.3" />
+                        </filter>
+                        <filter id="badgeShadow" x="55" y="55" width="70" height="70" filterUnits="userSpaceOnUse">
+                            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#900c3f" flood-opacity="0.35" />
+                        </filter>
+                    </defs>
+
+                    <ellipse cx="62" cy="120" rx="34" ry="7" fill="#e6004c" opacity="0.25" />
+                    <path d="M36 52 L43 110 C44 115 50 118 64 118 C78 118 84 115 85 110 L92 52 Z" fill="url(#trashBodyGrad)" filter="url(#trashShadow)" />
+                    <path d="M48 60 L52 106" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.3" />
+                    <path d="M64 60 L64 108" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.35" />
+                    <path d="M80 60 L76 106" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.3" />
+
+                    <g transform="rotate(-14 64 42)">
+                        <rect x="24" y="38" width="80" height="12" rx="6" fill="url(#trashLidGrad)" />
+                        <path d="M48 38 C48 30 80 30 80 38" fill="none" stroke="url(#trashLidGrad)" stroke-width="7" stroke-linecap="round" />
+                    </g>
+
+                    <g filter="url(#badgeShadow)">
+                        <circle cx="90" cy="86" r="22" fill="#ffffff" />
+                        <circle cx="90" cy="86" r="19" fill="url(#badgeGrad)" />
+                        <path d="M90 75 V88" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+                        <circle cx="90" cy="95" r="2.5" fill="#ffffff" />
+                    </g>
+                </svg>
             </div>
-            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);">Delete Confirmation</h3>
-            <p id="globalDeleteMessage" style="color: var(--muted-foreground); font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.4;">
-                Are you sure you want to delete this record?<br><small style="color: var(--muted-foreground);">This action cannot be undone.</small>
-            </p>
-            <div style="display: flex; gap: 0.75rem; justify-content: center;">
-                <button type="button" onclick="closeGlobalDeleteModal()" class="btn btn-secondary" style="flex: 1;">Cancel</button>
-                <button type="button" id="globalConfirmDeleteBtn" onclick="confirmExecuteDelete()" class="btn btn-danger" style="flex: 1; background: var(--danger); color: white;"><i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Delete</button>
+
+            <!-- Heading Section -->
+            <h3 class="delete-modal-title">
+                <span class="delete-highlight">Delete</span> <span class="confirmation-text">Confirmation</span>
+            </h3>
+
+            <!-- Decorative Divider -->
+            <div class="delete-modal-divider">
+                <span class="divider-shield-icon"><i class="fa-solid fa-exclamation"></i></span>
+            </div>
+
+            <!-- Confirmation Message -->
+            <div id="globalDeleteMessage" class="delete-modal-message">
+                Are you sure you want to delete<br>
+                <strong class="delete-item-name">this record?</strong>
+            </div>
+
+            <!-- Warning Box -->
+            <div class="delete-warning-box">
+                <div class="warning-icon-badge">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L3 7V12C3 17.55 6.84 22.74 12 24C17.16 22.74 21 17.55 21 12V7L12 2Z" fill="#f59e0b" />
+                        <path d="M12 8V14M12 17H12.01" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <span class="warning-box-text">This action cannot be undone.</span>
+            </div>
+
+            <!-- Bottom Action Buttons -->
+            <div class="delete-modal-actions">
+                <button type="button" onclick="closeGlobalDeleteModal()" class="delete-btn-cancel">
+                    <i class="fa-regular fa-circle-xmark"></i> Cancel
+                </button>
+                <button type="button" id="globalConfirmDeleteBtn" onclick="confirmExecuteDelete()" class="delete-btn-confirm">
+                    <i class="fa-solid fa-trash-can"></i> Yes, Delete
+                </button>
             </div>
         </div>
     </div>
