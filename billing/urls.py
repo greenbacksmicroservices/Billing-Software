@@ -38,6 +38,7 @@ urlpatterns = [
 
     path('admin/hsn-sac-codes/', views.AdminHSNSACListView.as_view(), name='admin_hsn_sac_list'),
     path('admin/hsn-sac-codes/add/', views.admin_hsn_sac_add, name='admin_hsn_sac_add'),
+    path('admin/hsn-sac-codes/<int:pk>/detail/', views.admin_hsn_sac_detail, name='admin_hsn_sac_detail'),
     path('admin/hsn-sac-codes/<int:pk>/edit/', views.admin_hsn_sac_edit, name='admin_hsn_sac_edit'),
     path('admin/hsn-sac-codes/<int:pk>/status/<str:status>/', views.admin_hsn_sac_status_change, name='admin_hsn_sac_status'),
     path('admin/hsn-sac-codes/<int:pk>/delete/', views.admin_hsn_sac_delete, name='admin_hsn_sac_delete'),

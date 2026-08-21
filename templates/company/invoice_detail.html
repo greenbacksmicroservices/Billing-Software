@@ -491,21 +491,38 @@
             });
         }
     });
+</script>
+<script>
+    function getCsrfToken() {
+        if (typeof window.getCookie === 'function') {
+            const token = window.getCookie('csrftoken');
+            if (token) return token;
+        }
+        const cookieMatch = document.cookie.match(/csrftoken=([^;]+)/);
+        if (cookieMatch) return cookieMatch[1];
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    }
 
     function openSendEmailModal() {
-        document.getElementById('email_err_box').style.display = 'none';
-        document.getElementById('sendEmailModal').style.display = 'flex';
+        const errBox = document.getElementById('email_err_box');
+        if (errBox) errBox.style.display = 'none';
+        const modal = document.getElementById('sendEmailModal');
+        if (modal) modal.style.display = 'flex';
     }
+
     function closeSendEmailModal() {
-        document.getElementById('sendEmailModal').style.display = 'none';
+        const modal = document.getElementById('sendEmailModal');
+        if (modal) modal.style.display = 'none';
     }
-    // Close modal on click outside (overlay) or ESC key
+
     window.addEventListener('click', function(event) {
         const modal = document.getElementById('sendEmailModal');
-        if (event.target === modal) {
+        if (modal && event.target === modal) {
             closeSendEmailModal();
         }
     });
+
     window.addEventListener('keydown', function(event) {
         if (event.key === 'Escape' || event.key === 'Esc') {
             closeSendEmailModal();
@@ -514,45 +531,74 @@
 
     function submitSendEmail(e) {
         e.preventDefault();
-        const email = document.getElementById('recipient_email').value.trim();
+        const input = document.getElementById('recipient_email');
+        const email = input ? input.value.trim() : '';
         const errBox = document.getElementById('email_err_box');
-        errBox.style.display = 'none';
+        if (errBox) errBox.style.display = 'none';
 
-        if (!email || !email.includes('@')) {
-            errBox.innerText = "Please enter a valid email address.";
-            errBox.style.display = 'block';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) {
+            if (errBox) {
+                errBox.innerHTML = '<div class="alert alert-danger" style="padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; background: #f8d7da; color: #842029; border: 1px solid #f5c2c7;">Please enter a valid email address.</div>';
+                errBox.style.display = 'block';
+            }
             return;
         }
 
         const btn = document.getElementById('emailSubmitBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+        }
 
         fetch('{% url "invoice_send_email" invoice.id %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': getCsrfToken()
             },
             body: JSON.stringify({ email: email })
         })
         .then(res => res.json())
         .then(data => {
-            btn.disabled = false;
-            btn.innerText = 'Send PDF';
             if (data.success) {
-                closeSendEmailModal();
-                showToast('success', data.message || 'Email sent successfully.');
+                if (errBox) {
+                    errBox.innerHTML = `<div class="alert alert-success" style="padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;">✓ ${data.message || 'Invoice PDF sent successfully.'}</div>`;
+                    errBox.style.display = 'block';
+                }
+                if (btn) {
+                    btn.innerHTML = '✓ Sent';
+                }
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', data.message || 'Invoice PDF sent successfully.');
+                }
+                setTimeout(function() {
+                    closeSendEmailModal();
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = 'Send PDF';
+                    }
+                }, 1500);
             } else {
-                errBox.innerText = data.message || 'Failed to send email.';
-                errBox.style.display = 'block';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Try Again';
+                }
+                if (errBox) {
+                    errBox.innerHTML = `<div class="alert alert-danger" style="padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; background: #f8d7da; color: #842029; border: 1px solid #f5c2c7;">${data.message || 'Unable to send invoice email. Please try again.'}</div>`;
+                    errBox.style.display = 'block';
+                }
             }
         })
         .catch(err => {
-            btn.disabled = false;
-            btn.innerText = 'Send PDF';
-            errBox.innerText = 'Network error occurred. Try again.';
-            errBox.style.display = 'block';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Try Again';
+            }
+            if (errBox) {
+                errBox.innerHTML = '<div class="alert alert-danger" style="padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; background: #f8d7da; color: #842029; border: 1px solid #f5c2c7;">Network error occurred. Unable to send invoice email.</div>';
+                errBox.style.display = 'block';
+            }
         });
     }
 </script>

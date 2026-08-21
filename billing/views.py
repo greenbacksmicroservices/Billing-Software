@@ -1192,6 +1192,15 @@ class AdminHSNSACListView(PaginationMixin, ListView):
     template_name = 'admin/hsn_sac_list.html'
     context_object_name = 'hsn_codes'
 
+    def get_paginate_by(self, queryset):
+        try:
+            limit = int(self.request.GET.get('entries') or self.request.GET.get('per_page') or self.request.GET.get('page_size') or 10)
+            if limit in [10, 25, 50, 100]:
+                return limit
+        except (ValueError, TypeError):
+            pass
+        return 10
+
     def get_queryset(self):
         if not self.request.user.is_authenticated or self.request.user.role != 'SUPERADMIN':
             raise PermissionDenied("Only System Admins can manage HSN/SAC Master.")
@@ -1213,9 +1222,7 @@ class AdminHSNSACListView(PaginationMixin, ListView):
                     pass
 
         status = self.request.GET.get('status')
-        if status is None:
-            qs = qs.filter(is_active=True)
-        elif status == 'active':
+        if status == 'active':
             qs = qs.filter(is_active=True)
         elif status == 'inactive':
             qs = qs.filter(is_active=False)
@@ -1223,6 +1230,14 @@ class AdminHSNSACListView(PaginationMixin, ListView):
         category = self.request.GET.get('category')
         if category:
             qs = qs.filter(category__iexact=category)
+
+        sub_category = self.request.GET.get('sub_category')
+        if sub_category:
+            qs = qs.filter(sub_category__iexact=sub_category)
+
+        uqc = self.request.GET.get('uqc')
+        if uqc:
+            qs = qs.filter(uqc__iexact=uqc)
 
         from_date = self.request.GET.get('from_date')
         to_date = self.request.GET.get('to_date')
@@ -1274,16 +1289,20 @@ class AdminHSNSACListView(PaginationMixin, ListView):
         context = super().get_context_data(**kwargs)
         base_qs = HSNSACMaster.objects.filter(company__isnull=True)
 
-        context['summary'] = {
-            'total_codes': base_qs.count(),
-            'active_codes': base_qs.filter(is_active=True).count(),
-            'inactive_codes': base_qs.filter(is_active=False).count(),
-            'hsn_codes': base_qs.filter(type='HSN').count(),
-            'sac_codes': base_qs.filter(type='SAC').count(),
-        }
+        summary_stats = base_qs.aggregate(
+            total_codes=Count('id'),
+            active_codes=Count('id', filter=Q(is_active=True)),
+            inactive_codes=Count('id', filter=Q(is_active=False)),
+            hsn_codes=Count('id', filter=Q(type='HSN')),
+            sac_codes=Count('id', filter=Q(type='SAC'))
+        )
 
+        context['summary'] = summary_stats
         context['categories'] = base_qs.exclude(category__isnull=True).exclude(category='').values_list('category', flat=True).distinct().order_by('category')
+        context['sub_categories'] = base_qs.exclude(sub_category__isnull=True).exclude(sub_category='').values_list('sub_category', flat=True).distinct().order_by('sub_category')
+        context['uqcs'] = base_qs.exclude(uqc__isnull=True).exclude(uqc='').values_list('uqc', flat=True).distinct().order_by('uqc')
         context['current_time'] = timezone.localtime(timezone.now())
+        context['entries'] = str(self.get_paginate_by(self.get_queryset()))
         return context
 
     def get(self, request, *args, **kwargs):
@@ -1302,7 +1321,7 @@ class AdminHSNSACListView(PaginationMixin, ListView):
     def export_data(self, export_format):
         qs = self.get_queryset()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        headers = ['Code Type', 'HSN/SAC Code', 'Description', 'Category', 'Sub Category', 'GST Rate (%)', 'CGST Rate (%)', 'SGST Rate (%)', 'IGST Rate (%)', 'UQC', 'Effective From', 'Effective To', 'Status']
+        headers = ['Code', 'Type', 'Description', 'Category', 'Sub Category', 'GST Rate', 'CGST Rate', 'SGST Rate', 'IGST Rate', 'Cess Rate', 'UQC', 'Status']
 
         if export_format == 'excel':
             import openpyxl
@@ -1311,28 +1330,27 @@ class AdminHSNSACListView(PaginationMixin, ListView):
 
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "HSN_SAC_Master"
+            ws.title = "HSN SAC Master"
 
-            # Header styling
-            header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+            header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
             header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
             thin_border = Border(
-                left=Side(style='thin', color='CBD5E1'),
-                right=Side(style='thin', color='CBD5E1'),
-                top=Side(style='thin', color='CBD5E1'),
-                bottom=Side(style='thin', color='CBD5E1')
+                left=Side(style='thin', color='D1D5DB'),
+                right=Side(style='thin', color='D1D5DB'),
+                top=Side(style='thin', color='D1D5DB'),
+                bottom=Side(style='thin', color='D1D5DB')
             )
 
             ws.append(headers)
-            for col_num, cell in enumerate(ws[1], 1):
+            for cell in ws[1]:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
             for item in qs:
                 ws.append([
-                    item.type,
                     item.code,
+                    item.type,
                     item.description,
                     item.category or '',
                     item.sub_category or '',
@@ -1340,9 +1358,8 @@ class AdminHSNSACListView(PaginationMixin, ListView):
                     float(item.get_cgst_rate()),
                     float(item.get_sgst_rate()),
                     float(item.get_igst_rate()),
+                    float(item.cess_rate),
                     item.uqc or '',
-                    item.effective_from.strftime('%Y-%m-%d') if item.effective_from else '',
-                    item.effective_to.strftime('%Y-%m-%d') if item.effective_to else '',
                     'Active' if item.is_active else 'Inactive'
                 ])
 
@@ -1374,8 +1391,8 @@ class AdminHSNSACListView(PaginationMixin, ListView):
             writer.writerow(headers)
             for item in qs:
                 writer.writerow([
-                    item.type,
                     item.code,
+                    item.type,
                     item.description,
                     item.category or '',
                     item.sub_category or '',
@@ -1383,12 +1400,40 @@ class AdminHSNSACListView(PaginationMixin, ListView):
                     item.get_cgst_rate(),
                     item.get_sgst_rate(),
                     item.get_igst_rate(),
+                    item.cess_rate,
                     item.uqc or '',
-                    item.effective_from.strftime('%Y-%m-%d') if item.effective_from else '',
-                    item.effective_to.strftime('%Y-%m-%d') if item.effective_to else '',
                     'Active' if item.is_active else 'Inactive'
                 ])
             return response
+
+
+def admin_hsn_sac_detail(request, pk):
+    if not request.user.is_authenticated or request.user.role != 'SUPERADMIN':
+        return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+
+    obj = get_object_or_404(HSNSACMaster, id=pk, company__isnull=True)
+    return JsonResponse({
+        'status': 'success',
+        'data': {
+            'id': obj.id,
+            'code': obj.code,
+            'type': obj.type,
+            'description': obj.description,
+            'category': obj.category or '',
+            'sub_category': obj.sub_category or '',
+            'gst_rate': str(obj.gst_rate),
+            'cgst_rate': str(obj.get_cgst_rate()),
+            'sgst_rate': str(obj.get_sgst_rate()),
+            'igst_rate': str(obj.get_igst_rate()),
+            'cess_rate': str(obj.cess_rate),
+            'uqc': obj.uqc or 'PCS',
+            'effective_from': obj.effective_from.strftime('%Y-%m-%d') if obj.effective_from else '',
+            'effective_to': obj.effective_to.strftime('%Y-%m-%d') if obj.effective_to else '',
+            'is_active': obj.is_active,
+            'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S') if obj.created_at else '',
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '',
+        }
+    })
 
 
 @transaction.atomic
@@ -1400,21 +1445,40 @@ def admin_hsn_sac_add(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
 
     try:
-        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        data = {}
+        if request.body:
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = request.POST
+        else:
+            data = request.POST
+
         code_type = data.get('type', 'HSN').upper()
         code = data.get('code', '').strip()
         description = data.get('description', '').strip()
         category = data.get('category', '').strip() or None
         sub_category = data.get('sub_category', '').strip() or None
         gst_rate = Decimal(str(data.get('gst_rate', '18.00')))
+        cess_rate = Decimal(str(data.get('cess_rate', '0.00'))) if data.get('cess_rate') not in [None, ''] else Decimal('0.00')
         uqc = data.get('uqc', 'PCS').strip().upper() or 'PCS'
         is_active = str(data.get('is_active', 'true')).lower() in ['true', '1', 'active']
 
         if not code or not description:
-            return JsonResponse({'status': 'error', 'message': 'Code and Description are required fields.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data. Code and Description are required.'}, status=400)
+
+        if code_type not in ['HSN', 'SAC']:
+            return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data.'}, status=400)
+
+        if code_type == 'HSN':
+            if not code.isdigit() or len(code) < 2 or len(code) > 8:
+                return JsonResponse({'status': 'error', 'message': 'Invalid HSN code. HSN code must be a numeric value between 2 and 8 digits.'}, status=400)
+        elif code_type == 'SAC':
+            if not code.isdigit() or not code.startswith('99') or len(code) != 6:
+                return JsonResponse({'status': 'error', 'message': 'Invalid SAC code. SAC code must be a 6-digit number starting with 99 (e.g., 998311).'}, status=400)
 
         if HSNSACMaster.objects.filter(company__isnull=True, type=code_type, code=code).exists():
-            return JsonResponse({'status': 'error', 'message': f"HSN/SAC Code '{code}' already exists for type {code_type}."}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'HSN/SAC code already exists.'}, status=400)
 
         cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
         sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
@@ -1434,6 +1498,7 @@ def admin_hsn_sac_add(request):
             cgst_rate=cgst,
             sgst_rate=sgst,
             igst_rate=igst,
+            cess_rate=cess_rate,
             uqc=uqc,
             effective_from=eff_from,
             effective_to=eff_to,
@@ -1442,10 +1507,11 @@ def admin_hsn_sac_add(request):
         )
 
         log_action(request.user, 'CREATE_HSN_SAC', 'HSN_SAC', obj.id, new_values={'code': code, 'type': code_type, 'gst_rate': str(gst_rate)}, request=request)
-        messages.success(request, f"HSN/SAC Code '{code}' added successfully.")
-        return JsonResponse({'status': 'success', 'message': f"HSN/SAC Code '{code}' added successfully."})
+        if hasattr(request, '_messages'):
+            messages.success(request, f"HSN/SAC code added successfully.")
+        return JsonResponse({'status': 'success', 'message': f"HSN/SAC code added successfully."})
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({'status': 'error', 'message': f'Invalid HSN/SAC data: {str(e)}'}, status=400)
 
 
 @transaction.atomic
@@ -1469,10 +1535,13 @@ def admin_hsn_sac_edit(request, pk):
                 'cgst_rate': str(obj.get_cgst_rate()),
                 'sgst_rate': str(obj.get_sgst_rate()),
                 'igst_rate': str(obj.get_igst_rate()),
+                'cess_rate': str(obj.cess_rate),
                 'uqc': obj.uqc or '',
                 'effective_from': obj.effective_from.strftime('%Y-%m-%d') if obj.effective_from else '',
                 'effective_to': obj.effective_to.strftime('%Y-%m-%d') if obj.effective_to else '',
-                'is_active': obj.is_active
+                'is_active': obj.is_active,
+                'created_at': obj.created_at.strftime('%Y-%m-%d %H:%M:%S') if obj.created_at else '',
+                'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else ''
             }
         })
 
@@ -1484,14 +1553,25 @@ def admin_hsn_sac_edit(request, pk):
         category = data.get('category', '').strip() or None
         sub_category = data.get('sub_category', '').strip() or None
         gst_rate = Decimal(str(data.get('gst_rate', obj.gst_rate)))
+        cess_rate = Decimal(str(data.get('cess_rate', obj.cess_rate))) if data.get('cess_rate') not in [None, ''] else Decimal('0.00')
         uqc = data.get('uqc', 'PCS').strip().upper() or 'PCS'
         is_active = str(data.get('is_active', obj.is_active)).lower() in ['true', '1', 'active']
 
         if not code or not description:
-            return JsonResponse({'status': 'error', 'message': 'Code and Description are required.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data. Code and Description are required.'}, status=400)
+
+        if code_type not in ['HSN', 'SAC']:
+            return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data.'}, status=400)
+
+        if code_type == 'HSN':
+            if not code.isdigit() or len(code) < 2 or len(code) > 8:
+                return JsonResponse({'status': 'error', 'message': 'Invalid HSN code. HSN code must be a numeric value between 2 and 8 digits.'}, status=400)
+        elif code_type == 'SAC':
+            if not code.isdigit() or not code.startswith('99') or len(code) != 6:
+                return JsonResponse({'status': 'error', 'message': 'Invalid SAC code. SAC code must be a 6-digit number starting with 99 (e.g., 998311).'}, status=400)
 
         if HSNSACMaster.objects.filter(company__isnull=True, type=code_type, code=code).exclude(id=obj.id).exists():
-            return JsonResponse({'status': 'error', 'message': f"HSN/SAC Code '{code}' already exists for type {code_type}."}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'HSN/SAC code already exists.'}, status=400)
 
         cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
         sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
@@ -1509,6 +1589,7 @@ def admin_hsn_sac_edit(request, pk):
         obj.cgst_rate = cgst
         obj.sgst_rate = sgst
         obj.igst_rate = igst
+        obj.cess_rate = cess_rate
         obj.uqc = uqc
         obj.effective_from = eff_from
         obj.effective_to = eff_to
@@ -1516,9 +1597,9 @@ def admin_hsn_sac_edit(request, pk):
         obj.save()
 
         log_action(request.user, 'UPDATE_HSN_SAC', 'HSN_SAC', obj.id, new_values={'code': code, 'type': code_type, 'gst_rate': str(gst_rate)}, request=request)
-        return JsonResponse({'status': 'success', 'message': f"HSN/SAC Code '{code}' updated successfully."})
+        return JsonResponse({'status': 'success', 'message': f"HSN/SAC code updated successfully."})
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data.'}, status=400)
 
 
 @transaction.atomic
@@ -1532,7 +1613,8 @@ def admin_hsn_sac_status_change(request, pk, status):
     obj.save()
 
     log_action(request.user, 'STATUS_HSN_SAC', 'HSN_SAC', obj.id, new_values={'is_active': is_active}, request=request)
-    messages.success(request, f"HSN/SAC Code '{obj.code}' status changed to {'Active' if is_active else 'Inactive'}.")
+    if hasattr(request, '_messages'):
+        messages.success(request, f"HSN/SAC Code '{obj.code}' status changed to {'Active' if is_active else 'Inactive'}.")
     return redirect('admin_hsn_sac_list')
 
 
@@ -1558,8 +1640,9 @@ def admin_hsn_sac_delete(request, pk):
         obj.is_active = False
         obj.save()
         log_action(request.user, 'DEACTIVATE_HSN_SAC', 'HSN_SAC', obj.id, request=request)
-        msg = f"HSN/SAC Code '{obj.code}' was deactivated because it is linked to existing users or financial records."
-        messages.warning(request, msg)
+        msg = f"HSN/SAC code deactivated because it is referenced in billing records."
+        if hasattr(request, '_messages'):
+            messages.warning(request, msg)
         return JsonResponse({
             'success': True,
             'status': 'warning',
@@ -1571,8 +1654,9 @@ def admin_hsn_sac_delete(request, pk):
     code = obj.code
     obj.delete()
     log_action(request.user, 'DELETE_HSN_SAC', 'HSN_SAC', pk, request=request)
-    msg = f"HSN/SAC Code '{code}' deleted successfully."
-    messages.success(request, msg)
+    msg = f"HSN/SAC code deleted successfully."
+    if hasattr(request, '_messages'):
+        messages.success(request, msg)
     return JsonResponse({
         'success': True,
         'status': 'success',
@@ -1588,9 +1672,9 @@ def admin_hsn_sac_sample_template(request):
     response['Content-Disposition'] = 'attachment; filename="HSN_SAC_Bulk_Template.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Code Type', 'HSN/SAC Code', 'Description', 'Category', 'Sub Category', 'GST Rate', 'CGST Rate', 'SGST Rate', 'IGST Rate', 'UQC', 'Effective From', 'Effective To', 'Status'])
-    writer.writerow(['HSN', '1001', 'Wheat and meslin', 'Agricultural', 'Grains', '5.00', '2.50', '2.50', '5.00', 'KGS', '2026-01-01', '', 'Active'])
-    writer.writerow(['SAC', '998311', 'Management consulting services', 'Professional', 'Consulting', '18.00', '9.00', '9.00', '18.00', 'NOS', '2026-01-01', '', 'Active'])
+    writer.writerow(['Code', 'Type', 'Description', 'GST Rate', 'CGST Rate', 'SGST Rate', 'IGST Rate', 'Cess Rate', 'Status'])
+    writer.writerow(['1001', 'HSN', 'Wheat and meslin', '5.00', '2.50', '2.50', '5.00', '0.00', 'Active'])
+    writer.writerow(['998311', 'SAC', 'Management consulting services', '18.00', '9.00', '9.00', '18.00', '0.00', 'Active'])
     return response
 
 
@@ -6596,18 +6680,46 @@ def company_user_change_password_api(request, pk):
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
 
 
+def fetch_pdf_resources(uri, rel):
+    import os
+    from django.conf import settings
+
+    if uri.startswith(('http://', 'https://')):
+        return uri
+
+    clean_uri = uri.split('?')[0]
+
+    if clean_uri.startswith(settings.MEDIA_URL):
+        path = os.path.join(settings.MEDIA_ROOT, clean_uri.replace(settings.MEDIA_URL, "", 1))
+    elif clean_uri.startswith(settings.STATIC_URL):
+        path = os.path.join(settings.STATIC_ROOT, clean_uri.replace(settings.STATIC_URL, "", 1))
+    else:
+        path = clean_uri
+
+    if not os.path.isfile(path):
+        alt_path = os.path.join(settings.BASE_DIR, clean_uri.lstrip('/'))
+        if os.path.isfile(alt_path):
+            return alt_path
+
+    return path
+
+
 def html_to_pdf_bytes(html_content):
     import io
     from xhtml2pdf import pisa
     result = io.BytesIO()
-    pdf = pisa.pisaDocument(io.BytesIO(html_content.encode("UTF-8")), result)
+    pdf = pisa.pisaDocument(
+        io.BytesIO(html_content.encode("UTF-8")),
+        result,
+        link_callback=fetch_pdf_resources
+    )
     if not pdf.err:
         return result.getvalue()
     return None
 
 
 def company_quotation_send_email(request, pk):
-    if not request.user.is_authenticated or request.user.company is None:
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
         return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
@@ -6621,16 +6733,16 @@ def company_quotation_send_email(request, pk):
     except Exception:
         return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
 
-    if not recipient_email or '@' not in recipient_email:
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not recipient_email or not re.match(email_regex, recipient_email):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
-    # Render HTML content
     from django.template.loader import render_to_string
     context = {'quotation': quotation}
     total_quantity = sum(item.quantity for item in quotation.items.all())
     context['total_quantity'] = total_quantity
     
-    # HSN summary
     hsn_map = {}
     for item in quotation.items.all():
         hsn = item.hsn_sac_code or ''
@@ -6643,8 +6755,8 @@ def company_quotation_send_email(request, pk):
                 'sgst_amount': Decimal('0.00'),
                 'igst_amount': Decimal('0.00'),
                 'total_tax': Decimal('0.00'),
-                'cgst_rate': rate / 2,
-                'sgst_rate': rate / 2,
+                'cgst_rate': rate / Decimal('2.00'),
+                'sgst_rate': rate / Decimal('2.00'),
                 'gst_rate': rate
             }
         hsn_map[hsn]['taxable_value'] += item.taxable_value
@@ -6656,35 +6768,48 @@ def company_quotation_send_email(request, pk):
 
     html_content = render_to_string('company/quotation_pdf.html', context, request=request)
     
-    # Convert HTML to PDF bytes
     pdf_data = html_to_pdf_bytes(html_content)
-    if not pdf_data:
+    if not pdf_data or len(pdf_data) == 0:
         return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
 
-    # Send email
     from django.core.mail import EmailMessage
     from django.conf import settings
-    subject = f"Quotation {quotation.quotation_number}"
-    body = f"Hello,\n\nPlease find attached the quotation {quotation.quotation_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    customer_name = quotation.customer.name if quotation.customer else "Valued Customer"
+    subject = f"Quotation {quotation.quotation_number} from {company.name}"
+    date_str = quotation.date.strftime('%d %b %Y') if hasattr(quotation.date, 'strftime') else str(quotation.date)
+    body = (
+        f"Dear {customer_name},\n\n"
+        f"Please find attached quotation {quotation.quotation_number} from {company.name}.\n\n"
+        f"Quotation Date: {date_str}\n"
+        f"Total Amount: ₹{quotation.grand_total}\n\n"
+        f"Please review the attached quotation.\n\n"
+        f"Regards,\n"
+        f"{company.name}"
+    )
     
     try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@gblbilling.com')
         email = EmailMessage(
             subject,
             body,
-            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            from_email,
             [recipient_email]
         )
         safe_filename = f"Quotation-{quotation.quotation_number}.pdf".replace(' ', '_').replace('/', '_')
         email.attach(safe_filename, pdf_data, 'application/pdf')
         email.send()
-        return JsonResponse({'success': True, 'message': f"Quotation {quotation.quotation_number} PDF sent successfully."})
+        
+        log_action(request.user, 'SEND_EMAIL_QUOTATION', 'QUOTATION', quotation.id, new_values={'recipient': recipient_email}, request=request)
+        return JsonResponse({'success': True, 'message': f"Quotation PDF sent successfully to {recipient_email}."})
     except Exception as e:
-        print("SMTP error sending quotation:", e)
-        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+        import logging
+        logging.getLogger('django').error(f"SMTP Error sending quotation {quotation.quotation_number}: {str(e)}")
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check your email configuration and try again.'}, status=500)
 
 
 def company_sales_order_send_email(request, pk):
-    if not request.user.is_authenticated or request.user.company is None:
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
         return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
@@ -6698,43 +6823,57 @@ def company_sales_order_send_email(request, pk):
     except Exception:
         return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
 
-    if not recipient_email or '@' not in recipient_email:
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not recipient_email or not re.match(email_regex, recipient_email):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
-    # Render HTML content
     from django.template.loader import render_to_string
     context = {'order': order}
     html_content = render_to_string('company/sales_order_pdf.html', context, request=request)
     
-    # Convert HTML to PDF bytes
     pdf_data = html_to_pdf_bytes(html_content)
-    if not pdf_data:
+    if not pdf_data or len(pdf_data) == 0:
         return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
 
-    # Send email
     from django.core.mail import EmailMessage
     from django.conf import settings
-    subject = f"Sales Order {order.order_number}"
-    body = f"Hello,\n\nPlease find attached the sales order {order.order_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    customer_name = order.customer.name if order.customer else "Valued Customer"
+    subject = f"Sales Order {order.order_number} from {company.name}"
+    date_str = order.order_date.strftime('%d %b %Y') if hasattr(order.order_date, 'strftime') else str(order.order_date)
+    body = (
+        f"Dear {customer_name},\n\n"
+        f"Please find attached sales order {order.order_number} from {company.name}.\n\n"
+        f"Order Date: {date_str}\n"
+        f"Total Amount: ₹{order.grand_total}\n\n"
+        f"Please review the attached sales order.\n\n"
+        f"Regards,\n"
+        f"{company.name}"
+    )
     
     try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@gblbilling.com')
         email = EmailMessage(
             subject,
             body,
-            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            from_email,
             [recipient_email]
         )
         safe_filename = f"SalesOrder-{order.order_number}.pdf".replace(' ', '_').replace('/', '_')
         email.attach(safe_filename, pdf_data, 'application/pdf')
         email.send()
-        return JsonResponse({'success': True, 'message': f"Sales Order PDF sent successfully."})
+        
+        log_action(request.user, 'SEND_EMAIL_SALES_ORDER', 'SALES_ORDER', order.id, new_values={'recipient': recipient_email}, request=request)
+        return JsonResponse({'success': True, 'message': f"Sales Order PDF sent successfully to {recipient_email}."})
     except Exception as e:
-        print("SMTP error sending sales order:", e)
-        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+        import logging
+        logging.getLogger('django').error(f"SMTP Error sending sales order {order.order_number}: {str(e)}")
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check your email configuration and try again.'}, status=500)
 
 
 def company_invoice_send_email(request, pk):
-    if not request.user.is_authenticated or request.user.company is None:
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
         return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
@@ -6748,10 +6887,11 @@ def company_invoice_send_email(request, pk):
     except Exception:
         return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
 
-    if not recipient_email or '@' not in recipient_email:
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not recipient_email or not re.match(email_regex, recipient_email):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
-    # Render HTML content
     from django.template.loader import render_to_string
     context = {'invoice': invoice}
     qr_string = generate_upi_qr_string(
@@ -6763,35 +6903,48 @@ def company_invoice_send_email(request, pk):
 
     html_content = render_to_string('company/invoice_pdf.html', context, request=request)
     
-    # Convert HTML to PDF bytes
     pdf_data = html_to_pdf_bytes(html_content)
-    if not pdf_data:
+    if not pdf_data or len(pdf_data) == 0:
         return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
 
-    # Send email
     from django.core.mail import EmailMessage
     from django.conf import settings
-    subject = f"Invoice {invoice.invoice_number}"
-    body = f"Hello,\n\nPlease find attached the tax invoice {invoice.invoice_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    customer_name = invoice.customer.name if invoice.customer else "Valued Customer"
+    subject = f"Invoice {invoice.invoice_number} from {company.name}"
+    date_str = invoice.invoice_date.strftime('%d %b %Y') if hasattr(invoice.invoice_date, 'strftime') else str(invoice.invoice_date)
+    body = (
+        f"Dear {customer_name},\n\n"
+        f"Please find attached tax invoice {invoice.invoice_number} from {company.name}.\n\n"
+        f"Invoice Date: {date_str}\n"
+        f"Total Amount: ₹{invoice.grand_total}\n\n"
+        f"Please review the attached invoice.\n\n"
+        f"Regards,\n"
+        f"{company.name}"
+    )
     
     try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@gblbilling.com')
         email = EmailMessage(
             subject,
             body,
-            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            from_email,
             [recipient_email]
         )
         safe_filename = f"Invoice-{invoice.invoice_number}.pdf".replace(' ', '_').replace('/', '_')
         email.attach(safe_filename, pdf_data, 'application/pdf')
         email.send()
-        return JsonResponse({'success': True, 'message': f"Invoice {invoice.invoice_number} PDF sent successfully."})
+        
+        log_action(request.user, 'SEND_EMAIL_INVOICE', 'INVOICE', invoice.id, new_values={'recipient': recipient_email}, request=request)
+        return JsonResponse({'success': True, 'message': f"Invoice PDF sent successfully to {recipient_email}."})
     except Exception as e:
-        print("SMTP error sending invoice:", e)
-        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+        import logging
+        logging.getLogger('django').error(f"SMTP Error sending invoice {invoice.invoice_number}: {str(e)}")
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check your email configuration and try again.'}, status=500)
 
 
 def company_credit_note_send_email(request, pk):
-    if not request.user.is_authenticated or request.user.company is None:
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
         return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'POST method required.'}, status=405)
@@ -6805,37 +6958,52 @@ def company_credit_note_send_email(request, pk):
     except Exception:
         return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
 
-    if not recipient_email or '@' not in recipient_email:
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not recipient_email or not re.match(email_regex, recipient_email):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
-    # Render HTML content
     from django.template.loader import render_to_string
     context = {'note': note}
     html_content = render_to_string('company/credit_note_pdf.html', context, request=request)
     
-    # Convert HTML to PDF bytes
     pdf_data = html_to_pdf_bytes(html_content)
-    if not pdf_data:
+    if not pdf_data or len(pdf_data) == 0:
         return JsonResponse({'success': False, 'message': 'Failed to generate PDF document.'}, status=500)
 
-    # Send email
     from django.core.mail import EmailMessage
     from django.conf import settings
-    subject = f"Credit Note {note.note_number}"
-    body = f"Hello,\n\nPlease find attached the credit note {note.note_number} from {company.name}.\n\nRegards,\n{company.name}"
+    
+    customer_name = note.company.name
+    subject = f"Credit Note {note.note_number} from {company.name}"
+    date_str = note.note_date.strftime('%d %b %Y') if hasattr(note.note_date, 'strftime') else str(note.note_date)
+    body = (
+        f"Dear Customer,\n\n"
+        f"Please find attached credit note {note.note_number} from {company.name}.\n\n"
+        f"Note Date: {date_str}\n"
+        f"Total Amount: ₹{note.grand_total}\n\n"
+        f"Please review the attached credit note.\n\n"
+        f"Regards,\n"
+        f"{company.name}"
+    )
     
     try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@gblbilling.com')
         email = EmailMessage(
             subject,
             body,
-            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+            from_email,
             [recipient_email]
         )
         safe_filename = f"CreditNote-{note.note_number}.pdf".replace(' ', '_').replace('/', '_')
         email.attach(safe_filename, pdf_data, 'application/pdf')
         email.send()
-        return JsonResponse({'success': True, 'message': f"Credit Note PDF sent successfully."})
+        
+        log_action(request.user, 'SEND_EMAIL_CREDIT_NOTE', 'CREDIT_NOTE', note.id, new_values={'recipient': recipient_email}, request=request)
+        return JsonResponse({'success': True, 'message': f"Credit Note PDF sent successfully to {recipient_email}."})
     except Exception as e:
-        print("SMTP error sending credit note:", e)
-        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check the email configuration and try again.'}, status=500)
+        import logging
+        logging.getLogger('django').error(f"SMTP Error sending credit note {note.note_number}: {str(e)}")
+        return JsonResponse({'success': False, 'message': 'Unable to send email. Please check your email configuration and try again.'}, status=500)
+
 
