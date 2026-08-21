@@ -67,11 +67,11 @@
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px;
+            border-radius: 18px;
             width: 100%;
-            max-width: 520px;
-            padding: 3rem 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            max-width: 390px;
+            padding: 2rem 1.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
             z-index: 10;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -79,21 +79,21 @@
         /* Card header style */
         .login-header {
             text-align: center;
-            margin-bottom: 2.25rem;
+            margin-bottom: 1.65rem;
         }
 
         .login-title {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: #ffffff;
             letter-spacing: -0.025em;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
         /* Accent line */
         .accent-line {
-            width: 60px;
-            height: 3.5px;
+            width: 50px;
+            height: 3px;
             background: linear-gradient(90deg, #ff7187, #e91e4d);
             border-radius: 2px;
             margin: 0 auto;
@@ -101,7 +101,7 @@
 
         /* Form styling */
         .login-form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.15rem;
             position: relative;
         }
 
@@ -113,21 +113,22 @@
 
         .login-input-icon {
             position: absolute;
-            left: 1.25rem;
+            left: 1rem;
             color: rgba(255, 255, 255, 0.4);
-            font-size: 1.1rem;
+            font-size: 1rem;
             pointer-events: none;
             transition: color 0.2s ease;
         }
 
         .login-input {
             width: 100%;
-            padding: 1.1rem 1.25rem 1.1rem 3.25rem;
+            height: 46px;
+            padding: 0 1rem 0 2.75rem;
             background: rgba(15, 23, 42, 0.45);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 10px;
             color: #ffffff;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-family: inherit;
             outline: none;
             transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
@@ -150,7 +151,7 @@
         /* Password input specific toggles */
         .password-controls {
             position: absolute;
-            right: 1.25rem;
+            right: 1rem;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -160,7 +161,7 @@
         .toggle-password {
             color: rgba(255, 255, 255, 0.4);
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: color 0.2s ease;
         }
 
@@ -173,14 +174,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            font-size: 0.88rem;
+            margin-bottom: 1.4rem;
+            font-size: 0.84rem;
         }
 
         .login-checkbox-label {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
             cursor: pointer;
             color: rgba(255, 255, 255, 0.7);
             user-select: none;
@@ -188,8 +189,8 @@
 
         .login-checkbox {
             appearance: none;
-            width: 17px;
-            height: 17px;
+            width: 16px;
+            height: 16px;
             border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 4px;
             background: rgba(15, 23, 42, 0.45);
@@ -210,7 +211,7 @@
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
             color: white;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
         }
 
         .login-forgot-link {
@@ -230,29 +231,29 @@
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.3);
             border-radius: 8px;
-            padding: 0.85rem 1rem;
-            margin-bottom: 1.5rem;
+            padding: 0.75rem 0.9rem;
+            margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.65rem;
             color: #fca5a5;
-            font-size: 0.88rem;
+            font-size: 0.84rem;
         }
 
         .login-error-container i {
-            font-size: 1.1rem;
+            font-size: 1rem;
             flex-shrink: 0;
         }
 
         /* Submit Button */
         .login-submit-btn {
             width: 100%;
-            height: 54px;
+            height: 46px;
             background: linear-gradient(90deg, #ff7187, #e91e4d);
             border: none;
             border-radius: 10px;
             color: #ffffff;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
@@ -283,8 +284,8 @@
         /* Register text */
         .register-section {
             text-align: center;
-            margin-top: 1.75rem;
-            font-size: 0.88rem;
+            margin-top: 1.35rem;
+            font-size: 0.84rem;
             color: rgba(255, 255, 255, 0.6);
         }
 
@@ -318,21 +319,23 @@
         /* Responsive design Adjustments */
         @media (max-width: 576px) {
             .login-card {
-                width: 92%;
-                padding: 2.25rem 1.5rem;
-                margin: 1rem;
+                width: calc(100% - 32px);
+                max-width: 100%;
+                padding: 1.75rem 1.25rem;
+                margin: 1rem auto;
             }
             .login-title {
-                font-size: 1.75rem;
+                font-size: 1.5rem;
             }
             .login-controls-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.5rem;
             }
             body {
-                justify-content: flex-start;
-                padding-top: 10vh;
+                justify-content: center;
+                padding-top: 0;
             }
         }
     </style>
