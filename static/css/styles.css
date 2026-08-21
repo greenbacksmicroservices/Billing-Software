@@ -2082,11 +2082,11 @@ button, input, select, textarea {
 /* Premium Delete Confirmation Modal Styling */
 .delete-modal-card {
     background: #ffffff;
-    border-radius: 28px;
+    border-radius: 22px;
     width: 100%;
-    max-width: 460px;
-    padding: 2.25rem 2rem 2rem 2rem;
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    max-width: 380px;
+    padding: 1.5rem 1.4rem 1.4rem 1.4rem;
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
     text-align: center;
     position: relative;
     box-sizing: border-box;
@@ -2094,15 +2094,15 @@ button, input, select, textarea {
 
 .delete-modal-close-btn {
     position: absolute;
-    top: 1.25rem;
-    right: 1.25rem;
-    width: 36px;
-    height: 36px;
+    top: 0.85rem;
+    right: 0.85rem;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     color: #64748b;
-    font-size: 1.25rem;
+    font-size: 1rem;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -2120,9 +2120,9 @@ button, input, select, textarea {
 
 .delete-illustration-wrapper {
     position: relative;
-    width: 140px;
-    height: 125px;
-    margin: 0 auto 0.75rem auto;
+    width: 100px;
+    height: 90px;
+    margin: 0 auto 0.35rem auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2130,8 +2130,8 @@ button, input, select, textarea {
 
 .delete-glow-bg {
     position: absolute;
-    width: 110px;
-    height: 110px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255, 182, 193, 0.55) 0%, rgba(255, 241, 242, 0.85) 60%, rgba(255, 255, 255, 0) 100%);
     z-index: 1;
@@ -2139,27 +2139,27 @@ button, input, select, textarea {
 
 .delete-decorations {
     position: absolute;
-    width: 180px;
-    height: 130px;
+    width: 135px;
+    height: 95px;
     top: -5px;
-    left: -20px;
+    left: -17px;
     z-index: 2;
     pointer-events: none;
 }
 
 .delete-3d-trash-svg {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 85px;
+    height: 85px;
     z-index: 3;
 }
 
 .delete-modal-title {
-    margin: 0 0 0.75rem 0;
-    font-size: 1.9rem;
+    margin: 0 0 0.35rem 0;
+    font-size: 1.45rem;
     font-weight: 800;
     line-height: 1.2;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -2177,10 +2177,10 @@ button, input, select, textarea {
 
 .delete-modal-divider {
     position: relative;
-    width: 90px;
+    width: 70px;
     height: 1px;
     background: linear-gradient(90deg, transparent, #fecdd3, transparent);
-    margin: 0.5rem auto 1rem auto;
+    margin: 0.35rem auto 0.75rem auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2189,44 +2189,44 @@ button, input, select, textarea {
 .divider-shield-icon {
     background: #ff4757;
     color: #ffffff;
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    font-size: 0.65rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    font-size: 0.55rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+    box-shadow: 0 2px 5px rgba(255, 71, 87, 0.4);
 }
 
 .delete-modal-message {
     color: #475569;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    margin-bottom: 1.25rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    margin-bottom: 0.85rem;
     font-weight: 500;
 }
 
 .delete-modal-message strong, .delete-item-name {
     color: #0f172a;
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 800;
     display: block;
-    margin-top: 0.35rem;
+    margin-top: 0.25rem;
     word-break: break-word;
 }
 
 .delete-warning-box {
     background: #fffbeb;
     border: 1.5px solid #fde68a;
-    border-radius: 16px;
-    padding: 0.85rem 1.1rem;
+    border-radius: 12px;
+    padding: 0.6rem 0.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.06);
+    gap: 0.5rem;
+    margin-bottom: 1.1rem;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.05);
 }
 
 .warning-icon-badge {
@@ -2238,30 +2238,30 @@ button, input, select, textarea {
 
 .warning-box-text {
     color: #78350f;
-    font-size: 0.92rem;
+    font-size: 0.825rem;
     font-weight: 600;
 }
 
 .delete-modal-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     width: 100%;
 }
 
 .delete-btn-cancel {
     flex: 1;
-    height: 50px;
+    height: 42px;
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 10px;
     color: #334155;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
 }
@@ -2276,26 +2276,26 @@ button, input, select, textarea {
 
 .delete-btn-confirm {
     flex: 1.1;
-    height: 50px;
+    height: 42px;
     background: linear-gradient(135deg, #ff4757 0%, #ff2a4b 100%);
     border: none;
-    border-radius: 14px;
+    border-radius: 10px;
     color: #ffffff;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    box-shadow: 0 8px 20px -4px rgba(255, 71, 87, 0.5);
+    gap: 0.4rem;
+    box-shadow: 0 6px 16px -3px rgba(255, 71, 87, 0.5);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
 }
 
 .delete-btn-confirm:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 25px -4px rgba(255, 71, 87, 0.65);
+    box-shadow: 0 10px 20px -3px rgba(255, 71, 87, 0.65);
     filter: brightness(1.05);
 }
 
