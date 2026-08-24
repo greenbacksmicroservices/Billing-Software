@@ -17,6 +17,7 @@ urlpatterns = [
 
     # Admin Panel
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('admin/delivery/', views.AdminDeliveryView.as_view(), name='admin_delivery'),
     path('admin/companies/', views.AdminCompaniesListView.as_view(), name='admin_companies_list'),
     path('admin/companies/add/', views.AdminCompanyCreateView.as_view(), name='admin_company_add'),
     path('admin/companies/<int:pk>/', views.AdminCompanyDetailView.as_view(), name='admin_company_view'),
@@ -57,6 +58,7 @@ urlpatterns = [
 
     # Company Panel
     path('company/dashboard/', views.CompanyDashboardView.as_view(), name='company_dashboard'),
+    path('company/delivery/', views.CompanyDeliveryView.as_view(), name='company_delivery'),
     path('company/settings/', views.CompanySettingsView.as_view(), name='company_settings'),
 
     # Customers & Suppliers
@@ -64,6 +66,12 @@ urlpatterns = [
     path('company/customers/search/', views.customer_search_api, name='customer_search_api'),
     path('company/suppliers/search/', views.supplier_search_api, name='supplier_search_api'),
     path('company/hsn-sac/search/', views.hsn_sac_search_api, name='hsn_sac_search_api'),
+    path('company/categories/search/', views.category_search_api, name='category_search_api'),
+    path('company/categories/quick-add/', views.category_quick_add, name='category_quick_add'),
+    path('company/brands/search/', views.brand_search_api, name='brand_search_api'),
+    path('company/brands/quick-add/', views.brand_quick_add, name='brand_quick_add'),
+    path('api/states/search/', views.indian_states_search_api, name='indian_states_search_api'),
+
     path('company/customers/quick-add/', views.customer_quick_add, name='customer_quick_add'),
     path('company/customers/add/', views.CustomerCreateView.as_view(), name='customer_add'),
     path('company/customers/<int:pk>/edit/', views.CustomerUpdateView.as_view(), name='customer_edit'),
@@ -124,6 +132,7 @@ urlpatterns = [
     path('company/purchase-bills/', views.PurchaseBillListView.as_view(), name='purchase_bill_list'),
     path('company/purchase-bills/add/', views.PurchaseBillCreateView.as_view(), name='purchase_bill_add'),
     path('company/purchase-bills/<int:pk>/', views.PurchaseBillDetailView.as_view(), name='purchase_bill_view'),
+    path('company/purchase-bills/<int:pk>/pdf/', views.PurchaseBillPDFView.as_view(), name='purchase_bill_pdf'),
     path('company/purchase-bills/<int:pk>/cancel/', views.purchase_bill_cancel, name='purchase_bill_cancel'),
 
     path('company/debit-notes/', views.DebitNoteListView.as_view(), name='debit_note_list'),

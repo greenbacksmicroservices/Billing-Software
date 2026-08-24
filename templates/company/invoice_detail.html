@@ -86,7 +86,7 @@
                         </div>
                     </td>
                     
-                    <!-- Right: E-Invoice details & Ack/IRN -->
+                    <!-- Right: E-Invoice details & Ack/IRN or Tax Invoice Summary -->
                     <td style="width: 40%; padding: 10px; font-size: 9px;">
                         {% if invoice.signed_qr_data or invoice.irn %}
                             <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
@@ -109,8 +109,11 @@
                                 </div>
                             {% endif %}
                         {% else %}
-                            <div style="min-height: 70px; display: flex; align-items: center; justify-content: center; color: #777; font-style: italic; border: 1px dashed #ddd; border-radius: 4px;">
-                                e-Invoice details not available
+                            <div style="text-align: right; font-size: 9.5px; line-height: 1.4; color: #000;">
+                                <div style="font-size: 14px; font-weight: 800; color: #1e3a8a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">TAX INVOICE</div>
+                                <div>Invoice No: <strong>{{ invoice.invoice_number }}</strong></div>
+                                <div>Date: <strong>{{ invoice.invoice_date|date:"d-M-Y" }}</strong></div>
+                                <div>Place of Supply: <strong>{{ invoice.place_of_supply }}{% if invoice.place_of_supply_code %} ({{ invoice.place_of_supply_code }}){% endif %}</strong></div>
                             </div>
                         {% endif %}
                     </td>

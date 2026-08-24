@@ -354,6 +354,19 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def get_image_url(self):
+        if self.image:
+            try:
+                import os, time
+                if os.path.exists(self.image.path):
+                    timestamp = int(os.path.getmtime(self.image.path))
+                    return f"{self.image.url}?v={timestamp}"
+                return self.image.url
+            except Exception:
+                return self.image.url
+        return None
+
+
 
 class Customer(models.Model):
     CUSTOMER_TYPES = [
@@ -601,6 +614,7 @@ class Quotation(models.Model):
     notes = models.TextField(blank=True, null=True)
     terms = models.TextField(blank=True, null=True)
     converted_to_invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True)
+    converted_to_sales_order = models.ForeignKey('SalesOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_quotations')
 
     class Meta:
         unique_together = ('company', 'quotation_number')

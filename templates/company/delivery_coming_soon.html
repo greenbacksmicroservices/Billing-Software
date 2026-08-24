@@ -1,0 +1,667 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Delivery - Coming Soon | GBL Billing{% endblock %}
+{% block nav_delivery %}active{% endblock %}
+
+{% block content %}
+<div class="delivery-page-container">
+
+    <!-- MAIN HERO CARD -->
+    <div class="delivery-hero-card">
+        
+        <!-- LEFT COLUMN: TEXT & CONTENT -->
+        <div class="delivery-left-col">
+            
+            <!-- COMING SOON BADGE -->
+            <div class="delivery-badge-pill">
+                <i class="fa-solid fa-clock-rotate-left"></i> COMING SOON
+            </div>
+
+            <!-- MAIN TITLE & SUBTITLE -->
+            <h1 class="delivery-main-title">Delivery</h1>
+            <h3 class="delivery-subtitle">We're working on something amazing for you.</h3>
+            
+            <p class="delivery-desc">
+                Our new Delivery module is on the way and it will make your logistics simpler, faster and more reliable.
+            </p>
+
+            <!-- WHAT'S COMING GRID -->
+            <div class="whats-coming-section">
+                <div class="whats-coming-title">
+                    <i class="fa-solid fa-star"></i> What's Coming?
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-truck-ramp-box"></i>
+                        </div>
+                        <div class="feature-label">Delivery Challans</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <div class="feature-label">Dispatch Tracking</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="feature-label">Proof of Delivery</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-truck-moving"></i>
+                        </div>
+                        <div class="feature-label">Fleet & Logistics</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: VISUAL & TRACKING PROGRESS -->
+        <div class="delivery-right-col">
+            
+            <!-- 3D TRUCK / VISUAL HERO SECTION -->
+            <div class="truck-illustration-wrapper">
+                
+                <!-- FLOATING TOP CIRCLE BADGE -->
+                <div class="floating-truck-badge">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+
+                <!-- LIGHT SPEED GRAPHIC LINES -->
+                <div class="speed-line line-1"></div>
+                <div class="speed-line line-2"></div>
+                <div class="speed-line line-3"></div>
+
+                <!-- TRUCK VECTOR GRAPHIC -->
+                <div class="truck-graphic-container">
+                    <svg viewBox="0 0 600 320" class="truck-svg" preserveAspectRatio="xMidYMid meet">
+                        <defs>
+                            <linearGradient id="truckBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#2563eb" />
+                                <stop offset="100%" stop-color="#1d4ed8" />
+                            </linearGradient>
+                            <linearGradient id="truckCabinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#3b82f6" />
+                                <stop offset="100%" stop-color="#1e4ed8" />
+                            </linearGradient>
+                            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="rgba(37,99,235,0)" />
+                                <stop offset="50%" stop-color="rgba(37,99,235,0.15)" />
+                                <stop offset="100%" stop-color="rgba(37,99,235,0)" />
+                            </linearGradient>
+                            <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="6" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <!-- Background City Skyline Silhouette -->
+                        <path d="M40 220 L40 180 L65 180 L65 150 L95 150 L95 190 L125 190 L125 130 L160 130 L160 220 Z" fill="rgba(219, 234, 254, 0.4)" />
+                        <path d="M180 220 L180 140 L215 140 L215 110 L250 110 L250 220 Z" fill="rgba(219, 234, 254, 0.6)" />
+                        <path d="M300 220 L300 160 L330 160 L330 120 L370 120 L370 220 Z" fill="rgba(219, 234, 254, 0.3)" />
+                        <path d="M420 220 L420 150 L460 150 L460 180 L520 180 L520 220 Z" fill="rgba(219, 234, 254, 0.5)" />
+
+                        <!-- Road Surface & Lines -->
+                        <ellipse cx="300" cy="245" rx="270" ry="25" fill="url(#roadGrad)" />
+                        <line x1="50" y1="245" x2="550" y2="245" stroke="#3b82f6" stroke-width="2" stroke-dasharray="16 12" opacity="0.4" />
+
+                        <!-- Truck Shadow -->
+                        <ellipse cx="310" cy="240" rx="170" ry="14" fill="rgba(15, 23, 42, 0.25)" filter="url(#glowEffect)" />
+
+                        <!-- Cargo Container Body -->
+                        <rect x="220" y="90" width="220" height="120" rx="12" fill="url(#truckBodyGrad)" stroke="#60a5fa" stroke-width="1.5" />
+                        <!-- Container Details / Ribs -->
+                        <line x1="260" y1="90" x2="260" y2="210" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+                        <line x1="300" y1="90" x2="300" y2="210" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+                        <line x1="340" y1="90" x2="340" y2="210" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+                        <line x1="380" y1="90" x2="380" y2="210" stroke="rgba(255,255,255,0.15)" stroke-width="2" />
+
+                        <!-- GBL Branding Logo Text on Truck Container -->
+                        <g transform="translate(285, 155)">
+                            <circle cx="-22" cy="-10" r="16" fill="#ffffff" opacity="0.9" />
+                            <text x="-27" y="-3" font-family="'Helvetica', sans-serif" font-weight="900" font-size="18" fill="#1d4ed8">G</text>
+                            <text x="2" y="-2" font-family="'Helvetica', sans-serif" font-weight="900" font-size="24" fill="#ffffff" letter-spacing="2">GBL</text>
+                        </g>
+
+                        <!-- Truck Cabin Front -->
+                        <path d="M 140 140 L 220 140 L 220 210 L 130 210 L 130 170 Z" fill="url(#truckCabinGrad)" />
+                        <!-- Cabin Window -->
+                        <path d="M 145 145 L 180 145 L 180 170 L 138 170 Z" fill="#93c5fd" opacity="0.85" />
+                        <!-- Headlight Glow -->
+                        <circle cx="132" cy="195" r="6" fill="#fef08a" filter="url(#glowEffect)" />
+                        <polygon points="132,195 40,180 40,220" fill="rgba(254, 240, 138, 0.15)" />
+
+                        <!-- Truck Wheels -->
+                        <g transform="translate(165, 215)">
+                            <circle cx="0" cy="0" r="20" fill="#1e293b" />
+                            <circle cx="0" cy="0" r="12" fill="#64748b" />
+                            <circle cx="0" cy="0" r="6" fill="#cbd5e1" />
+                        </g>
+                        <g transform="translate(370, 215)">
+                            <circle cx="0" cy="0" r="20" fill="#1e293b" />
+                            <circle cx="0" cy="0" r="12" fill="#64748b" />
+                            <circle cx="0" cy="0" r="6" fill="#cbd5e1" />
+                        </g>
+                        <g transform="translate(415, 215)">
+                            <circle cx="0" cy="0" r="20" fill="#1e293b" />
+                            <circle cx="0" cy="0" r="12" fill="#64748b" />
+                            <circle cx="0" cy="0" r="6" fill="#cbd5e1" />
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- TRACKING PROGRESS CARD OVERLAY -->
+            <div class="tracking-progress-card">
+                <div class="tracking-header">
+                    <span class="tracking-title">Tracking Progress</span>
+                    <span class="tracking-status-badge">In Active Development</span>
+                </div>
+
+                <!-- STEPPER PROGRESS LINE -->
+                <div class="stepper-wrapper">
+                    <div class="stepper-line-bg"></div>
+                    <div class="stepper-line-active"></div>
+
+                    <div class="stepper-step completed">
+                        <div class="step-icon-node">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div class="step-label">Planning</div>
+                    </div>
+
+                    <div class="stepper-step active">
+                        <div class="floating-step-badge">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </div>
+                        <div class="step-icon-node">
+                            <span class="pulse-dot"></span>
+                        </div>
+                        <div class="step-label">Development</div>
+                    </div>
+
+                    <div class="stepper-step upcoming">
+                        <div class="step-icon-node"></div>
+                        <div class="step-label">Testing</div>
+                    </div>
+
+                    <div class="stepper-step upcoming">
+                        <div class="step-icon-node">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+                        <div class="step-label">Launching</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- BOTTOM POWERFUL FEATURES BANNER -->
+    <div class="delivery-bottom-banner">
+        <div class="banner-left">
+            <div class="banner-icon-box">
+                <i class="fa-solid fa-gift"></i>
+            </div>
+            <div>
+                <div class="banner-title">More powerful features are coming!</div>
+                <div class="banner-subtitle">Stay tuned and get ready for a better delivery management experience.</div>
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'company_dashboard' %}" class="banner-btn">
+                Explore Other Modules <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<style>
+/* ============================================================
+   DELIVERY COMING SOON - MODERN DESIGN SYSTEM
+   ============================================================ */
+
+.delivery-page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Hero Card Outer Container */
+.delivery-hero-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    padding: 2.75rem 2.5rem;
+    box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(37, 99, 235, 0.04);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* LEFT COLUMN */
+.delivery-left-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.delivery-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.4rem 1.1rem;
+    border-radius: 50px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    width: fit-content;
+    margin-bottom: 1.25rem;
+    border: 1px solid #dbeafe;
+}
+
+.delivery-main-title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -1px;
+}
+
+.delivery-subtitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2563eb;
+    margin: 0 0 1rem 0;
+    line-height: 1.3;
+}
+
+.delivery-desc {
+    font-size: 0.95rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0 0 1.75rem 0;
+}
+
+/* What's Coming Grid */
+.whats-coming-section {
+    margin-top: 0.5rem;
+}
+
+.whats-coming-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.whats-coming-title i {
+    color: #2563eb;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.feature-card {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 14px;
+    padding: 1rem 0.5rem;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-3px);
+    border-color: #cbd5e1;
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
+}
+
+.feature-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.6rem auto;
+    font-size: 1.15rem;
+}
+
+.feature-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.3;
+}
+
+/* RIGHT COLUMN */
+.delivery-right-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
+    position: relative;
+}
+
+.truck-illustration-wrapper {
+    background: linear-gradient(145deg, #f0f7ff 0%, #dbeafe 50%, #eff6ff 100%);
+    border-radius: 20px;
+    padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbeafe;
+}
+
+/* Floating Top Truck Badge */
+.floating-truck-badge {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: #2563eb;
+    z-index: 5;
+    animation: floatBadge 3.5s ease-in-out infinite;
+}
+
+/* Speed Lines Animation */
+.speed-line {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0), rgba(37, 99, 235, 0.4), rgba(37, 99, 235, 0));
+    border-radius: 2px;
+}
+
+.line-1 { top: 35%; width: 140px; left: -20px; animation: speedMove 2.5s linear infinite; }
+.line-2 { top: 55%; width: 200px; left: -40px; animation: speedMove 2s linear infinite 0.5s; }
+.line-3 { top: 75%; width: 160px; left: -10px; animation: speedMove 3s linear infinite 0.2s; }
+
+.truck-graphic-container {
+    width: 100%;
+    max-width: 440px;
+    margin-top: 2.5rem;
+}
+
+.truck-svg {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 15px 25px rgba(37, 99, 235, 0.15));
+}
+
+/* TRACKING PROGRESS CARD OVERLAY */
+.tracking-progress-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+    margin-top: 1.5rem;
+}
+
+.tracking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.tracking-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.tracking-status-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid #dbeafe;
+}
+
+/* Stepper Component */
+.stepper-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 0 10px;
+}
+
+.stepper-line-bg {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+.stepper-line-active {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    width: 38%;
+    height: 3px;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    z-index: 2;
+}
+
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 3;
+}
+
+.step-icon-node {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    transition: all 0.3s;
+}
+
+.stepper-step.completed .step-icon-node {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+.stepper-step.active .step-icon-node {
+    background: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    animation: pulseDot 1.5s infinite;
+}
+
+.floating-step-badge {
+    position: absolute;
+    top: -30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    animation: floatBadge 2s ease-in-out infinite;
+}
+
+.step-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-top: 8px;
+}
+
+.stepper-step.completed .step-label,
+.stepper-step.active .step-label {
+    color: #0f172a;
+}
+
+/* BOTTOM POWERFUL FEATURES BANNER */
+.delivery-bottom-banner {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 1.25rem 2rem;
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.04);
+}
+
+.banner-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.banner-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.banner-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.banner-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.banner-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.7rem 1.35rem;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid #dbeafe;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.banner-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* ANIMATIONS */
+@keyframes floatBadge {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes speedMove {
+    0% { transform: translateX(-100%); opacity: 0; }
+    50% { opacity: 0.6; }
+    100% { transform: translateX(300%); opacity: 0; }
+}
+
+@keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 992px) {
+    .delivery-hero-card {
+        grid-template-columns: 1fr;
+        padding: 2rem 1.5rem;
+    }
+    .delivery-main-title {
+        font-size: 2.2rem;
+    }
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .delivery-bottom-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .banner-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}

@@ -82,19 +82,21 @@
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="city">City / District *</label>
-                <input type="text" name="city" id="city" class="form-control" placeholder="Mumbai" required>
+                <input type="text" name="city" id="city" class="form-control" placeholder="Mumbai" value="{{ form_data.city|default:'' }}" required>
             </div>
-            <div class="form-group">
-                <label class="form-label" for="state">State *</label>
-                <input type="text" name="state" id="state" class="form-control" placeholder="Maharashtra" required>
+            <div class="form-group" style="position: relative; grid-column: span 2;">
+                <label class="form-label" for="state_search_input">State / UT (Search by Name or Code) *</label>
+                <input type="text" id="state_search_input" class="form-control" placeholder="Type name (e.g. Odisha) or code (e.g. 21)" autocomplete="off" value="{% if form_data.state and form_data.state_code %}{{ form_data.state }} — {{ form_data.state_code }}{% endif %}" required>
+                <input type="hidden" name="state" id="state" value="{{ form_data.state|default:'' }}">
+                <div id="state_suggestions" class="autocomplete-suggestions-box" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 1050; background: var(--card, #ffffff); border: 1px solid var(--border, #ccc); border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             <div class="form-group">
                 <label class="form-label" for="state_code">State Code *</label>
-                <input type="text" name="state_code" id="state_code" class="form-control" placeholder="27" maxlength="2" required>
+                <input type="text" name="state_code" id="state_code" class="form-control" placeholder="21" maxlength="2" value="{{ form_data.state_code|default:'' }}" readonly required style="background: var(--background, #f9fafb);">
             </div>
             <div class="form-group">
                 <label class="form-label" for="pincode">Pincode *</label>
-                <input type="text" name="pincode" id="pincode" class="form-control" placeholder="400001" maxlength="6" required>
+                <input type="text" name="pincode" id="pincode" class="form-control" placeholder="400001" maxlength="6" value="{{ form_data.pincode|default:'' }}" required>
             </div>
         </div>
 
@@ -105,11 +107,11 @@
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="owner_name">Owner / Director Name *</label>
-                <input type="text" name="owner_name" id="owner_name" class="form-control" placeholder="Full Name" required>
+                <input type="text" name="owner_name" id="owner_name" class="form-control" placeholder="Full Name" value="{{ form_data.owner_name|default:'' }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label" for="username">Admin Username *</label>
-                <input type="text" name="username" id="username" class="form-control" placeholder="admin_username" required>
+                <input type="text" name="username" id="username" class="form-control" placeholder="admin_username" value="{{ form_data.username|default:'' }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label" for="password">Login Password *</label>
@@ -147,4 +149,185 @@
         </div>
     </div>
 </form>
+
+<style>
+.autocomplete-suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border, #eee);
+    color: var(--foreground, #333);
+}
+.autocomplete-suggestion-item:last-child {
+    border-bottom: none;
+}
+.autocomplete-suggestion-item:hover, .autocomplete-suggestion-item.active {
+    background-color: var(--primary-light, #eff6ff);
+    color: var(--primary, #2563eb);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statesData = [
+        {% for st in indian_states %}
+            { code: "{{ st.code }}", name: "{{ st.name }}", display: "{{ st.name }} — {{ st.code }}" },
+        {% empty %}
+            { code: "01", name: "Jammu and Kashmir", display: "Jammu and Kashmir — 01" },
+            { code: "02", name: "Himachal Pradesh", display: "Himachal Pradesh — 02" },
+            { code: "03", name: "Punjab", display: "Punjab — 03" },
+            { code: "04", name: "Chandigarh", display: "Chandigarh — 04" },
+            { code: "05", name: "Uttarakhand", display: "Uttarakhand — 05" },
+            { code: "06", name: "Haryana", display: "Haryana — 06" },
+            { code: "07", name: "Delhi", display: "Delhi — 07" },
+            { code: "08", name: "Rajasthan", display: "Rajasthan — 08" },
+            { code: "09", name: "Uttar Pradesh", display: "Uttar Pradesh — 09" },
+            { code: "10", name: "Bihar", display: "Bihar — 10" },
+            { code: "11", name: "Sikkim", display: "Sikkim — 11" },
+            { code: "12", name: "Arunachal Pradesh", display: "Arunachal Pradesh — 12" },
+            { code: "13", name: "Nagaland", display: "Nagaland — 13" },
+            { code: "14", name: "Manipur", display: "Manipur — 14" },
+            { code: "15", name: "Mizoram", display: "Mizoram — 15" },
+            { code: "16", name: "Tripura", display: "Tripura — 16" },
+            { code: "17", name: "Meghalaya", display: "Meghalaya — 17" },
+            { code: "18", name: "Assam", display: "Assam — 18" },
+            { code: "19", name: "West Bengal", display: "West Bengal — 19" },
+            { code: "20", name: "Jharkhand", display: "Jharkhand — 20" },
+            { code: "21", name: "Odisha", display: "Odisha — 21" },
+            { code: "22", name: "Chhattisgarh", display: "Chhattisgarh — 22" },
+            { code: "23", name: "Madhya Pradesh", display: "Madhya Pradesh — 23" },
+            { code: "24", name: "Gujarat", display: "Gujarat — 24" },
+            { code: "25", name: "Daman and Diu", display: "Daman and Diu — 25" },
+            { code: "26", name: "Dadra and Nagar Haveli and Daman and Diu", display: "Dadra and Nagar Haveli and Daman and Diu — 26" },
+            { code: "27", name: "Maharashtra", display: "Maharashtra — 27" },
+            { code: "28", name: "Andhra Pradesh (Old)", display: "Andhra Pradesh (Old) — 28" },
+            { code: "29", name: "Karnataka", display: "Karnataka — 29" },
+            { code: "30", name: "Goa", display: "Goa — 30" },
+            { code: "31", name: "Lakshadweep", display: "Lakshadweep — 31" },
+            { code: "32", name: "Kerala", display: "Kerala — 32" },
+            { code: "33", name: "Tamil Nadu", display: "Tamil Nadu — 33" },
+            { code: "34", name: "Puducherry", display: "Puducherry — 34" },
+            { code: "35", name: "Andaman and Nicobar Islands", display: "Andaman and Nicobar Islands — 35" },
+            { code: "36", name: "Telangana", display: "Telangana — 36" },
+            { code: "37", name: "Andhra Pradesh", display: "Andhra Pradesh — 37" },
+            { code: "38", name: "Ladakh", display: "Ladakh — 38" },
+            { code: "97", name: "Other Territory", display: "Other Territory — 97" },
+            { code: "99", name: "Centre Jurisdiction", display: "Centre Jurisdiction — 99" }
+        {% endfor %}
+    ];
+
+    const input = document.getElementById('state_search_input');
+    const hiddenState = document.getElementById('state');
+    const hiddenCode = document.getElementById('state_code');
+    const box = document.getElementById('state_suggestions');
+    let activeIndex = -1;
+
+    if (!input || !box) return;
+
+    function closeBox() {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        activeIndex = -1;
+    }
+
+    function highlightItem(items) {
+        items.forEach((it, idx) => {
+            if (idx === activeIndex) {
+                it.classList.add('active');
+                it.scrollIntoView({ block: 'nearest' });
+            } else {
+                it.classList.remove('active');
+            }
+        });
+    }
+
+    function selectState(st) {
+        input.value = st.display;
+        hiddenState.value = st.name;
+        hiddenCode.value = st.code;
+        closeBox();
+    }
+
+    input.addEventListener('input', function() {
+        const q = input.value.trim().toLowerCase();
+        box.innerHTML = '';
+        activeIndex = -1;
+
+        if (q === '') {
+            hiddenState.value = '';
+            hiddenCode.value = '';
+            closeBox();
+            return;
+        }
+
+        const matches = statesData.filter(st => 
+            st.name.toLowerCase().includes(q) || 
+            st.code.includes(q) || 
+            st.display.toLowerCase().includes(q)
+        );
+
+        matches.forEach(st => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-suggestion-item';
+            div.textContent = st.display;
+            div.addEventListener('click', function() {
+                selectState(st);
+            });
+            box.appendChild(div);
+        });
+
+        if (box.children.length > 0) {
+            box.style.display = 'block';
+        } else {
+            closeBox();
+        }
+    });
+
+    input.addEventListener('keydown', function(e) {
+        const items = box.querySelectorAll('.autocomplete-suggestion-item');
+        if (box.style.display === 'block' && items.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                highlightItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                highlightItem(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < items.length) {
+                    items[activeIndex].click();
+                } else if (items.length === 1) {
+                    items[0].click();
+                }
+            } else if (e.key === 'Escape') {
+                closeBox();
+            }
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !box.contains(e.target)) {
+            closeBox();
+        }
+    });
+
+    // Auto update state code if GSTIN is entered
+    const gstinInput = document.getElementById('gstin');
+    if (gstinInput) {
+        gstinInput.addEventListener('input', function() {
+            const val = gstinInput.value.trim();
+            if (val.length >= 2) {
+                const code = val.substring(0, 2);
+                const match = statesData.find(st => st.code === code);
+                if (match && (!hiddenCode.value || hiddenCode.value !== code)) {
+                    selectState(match);
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
+

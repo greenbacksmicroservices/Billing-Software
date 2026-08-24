@@ -9,8 +9,13 @@
         <h1 class="page-title">Quotation {{ quotation.quotation_number }}</h1>
         <p style="color: var(--muted-foreground);">Valid Until: {{ quotation.valid_until|date:"d M Y" }}</p>
     </div>
-    <div style="display: flex; gap: 0.5rem;">
-        <a href="{% url 'quotation_list' %}" class="btn btn-secondary">Back</a>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'quotation_list' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openPreviewModal()">
+            <i class="fa-solid fa-eye"></i> Preview Quotation
+        </button>
         <a href="{% url 'quotation_pdf' quotation.id %}" target="_blank" class="btn btn-secondary">
             <i class="fa-solid fa-print"></i> Print / Download PDF
         </a>
@@ -27,44 +32,144 @@
             <a href="{% url 'quotation_convert' quotation.id %}" class="btn btn-success">
                 <i class="fa-solid fa-arrows-spin"></i> Convert to Invoice
             </a>
+        {% else %}
+            {% if quotation.converted_to_sales_order %}
+                <a href="{% url 'sales_order_view' quotation.converted_to_sales_order.id %}" class="btn btn-primary">
+                    <i class="fa-solid fa-file-circle-check"></i> View Sales Order ({{ quotation.converted_to_sales_order.order_number }})
+                </a>
+            {% endif %}
+            {% if quotation.converted_to_invoice %}
+                <a href="{% url 'invoice_view' quotation.converted_to_invoice.id %}" class="btn btn-success">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> View Invoice ({{ quotation.converted_to_invoice.invoice_number }})
+                </a>
+            {% endif %}
         {% endif %}
     </div>
 </div>
 
 <div class="card-container">
     <div class="card-body">
-        <h3 style="margin-bottom: 1rem;">Client: {{ quotation.customer.name }}</h3>
-        <table class="custom-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Qty</th>
-                    <th>Rate</th>
-                    <th>Discount</th>
-                    <th style="text-align: right;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in quotation.items.all %}
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <div>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--foreground);">Client: {{ quotation.customer.name }}</h3>
+                {% if quotation.customer.business_name %}
+                    <p style="margin: 0.25rem 0 0 0; color: var(--muted-foreground); font-size: 0.9rem;">{{ quotation.customer.business_name }}</p>
+                {% endif %}
+                <p style="margin: 0.25rem 0 0 0; color: var(--muted-foreground); font-size: 0.85rem;">GSTIN: {{ quotation.customer.gstin|default:"Unregistered" }} | State: {{ quotation.customer.billing_state }} ({{ quotation.customer.billing_state_code }})</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary);">{{ quotation.quotation_number }}</div>
+                <div style="font-size: 0.85rem; color: var(--muted-foreground);">Date: {{ quotation.date|date:"d M Y" }}</div>
+                <div style="font-size: 0.85rem; color: var(--muted-foreground);">Status: 
+                    <span class="badge {% if quotation.status == 'CONVERTED' %}badge-success{% else %}badge-info{% endif %}">
+                        {% if quotation.status == 'CONVERTED' and quotation.converted_to_sales_order %}
+                            Converted to Sales Order: <a href="{% url 'sales_order_view' quotation.converted_to_sales_order.id %}" style="color: inherit; text-decoration: underline;">{{ quotation.converted_to_sales_order.order_number }}</a>
+                        {% elif quotation.status == 'CONVERTED' and quotation.converted_to_invoice %}
+                            Converted to Tax Invoice: <a href="{% url 'invoice_view' quotation.converted_to_invoice.id %}" style="color: inherit; text-decoration: underline;">{{ quotation.converted_to_invoice.invoice_number }}</a>
+                        {% else %}
+                            {{ quotation.get_status_display }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <h4 style="margin-bottom: 0.75rem; color: var(--foreground);">Quotation Line Items</h4>
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
                     <tr>
-                        <td>{{ item.product.name }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>₹{{ item.rate }}</td>
-                        <td>₹{{ item.discount }}</td>
-                        <td style="text-align: right; font-weight:600;">₹{{ item.total_amount }}</td>
+                        <th style="width: 5%;">Sl</th>
+                        <th style="width: 10%;">Photo</th>
+                        <th>Product & Details</th>
+                        <th style="text-align: center;">HSN/SAC</th>
+                        <th style="text-align: right;">Qty</th>
+                        <th style="text-align: right;">Rate</th>
+                        <th style="text-align: right;">Discount</th>
+                        <th style="text-align: right;">GST %</th>
+                        <th style="text-align: right;">Total Amount</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for item in quotation.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                {% if item.product.get_image_url %}
+                                    <img src="{{ item.product.get_image_url }}" alt="{{ item.product.name }}" style="width: 42px; height: 42px; object-fit: contain; border: 1px solid var(--border); border-radius: 4px; padding: 2px;">
+                                {% else %}
+                                    <span style="font-size: 0.7rem; color: var(--muted-foreground);">No Image</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.description %}
+                                    <div style="font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.25rem;">{{ item.product.description|linebreaksbr }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;"><code>{{ item.hsn_code|default:"-" }}</code></td>
+                            <td style="text-align: right;">{{ item.quantity }} {{ item.product.unit.code|default:"PCS" }}</td>
+                            <td style="text-align: right;">₹{{ item.rate }}</td>
+                            <td style="text-align: right;">₹{{ item.discount }}</td>
+                            <td style="text-align: right;">{{ item.gst_rate }}%</td>
+                            <td style="text-align: right; font-weight: 600;">₹{{ item.total_amount }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No items in quotation.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         
-        <div style="text-align: right; margin-top: 2rem; font-size: 1.2rem;">
-            <strong>Grand Total: ₹{{ quotation.grand_total }}</strong>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div style="max-width: 50%;">
+                {% if quotation.notes %}
+                    <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Special Notes:</h5>
+                    <p style="font-size: 0.9rem; color: var(--muted-foreground);">{{ quotation.notes|linebreaksbr }}</p>
+                {% endif %}
+            </div>
+            <div style="text-align: right; font-size: 1.1rem; line-height: 1.6;">
+                <div>Subtotal: <strong>₹{{ quotation.subtotal }}</strong></div>
+                {% if quotation.discount_total > 0 %}
+                    <div style="color: var(--danger);">Discount: <strong>-₹{{ quotation.discount_total }}</strong></div>
+                {% endif %}
+                <div>Taxable Amount: <strong>₹{{ quotation.taxable_value }}</strong></div>
+                {% if quotation.igst_total > 0 %}
+                    <div>IGST: <strong>₹{{ quotation.igst_total }}</strong></div>
+                {% else %}
+                    <div>CGST: <strong>₹{{ quotation.cgst_total }}</strong></div>
+                    <div>SGST: <strong>₹{{ quotation.sgst_total }}</strong></div>
+                {% endif %}
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 0.5rem; border-top: 2px solid var(--border); padding-top: 0.5rem;">
+                    Grand Total: ₹{{ quotation.grand_total }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Preview Quotation -->
+<div id="previewModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 900px; height: 90vh; display: flex; flex-direction: column; box-shadow: 0 12px 30px rgba(0,0,0,0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--background);">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-eye"></i> Quotation PDF Preview</h3>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <a href="{% url 'quotation_pdf' quotation.id %}" target="_blank" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                    <i class="fa-solid fa-external-link"></i> Open Full View / Print
+                </a>
+                <button type="button" onclick="closePreviewModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+            </div>
+        </div>
+        <div style="flex: 1; background: #525659; padding: 1rem; overflow: hidden;">
+            <iframe src="{% url 'quotation_pdf' quotation.id %}" style="width: 100%; height: 100%; border: none; border-radius: 4px; background: #ffffff;"></iframe>
         </div>
     </div>
 </div>
 
 <!-- Modal: Send Email -->
-<div id="sendEmailModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+<div id="sendEmailModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
     <div class="modal-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 450px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
             <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-envelope"></i> Send Quotation PDF</h3>
@@ -96,6 +201,16 @@
         return input ? input.value : '';
     }
 
+    function openPreviewModal() {
+        const modal = document.getElementById('previewModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closePreviewModal() {
+        const modal = document.getElementById('previewModal');
+        if (modal) modal.style.display = 'none';
+    }
+
     function openSendEmailModal() {
         const errBox = document.getElementById('email_err_box');
         if (errBox) errBox.style.display = 'none';
@@ -109,14 +224,16 @@
     }
 
     window.addEventListener('click', function(event) {
-        const modal = document.getElementById('sendEmailModal');
-        if (modal && event.target === modal) {
-            closeSendEmailModal();
-        }
+        const pModal = document.getElementById('previewModal');
+        if (pModal && event.target === pModal) closePreviewModal();
+
+        const eModal = document.getElementById('sendEmailModal');
+        if (eModal && event.target === eModal) closeSendEmailModal();
     });
 
     window.addEventListener('keydown', function(event) {
         if (event.key === 'Escape' || event.key === 'Esc') {
+            closePreviewModal();
             closeSendEmailModal();
         }
     });

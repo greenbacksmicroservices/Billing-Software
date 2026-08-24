@@ -1,0 +1,368 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Bill - {{ bill.supplier_bill_no }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9.5pt;
+            color: #0f172a;
+            margin: 0;
+            padding: 10px;
+            background-color: #ffffff;
+            line-height: 1.35;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .bill-container {
+            max-width: 820px;
+            margin: 0 auto;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .print-toolbar {
+            max-width: 820px;
+            margin: 0 auto 15px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #1e3a8a;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn:hover { background: #1d4ed8; }
+
+        .company-header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 2px solid #1e3a8a;
+            background: #f8fafc;
+        }
+        .company-header-table td {
+            padding: 14px 16px;
+            vertical-align: top;
+        }
+
+        .company-name {
+            font-size: 16pt;
+            font-weight: 800;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 3px 0;
+        }
+        .doc-title-badge {
+            display: inline-block;
+            background: #1e3a8a;
+            color: #ffffff;
+            font-size: 13pt;
+            font-weight: 800;
+            padding: 6px 16px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .meta-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .meta-grid-table td {
+            padding: 12px 16px;
+            vertical-align: top;
+            width: 50%;
+        }
+        .border-right { border-right: 1px solid #cbd5e1; }
+
+        .section-header-title {
+            font-size: 8pt;
+            font-weight: 700;
+            color: #b91c1c;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 2px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .items-table th {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 8.5pt;
+            text-transform: uppercase;
+            padding: 8px 6px;
+            border-right: 1px solid #3b82f6;
+            text-align: left;
+        }
+        .items-table th:last-child { border-right: none; }
+        .items-table td {
+            padding: 8px 6px;
+            font-size: 8.5pt;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        .items-table td:last-child { border-right: none; }
+        .items-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .summary-table td {
+            vertical-align: top;
+            padding: 10px 16px;
+        }
+
+        .doc-footer {
+            background: #0f172a;
+            color: #ffffff;
+            text-align: center;
+            padding: 8px;
+            font-size: 8pt;
+        }
+
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: 700; }
+
+        @media print {
+            .print-toolbar { display: none !important; }
+            body { padding: 0; background: #fff; }
+            .bill-container { border: none; box-shadow: none; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-toolbar">
+        <div>
+            <strong style="color: #1e3a8a; font-size: 13px;">Purchase Bill Document</strong>
+            <span style="color: #64748b; font-size: 11px; margin-left: 8px;">Ref: {{ bill.supplier_bill_no }}</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="window.print()" class="btn">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Print / Save PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="bill-container">
+
+        <!-- COMPANY HEADER -->
+        <table class="company-header-table">
+            <tr>
+                <td style="width: 60%;">
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        {% if company.logo %}
+                            <img src="{{ company.get_logo_url }}" alt="{{ company.name }}" style="max-width: 110px; max-height: 60px; object-fit: contain;">
+                        {% endif %}
+                        <div>
+                            <div class="company-name">{{ company.name }}</div>
+                            <div style="font-size: 8.5pt; color: #334155; line-height: 1.4;">
+                                {{ company.address }}, {{ company.city }}, {{ company.state }} - {{ company.pincode }}<br>
+                                Contact: <strong>{{ company.mobile }}</strong> | Email: <strong>{{ company.email }}</strong><br>
+                                GSTIN: <strong style="color: #1e3a8a;">{{ company.gstin|default:"N/A" }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td style="width: 40%; text-align: right;">
+                    <div class="doc-title-badge">PURCHASE BILL</div>
+                    <div style="margin-top: 10px; font-size: 8.5pt; color: #334155; line-height: 1.4;">
+                        Supplier Bill No: <strong style="color: #0f172a; font-size: 9.5pt;">{{ bill.supplier_bill_no }}</strong><br>
+                        Bill Date: <strong>{{ bill.bill_date|date:"d-M-Y" }}</strong><br>
+                        Due Date: <strong>{{ bill.due_date|date:"d-M-Y" }}</strong><br>
+                        Status: <strong style="text-transform: uppercase; color: #1d4ed8;">{{ bill.get_status_display }}</strong>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- SUPPLIER & BILL METADATA -->
+        <table class="meta-grid-table">
+            <tr>
+                <td class="border-right">
+                    <div class="section-header-title">SUPPLIER / VENDOR DETAILS</div>
+                    <div style="font-size: 11pt; font-weight: 700; color: #0f172a; margin-bottom: 2px;">{{ supplier.name }}</div>
+                    <div style="font-size: 8.5pt; color: #334155; line-height: 1.4;">
+                        {{ supplier.address }}<br>
+                        {{ supplier.city }}, {{ supplier.state }} - {{ supplier.pincode }}<br>
+                        GSTIN: <strong>{{ supplier.gstin|default:"Unregistered" }}</strong><br>
+                        Mobile: {{ supplier.mobile }}{% if supplier.email %} | Email: {{ supplier.email }}{% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="section-header-title">VOUCHER INFORMATION</div>
+                    <table style="width: 100%; font-size: 8.5pt; line-height: 1.5;">
+                        <tr>
+                            <td style="width: 45%; font-weight: 600; color: #475569;">Supplier Invoice No:</td>
+                            <td><strong>{{ bill.supplier_bill_no }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600; color: #475569;">Bill Date:</td>
+                            <td><strong>{{ bill.bill_date|date:"d-M-Y" }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600; color: #475569;">Due Date:</td>
+                            <td><strong>{{ bill.due_date|date:"d-M-Y" }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600; color: #475569;">Supply Type:</td>
+                            <td>
+                                {% if is_interstate %}
+                                    <strong style="color: #b91c1c;">Inter-State (IGST)</strong>
+                                {% else %}
+                                    <strong style="color: #15803d;">Intra-State (CGST + SGST)</strong>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- ITEMS TABLE -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;" class="text-center">Sl</th>
+                    <th style="width: 40%;">Product Description</th>
+                    <th style="width: 10%;" class="text-center">HSN/SAC</th>
+                    <th style="width: 10%;" class="text-right">Qty</th>
+                    <th style="width: 11%;" class="text-right">Cost Rate</th>
+                    <th style="width: 8%;" class="text-right">Disc.</th>
+                    <th style="width: 6%;" class="text-right">GST %</th>
+                    <th style="width: 10%;" class="text-right">Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bill.items.all %}
+                    <tr>
+                        <td class="text-center bold">{{ forloop.counter }}</td>
+                        <td><strong>{{ item.product.name }}</strong></td>
+                        <td class="text-center"><code>{{ item.hsn_code|default:"-" }}</code></td>
+                        <td class="text-right bold">{{ item.quantity }} {{ item.product.unit.code|default:"PCS" }}</td>
+                        <td class="text-right">₹{{ item.rate }}</td>
+                        <td class="text-right">₹{{ item.discount }}</td>
+                        <td class="text-right">{{ item.gst_rate }}%</td>
+                        <td class="text-right bold">₹{{ item.total_amount }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center" style="padding: 20px; color: #64748b;">No items recorded in this bill.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- FINANCIAL SUMMARY -->
+        <table class="summary-table">
+            <tr>
+                <td style="width: 55%; font-size: 8.5pt;">
+                    <div class="section-header-title">BILL NOTES</div>
+                    <div style="color: #334155; line-height: 1.4;">
+                        {{ bill.notes|default:"No additional notes logged for this purchase bill."|linebreaksbr }}
+                    </div>
+                </td>
+                <td style="width: 45%; padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">Gross Subtotal:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.subtotal }}</td>
+                        </tr>
+                        {% if bill.discount_total > 0 %}
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 5px 12px; color: #475569;">Total Discount:</td>
+                                <td class="text-right bold" style="padding: 5px 12px; color: #b91c1c;">-₹{{ bill.discount_total }}</td>
+                            </tr>
+                        {% endif %}
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">Taxable Value:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.taxable_value }}</td>
+                        </tr>
+                        {% if is_interstate %}
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 5px 12px; color: #475569;">IGST Total:</td>
+                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.igst_total }}</td>
+                            </tr>
+                        {% else %}
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 5px 12px; color: #475569;">CGST Total:</td>
+                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.cgst_total }}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 5px 12px; color: #475569;">SGST Total:</td>
+                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.sgst_total }}</td>
+                            </tr>
+                        {% endif %}
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">Round Off:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.round_off }}</td>
+                        </tr>
+                        <tr style="background: #1e3a8a; color: #ffffff;">
+                            <td style="padding: 8px 12px; font-weight: 700; font-size: 10pt;">Grand Total:</td>
+                            <td class="text-right bold" style="padding: 8px 12px; font-size: 11pt;">₹{{ bill.grand_total }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">Paid Amount:</td>
+                            <td class="text-right bold" style="padding: 5px 12px; color: #15803d;">₹{{ bill.paid_amount }}</td>
+                        </tr>
+                        <tr style="background: #fef2f2; color: #b91c1c;">
+                            <td style="padding: 6px 12px; font-weight: 700;">Outstanding Payable:</td>
+                            <td class="text-right bold" style="padding: 6px 12px;">₹{{ bill.outstanding_amount }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- FOOTER -->
+        <div class="doc-footer">
+            Inward Purchase Bill Voucher | {{ company.name }} | Contact: {{ company.mobile }}
+        </div>
+
+    </div>
+</body>
+</html>

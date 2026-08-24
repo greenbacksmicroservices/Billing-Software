@@ -167,6 +167,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (subMenu) subMenu.style.maxHeight = '0px';
             }
         });
+
+        // Highlight top-level sidebar items
+        document.querySelectorAll('.sidebar-item:not(.dropdown)').forEach(item => {
+            const link = item.querySelector('.sidebar-link');
+            if (link) {
+                const href = link.getAttribute('href');
+                if (item.classList.contains('active') || (href && href !== '#' && (currentPath === href || (href !== '/' && currentPath.startsWith(href))))) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            }
+        });
     }
 
     initActiveSidebarMenu();
@@ -360,20 +373,40 @@ window.formatIndianCurrency = function(num) {
 
 // Safe UI display / text helpers
 window.setElementDisplay = function(id, value) {
-    const el = document.getElementById(id);
+    if (!id) return;
+    let el = document.getElementById(id);
+    if (!el && id === 'cn-error-msg') {
+        const modalBody = document.querySelector('#credit-note-modal .modal-body');
+        if (modalBody) {
+            el = document.createElement('div');
+            el.id = 'cn-error-msg';
+            el.className = 'message-item error';
+            el.style.display = 'none';
+            el.style.marginBottom = '1rem';
+            modalBody.insertBefore(el, modalBody.firstChild);
+        }
+    }
     if (el) {
         el.style.display = value;
-    } else {
-        console.warn(`Element #${id} not found.`);
     }
 };
 
 window.setElementText = function(id, text) {
-    const el = document.getElementById(id);
+    if (!id) return;
+    let el = document.getElementById(id);
+    if (!el && id === 'cn-error-msg') {
+        const modalBody = document.querySelector('#credit-note-modal .modal-body');
+        if (modalBody) {
+            el = document.createElement('div');
+            el.id = 'cn-error-msg';
+            el.className = 'message-item error';
+            el.style.display = 'none';
+            el.style.marginBottom = '1rem';
+            modalBody.insertBefore(el, modalBody.firstChild);
+        }
+    }
     if (el) {
         el.innerText = text;
-    } else {
-        console.warn(`Element #${id} not found.`);
     }
 };
 

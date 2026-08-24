@@ -70,6 +70,29 @@ class CompanyForm(MoneyModelForm):
             if field_name not in ['address', 'terms_and_conditions', 'logo', 'signature', 'stamp']:
                 field.widget.attrs['class'] = 'form-control'
 
+    def clean(self):
+        cleaned_data = super().clean()
+        state = cleaned_data.get('state')
+        state_code = cleaned_data.get('state_code')
+        from .utils import validate_state_and_code
+        if state_code:
+            is_valid, msg_or_code = validate_state_and_code(state, state_code)
+            if not is_valid:
+                self.add_error('state_code', msg_or_code)
+            else:
+                cleaned_data['state_code'] = msg_or_code
+
+        gstin = cleaned_data.get('gstin')
+        if gstin and state_code:
+            gstin = gstin.strip()
+            state_code_fmt = str(state_code).strip().zfill(2)
+            if len(gstin) >= 2 and gstin[:2].isdigit():
+                gstin_state_code = gstin[:2]
+                if gstin_state_code != state_code_fmt:
+                    self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected State Code '{state_code_fmt}'.")
+        return cleaned_data
+
+
 
 class ProductForm(MoneyModelForm):
     class Meta:

@@ -889,6 +889,18 @@ class AdminDashboardView(TemplateView):
         return context
 
 
+class AdminDeliveryView(TemplateView):
+    template_name = 'admin/delivery_coming_soon.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if not self.request.user.is_authenticated:
+            raise PermissionDenied
+        if self.request.user.role != 'SUPERADMIN' and not self.request.user.is_superuser:
+            raise PermissionDenied
+        return context
+
+
 class AdminCompaniesListView(PaginationMixin, ListView):
     model = Company
     template_name = 'admin/company_list.html'
@@ -921,8 +933,9 @@ class AdminCompanyCreateView(View):
     def get(self, request):
         if request.user.role != 'SUPERADMIN':
             raise PermissionDenied
+        from .utils import INDIAN_STATES_AND_UTS
         plans = SubscriptionPlan.objects.filter(is_active=True)
-        return render(request, 'admin/company_add.html', {'plans': plans})
+        return render(request, 'admin/company_add.html', {'plans': plans, 'indian_states': INDIAN_STATES_AND_UTS})
 
     @transaction.atomic
     def post(self, request):
@@ -932,8 +945,8 @@ class AdminCompanyCreateView(View):
         # Extract business fields
         name = request.POST.get('company_name')
         trade_name = request.POST.get('trade_name')
-        business_type = request.POST.get('business_type')
-        gst_status = request.POST.get('gst_status')
+        business_type = request.POST.get('business_type') or 'PROPRIETORSHIP'
+        gst_status = request.POST.get('gst_status') or 'UNREGISTERED'
         gstin = request.POST.get('gstin')
         pan = request.POST.get('pan')
         email = request.POST.get('email')
@@ -943,6 +956,14 @@ class AdminCompanyCreateView(View):
         state = request.POST.get('state')
         state_code = request.POST.get('state_code')
         pincode = request.POST.get('pincode')
+        
+        from .utils import validate_state_and_code, INDIAN_STATES_AND_UTS
+        is_valid, msg_or_code = validate_state_and_code(state, state_code)
+        if not is_valid:
+            messages.error(request, msg_or_code)
+            plans = SubscriptionPlan.objects.filter(is_active=True)
+            return render(request, 'admin/company_add.html', {'plans': plans, 'indian_states': INDIAN_STATES_AND_UTS, 'form_data': request.POST})
+        state_code = msg_or_code
         
         # Owner fields
         owner_name = request.POST.get('owner_name')
@@ -1020,11 +1041,18 @@ class AdminCompanyUpdateView(UpdateView):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import INDIAN_STATES_AND_UTS
+        context['indian_states'] = INDIAN_STATES_AND_UTS
+        return context
+
     def form_valid(self, form):
         response = super().form_valid(form)
         log_action(self.request.user, 'UPDATE_COMPANY', 'COMPANY', self.object.id, new_values=form.cleaned_data, request=self.request)
         messages.success(self.request, "Company details updated successfully!")
         return response
+
 
 
 def admin_company_status_change(request, pk, status):
@@ -1989,6 +2017,10 @@ def admin_hsn_sac_export_error_report(request):
 class CompanyDashboardView(CompanyRequiredMixin, TemplateView):
     template_name = 'company/dashboard.html'
 
+
+class CompanyDeliveryView(CompanyRequiredMixin, TemplateView):
+    template_name = 'company/delivery_coming_soon.html'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         company = self.request.user.company
@@ -2320,6 +2352,132 @@ def hsn_sac_search_api(request):
         })
         
     return JsonResponse({'status': 'success', 'hsn_sac_list': data})
+
+
+def category_search_api(request):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+        
+    company = request.user.company
+    q = request.GET.get('q', '').strip()
+    
+    categories = Category.objects.filter(company=company)
+    if q:
+        categories = categories.filter(name__icontains=q)
+    
+    categories = categories.order_by('name')[:15]
+    
+    data = [{'id': c.id, 'name': c.name} for c in categories]
+    return JsonResponse({'status': 'success', 'results': data, 'categories': data})
+
+
+def category_quick_add(request):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+        
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
+        
+    company = request.user.company
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'status': 'error', 'message': 'Category name is required.'}, status=400)
+        
+    existing = Category.objects.filter(company=company, name__iexact=name).first()
+    if existing:
+        return JsonResponse({
+            'status': 'success',
+            'success': True,
+            'id': existing.id,
+            'name': existing.name,
+            'created': False,
+            'message': 'Category already exists.'
+        })
+        
+    try:
+        category = Category.objects.create(company=company, name=name)
+        log_action(request.user, 'CREATE_CATEGORY', 'CATEGORY', category.id, new_values={'name': name}, request=request)
+        return JsonResponse({
+            'status': 'success',
+            'success': True,
+            'id': category.id,
+            'name': category.name,
+            'created': True,
+            'message': f"Category '{name}' created successfully."
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'success': False, 'message': f"Unable to create category: {str(e)}"}, status=400)
+
+
+def brand_search_api(request):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+        
+    company = request.user.company
+    q = request.GET.get('q', '').strip()
+    
+    brands = Brand.objects.filter(company=company)
+    if q:
+        brands = brands.filter(name__icontains=q)
+    
+    brands = brands.order_by('name')[:15]
+    
+    data = [{'id': b.id, 'name': b.name} for b in brands]
+    return JsonResponse({'status': 'success', 'results': data, 'brands': data})
+
+
+def brand_quick_add(request):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+        
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
+        
+    company = request.user.company
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'status': 'error', 'message': 'Brand name is required.'}, status=400)
+        
+    existing = Brand.objects.filter(company=company, name__iexact=name).first()
+    if existing:
+        return JsonResponse({
+            'status': 'success',
+            'success': True,
+            'id': existing.id,
+            'name': existing.name,
+            'created': False,
+            'message': 'Brand already exists.'
+        })
+        
+    try:
+        brand = Brand.objects.create(company=company, name=name)
+        log_action(request.user, 'CREATE_BRAND', 'BRAND', brand.id, new_values={'name': name}, request=request)
+        return JsonResponse({
+            'status': 'success',
+            'success': True,
+            'id': brand.id,
+            'name': brand.name,
+            'created': True,
+            'message': f"Brand '{name}' created successfully."
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'success': False, 'message': f"Unable to create brand: {str(e)}"}, status=400)
+
+
+def indian_states_search_api(request):
+    from .utils import INDIAN_STATES_AND_UTS
+    q = request.GET.get('q', '').strip().lower()
+    results = []
+    for item in INDIAN_STATES_AND_UTS:
+        display = f"{item['name']} — {item['code']}"
+        if not q or q in item['name'].lower() or q in item['code'] or q in display.lower():
+            results.append({
+                'code': item['code'],
+                'name': item['name'],
+                'display': display
+            })
+    return JsonResponse({'status': 'success', 'results': results})
+
 
 
 class GSTCalculateView(CompanyRequiredMixin, View):
@@ -3831,6 +3989,83 @@ class QuotationDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView
     context_object_name = 'quotation'
 
 
+def build_quotation_context(quotation):
+    from .utils import parse_product_specifications
+    company = quotation.company
+    customer = quotation.customer
+    
+    company_state_code = str(company.state_code or '').strip().zfill(2)
+    customer_state_code = str(customer.billing_state_code or company_state_code).strip().zfill(2)
+    is_interstate = (company_state_code != customer_state_code)
+    
+    enriched_items = []
+    total_quantity = Decimal('0.00')
+    
+    for item in quotation.items.all().select_related('product', 'product__unit', 'product__hsn_sac'):
+        total_quantity += item.quantity
+        prod = item.product
+        desc = prod.description or ''
+        parsed_spec = parse_product_specifications(desc)
+        
+        enriched_items.append({
+            'item': item,
+            'product': prod,
+            'product_name': prod.name if prod else 'Item',
+            'product_image_url': prod.get_image_url() if prod else None,
+            'specs': parsed_spec['specs'],
+            'notes': parsed_spec['notes'],
+            'unit_code': prod.unit.code if prod and prod.unit else 'PCS',
+            'hsn_code': item.hsn_code,
+            'quantity': item.quantity,
+            'rate': item.rate,
+            'discount': item.discount,
+            'taxable_value': item.taxable_value,
+            'gst_rate': item.gst_rate,
+            'cgst_amount': item.cgst_amount,
+            'sgst_amount': item.sgst_amount,
+            'igst_amount': item.igst_amount,
+            'total_amount': item.total_amount,
+        })
+        
+    hsn_map = {}
+    for item in quotation.items.all():
+        hsn = item.hsn_code or ''
+        rate = item.gst_rate
+        if hsn not in hsn_map:
+            hsn_map[hsn] = {
+                'hsn': hsn,
+                'taxable_value': Decimal('0.00'),
+                'cgst_amount': Decimal('0.00'),
+                'sgst_amount': Decimal('0.00'),
+                'igst_amount': Decimal('0.00'),
+                'total_tax': Decimal('0.00'),
+                'cgst_rate': (rate / Decimal('2.00')).quantize(Decimal('0.01')),
+                'sgst_rate': (rate / Decimal('2.00')).quantize(Decimal('0.01')),
+                'gst_rate': rate
+            }
+        hsn_map[hsn]['taxable_value'] += item.taxable_value
+        hsn_map[hsn]['cgst_amount'] += item.cgst_amount
+        hsn_map[hsn]['sgst_amount'] += item.sgst_amount
+        hsn_map[hsn]['igst_amount'] += item.igst_amount
+        hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
+
+    total_tax = quotation.cgst_total + quotation.sgst_total + quotation.igst_total
+    raw_terms = quotation.terms or company.terms_and_conditions or ""
+    terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
+
+    return {
+        'quotation': quotation,
+        'company': company,
+        'customer': customer,
+        'enriched_items': enriched_items,
+        'total_quantity': total_quantity,
+        'hsn_summary': list(hsn_map.values()),
+        'is_interstate': is_interstate,
+        'total_tax': total_tax,
+        'terms_list': terms_list,
+    }
+
+
 class QuotationPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     model = Quotation
     template_name = 'company/quotation_pdf.html'
@@ -3839,41 +4074,19 @@ class QuotationPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         context = self.get_context_data(object=self.object)
-        
-        # Calculate totals
-        total_quantity = sum(item.quantity for item in self.object.items.all())
-        context['total_quantity'] = total_quantity
-        
-        # Build HSN summary
-        hsn_map = {}
-        for item in self.object.items.all():
-            hsn = item.hsn_sac_code or ''
-            rate = item.gst_rate
-            if hsn not in hsn_map:
-                hsn_map[hsn] = {
-                    'hsn': hsn,
-                    'taxable_value': Decimal('0.00'),
-                    'cgst_amount': Decimal('0.00'),
-                    'sgst_amount': Decimal('0.00'),
-                    'igst_amount': Decimal('0.00'),
-                    'total_tax': Decimal('0.00'),
-                    'cgst_rate': rate / 2,
-                    'sgst_rate': rate / 2,
-                    'gst_rate': rate
-                }
-            hsn_map[hsn]['taxable_value'] += item.taxable_value
-            hsn_map[hsn]['cgst_amount'] += item.cgst_amount
-            hsn_map[hsn]['sgst_amount'] += item.sgst_amount
-            hsn_map[hsn]['igst_amount'] += item.igst_amount
-            hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
-            
-        context['hsn_summary'] = hsn_map.values()
+        q_context = build_quotation_context(self.object)
+        context.update(q_context)
         return render(request, self.template_name, context)
+
 
 
 def quotation_convert_to_invoice(request, pk):
     company = request.user.company
     q = get_object_or_404(Quotation, id=pk, company=company)
+    
+    if q.status == 'CONVERTED' and q.converted_to_invoice:
+        messages.info(request, f"Quotation {q.quotation_number} has already been converted to Tax Invoice {q.converted_to_invoice.invoice_number}.")
+        return redirect('invoice_view', pk=q.converted_to_invoice.id)
     
     with transaction.atomic():
         # Generate Invoice Number
@@ -3911,6 +4124,10 @@ def quotation_convert_to_sales_order(request, pk):
     company = request.user.company
     q = get_object_or_404(Quotation, id=pk, company=company)
     
+    if q.status == 'CONVERTED' and q.converted_to_sales_order:
+        messages.info(request, f"Quotation {q.quotation_number} has already been converted to Sales Order {q.converted_to_sales_order.order_number}.")
+        return redirect('sales_order_view', pk=q.converted_to_sales_order.id)
+    
     count = SalesOrder.objects.filter(company=company).count() + 1
     so_no = f"SO-{company.financial_year}-{str(count).zfill(5)}"
     
@@ -3933,6 +4150,7 @@ def quotation_convert_to_sales_order(request, pk):
     so.save()
     
     q.status = 'CONVERTED'
+    q.converted_to_sales_order = so
     q.save()
     
     messages.success(request, f"Quotation converted to Sales Order: {so_no}")
@@ -4692,6 +4910,35 @@ class PurchaseBillDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailV
     model = PurchaseBill
     template_name = 'company/purchase_bill_detail.html'
     context_object_name = 'bill'
+
+
+class PurchaseBillPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = PurchaseBill
+    template_name = 'company/purchase_bill_pdf.html'
+    context_object_name = 'bill'
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        context = self.get_context_data(object=self.object)
+        bill = self.object
+        company = bill.company
+        supplier = bill.supplier
+        
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        supplier_state_code = str(supplier.state_code or company_state_code).strip().zfill(2)
+        is_interstate = (company_state_code != supplier_state_code)
+        
+        raw_terms = company.terms_and_conditions or ""
+        terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
+        
+        context.update({
+            'bill': bill,
+            'company': company,
+            'supplier': supplier,
+            'is_interstate': is_interstate,
+            'terms_list': terms_list,
+        })
+        return render(request, self.template_name, context)
 
 
 @transaction.atomic
@@ -6739,33 +6986,7 @@ def company_quotation_send_email(request, pk):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
     from django.template.loader import render_to_string
-    context = {'quotation': quotation}
-    total_quantity = sum(item.quantity for item in quotation.items.all())
-    context['total_quantity'] = total_quantity
-    
-    hsn_map = {}
-    for item in quotation.items.all():
-        hsn = item.hsn_sac_code or ''
-        rate = item.gst_rate
-        if hsn not in hsn_map:
-            hsn_map[hsn] = {
-                'hsn': hsn,
-                'taxable_value': Decimal('0.00'),
-                'cgst_amount': Decimal('0.00'),
-                'sgst_amount': Decimal('0.00'),
-                'igst_amount': Decimal('0.00'),
-                'total_tax': Decimal('0.00'),
-                'cgst_rate': rate / Decimal('2.00'),
-                'sgst_rate': rate / Decimal('2.00'),
-                'gst_rate': rate
-            }
-        hsn_map[hsn]['taxable_value'] += item.taxable_value
-        hsn_map[hsn]['cgst_amount'] += item.cgst_amount
-        hsn_map[hsn]['sgst_amount'] += item.sgst_amount
-        hsn_map[hsn]['igst_amount'] += item.igst_amount
-        hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
-    context['hsn_summary'] = hsn_map.values()
-
+    context = build_quotation_context(quotation)
     html_content = render_to_string('company/quotation_pdf.html', context, request=request)
     
     pdf_data = html_to_pdf_bytes(html_content)

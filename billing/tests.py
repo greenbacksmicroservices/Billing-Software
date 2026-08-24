@@ -5,7 +5,7 @@ from django.core.exceptions import PermissionDenied
 from decimal import Decimal
 from datetime import date, timedelta
 from .models import (
-    Company, SubscriptionPlan, Product, HSNSACMaster, Customer, Warehouse,
+    Company, SubscriptionPlan, Product, Category, Brand, HSNSACMaster, Customer, Warehouse,
     Invoice, InvoiceItem, StockMovement, Supplier, PurchaseBill,
     CreditNote, DebitNote, CustomerLedger, SupplierLedger, GSTTransaction,
     Quotation, QuotationItem, SalesOrder, SalesOrderItem, Payment, Expense
@@ -1582,6 +1582,352 @@ class BillingSoftwareTests(TestCase):
         res_chart = c.get('/company/dashboard/chart-data/?period=this_month&status_entity=invoice')
         self.assertEqual(res_chart.status_code, 200)
         self.assertIn('sales_data', res_chart.json())
+
+
+class ProductMasterAndCompanyStateTests(TestCase):
+    def setUp(self):
+        self.plan = SubscriptionPlan.objects.create(
+            name="Pro Plan",
+            monthly_price=Decimal('999.00'),
+            trial_days=14
+        )
+        self.company = Company.objects.create(
+            name="Odisha Enterprise",
+            trade_name="OE",
+            state="Odisha",
+            state_code="21",
+            city="Bhubaneswar",
+            address="Main St",
+            pincode="751001",
+            plan=self.plan
+        )
+        self.superadmin = CustomUser.objects.create_user(
+            username="superadmin_test",
+            password="password123",
+            role="SUPERADMIN"
+        )
+        self.user = CustomUser.objects.create_user(
+            username="company_admin_test",
+            password="password123",
+            role="ADMIN",
+            company=self.company
+        )
+        self.category = Category.objects.create(company=self.company, name="Electronics")
+        self.brand = Brand.objects.create(company=self.company, name="Samsung")
+
+    def test_category_search_api(self):
+        c = Client()
+        c.login(username="company_admin_test", password="password123")
+        res = c.get('/company/categories/search/?q=Elec')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['name'], "Electronics")
+
+    def test_category_quick_add(self):
+        c = Client()
+        c.login(username="company_admin_test", password="password123")
+        
+        # Test creating new category
+        res = c.post('/company/categories/quick-add/', {'name': 'Mobile Accessories'})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['created'])
+        self.assertEqual(res.json()['name'], 'Mobile Accessories')
+        self.assertTrue(Category.objects.filter(company=self.company, name='Mobile Accessories').exists())
+
+        # Test duplicate category prevention (case-insensitive)
+        res_dup = c.post('/company/categories/quick-add/', {'name': 'electronics'})
+        self.assertEqual(res_dup.status_code, 200)
+        self.assertFalse(res_dup.json()['created'])
+        self.assertEqual(res_dup.json()['id'], self.category.id)
+
+    def test_brand_search_api_and_quick_add(self):
+        c = Client()
+        c.login(username="company_admin_test", password="password123")
+        
+        # Search existing
+        res = c.get('/company/brands/search/?q=Sam')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['results'][0]['name'], "Samsung")
+
+        # Quick Add new
+        res_add = c.post('/company/brands/quick-add/', {'name': 'Apple'})
+        self.assertEqual(res_add.status_code, 200)
+        self.assertTrue(res_add.json()['created'])
+        self.assertEqual(res_add.json()['name'], 'Apple')
+
+        # Duplicate check
+        res_dup = c.post('/company/brands/quick-add/', {'name': 'samsung'})
+        self.assertEqual(res_dup.status_code, 200)
+        self.assertFalse(res_dup.json()['created'])
+        self.assertEqual(res_dup.json()['id'], self.brand.id)
+
+    def test_product_save_with_category_and_brand(self):
+        c = Client()
+        c.login(username="company_admin_test", password="password123")
+        res = c.post('/company/products/add/', {
+            'name': 'Galaxy S24',
+            'product_type': 'GOODS',
+            'selling_price': '64900.00',
+            'category': self.category.id,
+            'brand': self.brand.id
+        })
+        self.assertIn(res.status_code, [200, 302])
+        prod = Product.objects.filter(company=self.company, name='Galaxy S24').first()
+        self.assertIsNotNone(prod)
+        self.assertEqual(prod.category, self.category)
+        self.assertEqual(prod.brand, self.brand)
+
+    def test_admin_company_registration_state_validation(self):
+        c = Client()
+        c.login(username="superadmin_test", password="password123")
+        
+        # Test Mismatched State and Code (Odisha with 27 - Maharashtra code)
+        res_fail = c.post('/admin/companies/add/', {
+            'company_name': 'Invalid Co',
+            'business_type': 'PROPRIETORSHIP',
+            'gst_status': 'UNREGISTERED',
+            'email': 'invalid@co.com',
+            'mobile': '9999999999',
+            'address': 'Street 1',
+            'city': 'Bhubaneswar',
+            'state': 'Odisha',
+            'state_code': '27',
+            'pincode': '751001',
+            'owner_name': 'Owner',
+            'username': 'invalidowner',
+            'password': 'password123',
+            'plan': self.plan.id
+        })
+        self.assertEqual(res_fail.status_code, 200) # Re-renders form with error
+        self.assertFalse(Company.objects.filter(name='Invalid Co').exists())
+
+        # Test Valid State and Code (Odisha with 21)
+        res_ok = c.post('/admin/companies/add/', {
+            'company_name': 'Valid Odisha Co',
+            'business_type': 'PROPRIETORSHIP',
+            'gst_status': 'UNREGISTERED',
+            'email': 'valid@co.com',
+            'mobile': '9999999999',
+            'address': 'Street 1',
+            'city': 'Bhubaneswar',
+            'state': 'Odisha',
+            'state_code': '21',
+            'pincode': '751001',
+            'owner_name': 'Owner Valid',
+            'username': 'validowner',
+            'password': 'password123',
+            'plan': self.plan.id
+        })
+        self.assertIn(res_ok.status_code, [200, 302])
+        created = Company.objects.filter(name='Valid Odisha Co').first()
+        self.assertIsNotNone(created)
+        self.assertEqual(created.state, 'Odisha')
+        self.assertEqual(created.state_code, '21')
+
+    def test_indian_states_search_api(self):
+        c = Client()
+        c.login(username="superadmin_test", password="password123")
+        res = c.get('/api/states/search/?q=Odis')
+        self.assertEqual(res.status_code, 200)
+        results = res.json()['results']
+        self.assertTrue(any(r['code'] == '21' and 'Odisha' in r['name'] for r in results))
+
+
+class QuotationPDFRedesignTests(TestCase):
+    def setUp(self):
+        self.plan = SubscriptionPlan.objects.create(name="Enterprise", monthly_price=Decimal('1999.00'))
+        self.company = Company.objects.create(
+            name="Mega Machinery Ltd",
+            trade_name="Mega Machines",
+            state="Odisha",
+            state_code="21",
+            city="Bhubaneswar",
+            address="123 Industrial Estate",
+            pincode="751010",
+            email="sales@megamachines.com",
+            mobile="9876543210",
+            gstin="21AAAAA0000A1Z5",
+            bank_name="State Bank of India",
+            account_holder="Mega Machinery Ltd",
+            account_number="1234567890",
+            ifsc="SBIN0001234",
+            branch="Bhubaneswar Main",
+            plan=self.plan
+        )
+        self.customer = Customer.objects.create(
+            company=self.company,
+            name="Apex Processing Pvt Ltd",
+            billing_address="456 Tech Park",
+            billing_city="Bhubaneswar",
+            billing_state="Odisha",
+            billing_state_code="21",
+            billing_pincode="751024",
+            gstin="21BBBBB1111B1Z2",
+            mobile="9123456789",
+            email="purchase@apexproc.com"
+        )
+        self.user = CustomUser.objects.create_user(
+            username="quotation_admin",
+            password="password123",
+            role="ADMIN",
+            company=self.company
+        )
+        self.hsn = HSNSACMaster.objects.create(
+            company=self.company,
+            code="8438",
+            description="Industrial Machinery",
+            gst_rate=Decimal("18.00")
+        )
+        self.product = Product.objects.create(
+            company=self.company,
+            name="Pulveriser Machine 3HP",
+            hsn_sac=self.hsn,
+            description="Motor: 3 HP\nVoltage: 220V\nFrequency: 50Hz\nCapacity: 20-25 KG/Hour\nMaterial: Stainless Steel",
+            selling_price=Decimal("45000.00")
+        )
+        self.quotation = Quotation.objects.create(
+            company=self.company,
+            customer=self.customer,
+            quotation_number="QTN-2026-REDESIGN",
+            date=date.today(),
+            valid_until=date.today() + timedelta(days=30),
+            subtotal=Decimal("45000.00"),
+            taxable_value=Decimal("45000.00"),
+            cgst_total=Decimal("4050.00"),
+            sgst_total=Decimal("4050.00"),
+            igst_total=Decimal("0.00"),
+            grand_total=Decimal("53100.00"),
+            status="SENT",
+            notes="Inclusive of standard packing and warranty."
+        )
+        self.q_item = QuotationItem.objects.create(
+            quotation=self.quotation,
+            product=self.product,
+            quantity=Decimal("1.00"),
+            rate=Decimal("45000.00"),
+            discount=Decimal("0.00"),
+            taxable_value=Decimal("45000.00"),
+            gst_rate=Decimal("18.00"),
+            cgst_amount=Decimal("4050.00"),
+            sgst_amount=Decimal("4050.00"),
+            igst_amount=Decimal("0.00"),
+            hsn_sac_code="8438",
+            total_amount=Decimal("53100.00")
+        )
+
+    def test_parse_product_specifications_util(self):
+        from .utils import parse_product_specifications
+        res = parse_product_specifications(self.product.description)
+        self.assertEqual(len(res['specs']), 5)
+        spec_keys = [s['key'] for s in res['specs']]
+        self.assertIn("Motor", spec_keys)
+        self.assertIn("Voltage", spec_keys)
+        self.assertIn("Capacity", spec_keys)
+
+    def test_quotation_pdf_view_rendering(self):
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        res = c.get(f'/company/quotations/{self.quotation.id}/pdf/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "SALES QUOTATION")
+        self.assertContains(res, "Mega Machinery Ltd")
+        self.assertContains(res, "Pulveriser Machine 3HP")
+        self.assertContains(res, "Motor:")
+        self.assertContains(res, "3 HP")
+        self.assertContains(res, "State Bank of India")
+        self.assertContains(res, "QTN-2026-REDESIGN")
+
+    def test_quotation_send_email_endpoint(self):
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        res = c.post(f'/company/quotations/{self.quotation.id}/send-email/', data=json.dumps({
+            'email': 'purchase@apexproc.com'
+        }), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json().get('success'))
+
+    def test_quotation_pdf_after_conversion_to_sales_order(self):
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        
+        # Convert quotation to sales order
+        conv_res = c.get(f'/company/quotations/{self.quotation.id}/convert-so/')
+        self.assertEqual(conv_res.status_code, 302)
+        
+        self.quotation.refresh_from_db()
+        self.assertEqual(self.quotation.status, 'CONVERTED')
+        self.assertIsNotNone(self.quotation.converted_to_sales_order)
+        
+        so = self.quotation.converted_to_sales_order
+        self.assertTrue(conv_res.url.endswith(f'/company/sales-orders/{so.id}/'))
+        
+        # Request Quotation PDF after conversion
+        pdf_res = c.get(f'/company/quotations/{self.quotation.id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertContains(pdf_res, "SALES QUOTATION")
+        self.assertContains(pdf_res, self.quotation.quotation_number)
+
+    def test_prevent_duplicate_sales_order_conversion(self):
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        
+        # Initial conversion
+        c.get(f'/company/quotations/{self.quotation.id}/convert-so/')
+        initial_so_count = SalesOrder.objects.filter(company=self.company).count()
+        
+        # Second conversion attempt
+        dup_res = c.get(f'/company/quotations/{self.quotation.id}/convert-so/')
+        self.assertEqual(dup_res.status_code, 302)
+        final_so_count = SalesOrder.objects.filter(company=self.company).count()
+        
+        # Ensure no new sales order was created
+        self.assertEqual(initial_so_count, final_so_count)
+
+    def test_purchase_bill_pdf_endpoint(self):
+        from billing.models import Supplier, PurchaseBill, PurchaseBillItem
+        supplier = Supplier.objects.create(company=self.company, name="Tech Supply Co", gstin="27AAAAA0000A1Z5")
+        bill = PurchaseBill.objects.create(
+            company=self.company, supplier=supplier, supplier_bill_no="SUP-BILL-999",
+            bill_date=date.today(), due_date=date.today(), subtotal=Decimal('1000.00'),
+            taxable_value=Decimal('1000.00'), grand_total=Decimal('1180.00')
+        )
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        res = c.get(f'/company/purchase-bills/{bill.id}/pdf/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "PURCHASE BILL")
+        self.assertContains(res, "SUP-BILL-999")
+
+    def test_company_delivery_page_access(self):
+        c = Client()
+        c.login(username="quotation_admin", password="password123")
+        res = c.get('/company/delivery/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Delivery")
+        self.assertContains(res, "COMING SOON")
+        self.assertContains(res, "working on something amazing for you.")
+
+    def test_admin_delivery_page_access(self):
+        from billing.models import CustomUser
+        super_admin = CustomUser.objects.create_superuser(username="saas_admin", email="admin@saas.com", password="adminpassword123", role="SUPERADMIN")
+        c = Client()
+        c.login(username="saas_admin", password="adminpassword123")
+        res = c.get('/admin/delivery/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Delivery")
+        self.assertContains(res, "COMING SOON")
+
+    def test_unauthenticated_delivery_access(self):
+        c = Client()
+        res_comp = c.get('/company/delivery/')
+        self.assertEqual(res_comp.status_code, 302)
+        res_admin = c.get('/admin/delivery/')
+        self.assertEqual(res_admin.status_code, 403)
+
+
+
+
 
 
 

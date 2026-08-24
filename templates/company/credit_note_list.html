@@ -209,21 +209,27 @@
         const notes = notesEl ? notesEl.value : '';
 
         if (!invoiceId) {
-            window.setElementText('cn-error-msg', "Please select a sales invoice reference.");
+            const msg = "Please select a sales invoice reference.";
+            window.setElementText('cn-error-msg', msg);
             window.setElementDisplay('cn-error-msg', 'block');
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
 
         if (!noteNo || !noteDate || !reason || subtotal <= 0) {
-            window.setElementText('cn-error-msg', "Please fill in all required fields and provide a valid taxable value greater than 0.");
+            const msg = "Please fill in all required fields and provide a valid taxable value greater than 0.";
+            window.setElementText('cn-error-msg', msg);
             window.setElementDisplay('cn-error-msg', 'block');
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
 
         const maxTaxable = window.parseMoney(subtotalEl.dataset.max) || 0;
         if (maxTaxable > 0 && subtotal > maxTaxable) {
-            window.setElementText('cn-error-msg', `Credit note taxable value (${window.formatIndianCurrency(subtotal)}) cannot exceed original invoice taxable value (${window.formatIndianCurrency(maxTaxable)}).`);
+            const msg = `Credit note taxable value (${window.formatIndianCurrency(subtotal)}) cannot exceed original invoice taxable value (${window.formatIndianCurrency(maxTaxable)}).`;
+            window.setElementText('cn-error-msg', msg);
             window.setElementDisplay('cn-error-msg', 'block');
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
             return;
         }
 
@@ -261,8 +267,10 @@
                 closeCreditNoteModal();
                 window.location.reload();
             } else {
-                window.setElementText('cn-error-msg', data.message || "Unable to issue credit note.");
+                const msg = data.message || "Unable to issue credit note.";
+                window.setElementText('cn-error-msg', msg);
                 window.setElementDisplay('cn-error-msg', 'block');
+                if (typeof window.showToast === 'function') window.showToast('error', msg);
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
@@ -271,8 +279,10 @@
         })
         .catch(err => {
             console.error(err);
-            window.setElementText('cn-error-msg', "Connection lost. Please try again.");
+            const msg = "Connection lost. Please try again.";
+            window.setElementText('cn-error-msg', msg);
             window.setElementDisplay('cn-error-msg', 'block');
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
