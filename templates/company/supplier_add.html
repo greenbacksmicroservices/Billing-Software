@@ -78,13 +78,10 @@
                 <label class="form-label">City *</label>
                 {{ form.city }}
             </div>
-            <div class="form-group">
-                <label class="form-label">State *</label>
-                {{ form.state }}
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2;">
                 <label class="form-label">State Code *</label>
                 {{ form.state_code }}
+                <input type="hidden" name="state" id="id_state" value="{{ form.state.value|default:'' }}">
             </div>
             <div class="form-group">
                 <label class="form-label">Pincode *</label>

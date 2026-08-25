@@ -9,29 +9,41 @@
 </div>
 
 <!-- GST Status overview -->
-<div class="dashboard-grid">
-    <a href="{% url 'gst_report_gstr1' %}" class="stat-card" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">
-            <span>Output Tax Liability</span>
-            <i class="fa-solid fa-arrow-up-right-from-square" style="color: var(--destructive);"></i>
+<div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+    <!-- Card 1: Output Tax Liability -->
+    <a href="{% url 'gst_report_gstr1' %}" class="gst-stat-card" style="display: flex; flex-direction: column; justify-content: space-between; background: var(--card, #ffffff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--destructive, #ef4444); border-radius: 12px; padding: 1.25rem; text-decoration: none; color: inherit; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.95rem; font-weight: 600; color: var(--foreground, #0f172a); line-height: 1.4; word-break: break-word;">Output Tax Liability</span>
+                <i class="fa-solid fa-arrow-up-right-from-square" style="color: var(--destructive, #ef4444); font-size: 1rem; flex-shrink: 0; margin-top: 2px;"></i>
+            </div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--destructive, #ef4444); margin: 0.4rem 0; line-height: 1.2;">₹{{ output_tax }}</div>
         </div>
-        <div class="stat-card-value">₹{{ output_tax }}</div>
-        <div class="stat-card-footer">Tax collected on outward sales</div>
+        <div style="font-size: 0.825rem; color: var(--muted-foreground, #64748b); font-weight: 500; margin-top: 0.5rem;">Tax collected on outward sales</div>
     </a>
     
-    <a href="{% url 'gst_report_gstr3b' %}" class="stat-card" style="text-decoration: none; color: inherit;">
-        <div class="stat-card-header">
-            <span>Eligible Input Tax Credit (ITC)</span>
-            <i class="fa-solid fa-arrow-down-left-and-arrow-up-right-to-center" style="color: var(--success);"></i>
+    <!-- Card 2: Eligible Input Tax Credit (ITC) -->
+    <a href="{% url 'gst_report_gstr3b' %}" class="gst-stat-card" style="display: flex; flex-direction: column; justify-content: space-between; background: var(--card, #ffffff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--success, #10b981); border-radius: 12px; padding: 1.25rem; text-decoration: none; color: inherit; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.95rem; font-weight: 600; color: var(--foreground, #0f172a); line-height: 1.4; word-break: break-word;">Eligible Input Tax Credit (ITC)</span>
+                <i class="fa-solid fa-arrow-down-left-and-arrow-up-right-to-center" style="color: var(--success, #10b981); font-size: 1rem; flex-shrink: 0; margin-top: 2px;"></i>
+            </div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--success, #10b981); margin: 0.4rem 0; line-height: 1.2;">₹{{ input_tax }}</div>
         </div>
-        <div class="stat-card-value">₹{{ input_tax }}</div>
-        <div class="stat-card-footer">Tax paid on business purchases</div>
+        <div style="font-size: 0.825rem; color: var(--muted-foreground, #64748b); font-weight: 500; margin-top: 0.5rem;">Tax paid on business purchases</div>
     </a>
 
-    <a href="{% url 'gst_report_gstr3b' %}" class="stat-card" style="border-left: 4px solid var(--primary); text-decoration: none; color: inherit;">
-        <div class="stat-card-header">Estimated Net GST Payable</div>
-        <div class="stat-card-value">₹{{ net_payable }}</div>
-        <div class="stat-card-footer">Formula: Output - ITC</div>
+    <!-- Card 3: Estimated Net GST Payable -->
+    <a href="{% url 'gst_report_gstr3b' %}" class="gst-stat-card" style="display: flex; flex-direction: column; justify-content: space-between; background: var(--card, #ffffff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--primary, #2563eb); border-radius: 12px; padding: 1.25rem; text-decoration: none; color: inherit; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.95rem; font-weight: 600; color: var(--foreground, #0f172a); line-height: 1.4; word-break: break-word;">Estimated Net GST Payable</span>
+                <i class="fa-solid fa-calculator" style="color: var(--primary, #2563eb); font-size: 1rem; flex-shrink: 0; margin-top: 2px;"></i>
+            </div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary, #2563eb); margin: 0.4rem 0; line-height: 1.2;">₹{{ net_payable }}</div>
+        </div>
+        <div style="font-size: 0.825rem; color: var(--muted-foreground, #64748b); font-weight: 500; margin-top: 0.5rem;">Formula: Output - ITC</div>
     </a>
 </div>
 

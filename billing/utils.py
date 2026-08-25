@@ -38,7 +38,7 @@ def parse_money(value):
     clean_val = re.sub(r'(?i)\b(inr|rupees?)\b', '', s_val)
     clean_val = re.sub(r'(?i)rs\.?', '', clean_val)
     clean_val = re.sub(r'[₹$€£\u20B9\u00A0]', '', clean_val)
-    clean_val = clean_val.replace(',', '').replace(' ', '').strip()
+    clean_val = clean_val.replace('%', '').replace(',', '').replace(' ', '').strip()
 
     # If minus sign was after currency symbol like ₹-500
     if clean_val.startswith('-'):
@@ -209,9 +209,10 @@ def calculate_item_gst(company_state_code, pos_state_code, taxable_value, gst_ra
     return cgst, sgst, igst, total_gst
 
 
-def recalculate_invoice_totals(invoice):
+def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=None, payment_percentage=None, advance_paid=None, payment_status=None):
     """
-    Recalculates all mathematical fields of an Invoice from its items.
+    Recalculates invoice totals, GST breakdowns, round off, and payment settlement fields.
+    Updates invoice in-memory. Caller is responsible for calling invoice.save().
     """
     items = invoice.items.all()
     subtotal = Decimal('0.00')
@@ -233,7 +234,7 @@ def recalculate_invoice_totals(invoice):
         taxable = gross - disc_amt
         
         # If product is tax_inclusive, strip tax from rate on backend
-        if item.product.tax_inclusive:
+        if item.product and item.product.tax_inclusive:
             taxable = gross / (Decimal('1.00') + (Decimal(item.gst_rate) / Decimal('100.00')))
             taxable = taxable - disc_amt
             
@@ -250,7 +251,7 @@ def recalculate_invoice_totals(invoice):
         item.cgst_amount = cgst
         item.sgst_amount = sgst
         item.igst_amount = igst
-        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if item.product.hsn_sac else Decimal('0.00'))
+        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if (item.product and item.product.hsn_sac and hasattr(item.product.hsn_sac, 'cess_rate')) else Decimal('0.00'))
         item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
         item.save()
         
@@ -277,6 +278,81 @@ def recalculate_invoice_totals(invoice):
     rounded_total = quantize_amount(gross_total.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
     invoice.round_off = quantize_amount(rounded_total - gross_total)
     invoice.grand_total = rounded_total
+
+    # --- Payment Details Calculation ---
+    if advance_paid in (False, 'false', 'False', 'no', 'No', '0'):
+        adv_val = Decimal('0.00')
+    elif advance_amount is not None and str(advance_amount).strip() != '':
+        adv_val = parse_money(advance_amount)
+    else:
+        adv_val = invoice.advance_amount or Decimal('0.00')
+
+    if adv_val < Decimal('0.00'):
+        raise ValueError("Advance payment amount cannot be negative.")
+
+    pct_val = Decimal('0.00')
+    paid_now_val = Decimal('0.00')
+
+    has_paid_now_param = amount_paid_now is not None and str(amount_paid_now).strip() != ''
+    has_pct_param = payment_percentage is not None and str(payment_percentage).strip() != ''
+
+    if has_paid_now_param:
+        paid_now_val = parse_money(amount_paid_now)
+        if paid_now_val < Decimal('0.00'):
+            raise ValueError("Amount paid now cannot be negative.")
+        if invoice.grand_total > Decimal('0.00'):
+            pct_val = quantize_amount((paid_now_val / invoice.grand_total) * Decimal('100.00'))
+    elif has_pct_param:
+        pct_val = parse_money(payment_percentage)
+        if pct_val < Decimal('0.00') or pct_val > Decimal('100.00'):
+            raise ValueError("Payment percentage must be between 0% and 100%.")
+        if invoice.grand_total > Decimal('0.00'):
+            paid_now_val = quantize_amount(invoice.grand_total * (pct_val / Decimal('100.00')))
+    else:
+        paid_now_val = invoice.amount_paid_now or Decimal('0.00')
+        pct_val = invoice.payment_percentage or Decimal('0.00')
+        if invoice.grand_total > Decimal('0.00') and paid_now_val > Decimal('0.00') and pct_val == Decimal('0.00'):
+            pct_val = quantize_amount((paid_now_val / invoice.grand_total) * Decimal('100.00'))
+
+    # Dropdown override handling
+    if payment_status == 'PAID':
+        paid_now_val = max(Decimal('0.00'), invoice.grand_total - adv_val)
+    elif payment_status == 'UNPAID':
+        adv_val = Decimal('0.00')
+        paid_now_val = Decimal('0.00')
+
+    total_rec = quantize_amount(adv_val + paid_now_val)
+    if total_rec > invoice.grand_total:
+        raise ValueError("Payment amount cannot exceed the invoice total.")
+
+    bal_due = quantize_amount(max(Decimal('0.00'), invoice.grand_total - total_rec))
+
+    if total_rec == Decimal('0.00'):
+        pmt_status = 'UNPAID'
+    elif total_rec >= invoice.grand_total:
+        pmt_status = 'PAID'
+    else:
+        pmt_status = 'PARTIALLY_PAID'
+
+    if payment_status in ('UNPAID', 'PARTIALLY_PAID', 'PAID') and not has_paid_now_param and not has_pct_param:
+        pmt_status = payment_status
+
+    invoice.advance_amount = adv_val
+    invoice.amount_paid_now = paid_now_val
+    invoice.payment_percentage = pct_val
+    invoice.total_payment_received = total_rec
+    invoice.balance_due = bal_due
+    invoice.paid_amount = total_rec
+    invoice.payment_status = pmt_status
+
+    if invoice.status not in ('CANCELLED', 'DRAFT'):
+        if pmt_status == 'PAID':
+            invoice.status = 'PAID'
+        elif pmt_status == 'PARTIALLY_PAID':
+            invoice.status = 'PARTIALLY_PAID'
+        else:
+            invoice.status = 'POSTED'
+
     invoice.save()
 
 
@@ -314,7 +390,7 @@ def recalculate_purchase_totals(bill):
         item.cgst_amount = cgst
         item.sgst_amount = sgst
         item.igst_amount = igst
-        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if item.product.hsn_sac else Decimal('0.00'))
+        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if item.product and item.product.hsn_sac else Decimal('0.00'))
         item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
         item.save()
         
@@ -433,7 +509,7 @@ def log_action(user, action, module, record_id=None, old_values=None, new_values
 
 
 def record_invoice_accounting(invoice):
-    from .models import GSTTransaction, CustomerLedger
+    from .models import GSTTransaction, CustomerLedger, Payment
     company = invoice.company
     
     # Delete existing transactions for this invoice if any to prevent duplicate accumulation
@@ -478,6 +554,40 @@ def record_invoice_accounting(invoice):
             'running_balance': invoice.customer.outstanding_balance
         }
     )
+
+    if invoice.total_payment_received > Decimal('0.00'):
+        pmt_obj, _ = Payment.objects.update_or_create(
+            company=company,
+            invoice=invoice,
+            payment_type='RECEIPT',
+            defaults={
+                'customer': invoice.customer,
+                'amount': invoice.total_payment_received,
+                'payment_date': invoice.invoice_date,
+                'payment_method': invoice.payment_method or 'CASH',
+                'reference_no': f"PAY-{invoice.invoice_number}",
+                'notes': f"Payment for Invoice {invoice.invoice_number}"
+            }
+        )
+        CustomerLedger.objects.update_or_create(
+            company=company,
+            customer=invoice.customer,
+            entry_type='PAYMENT',
+            reference_id=pmt_obj.id,
+            defaults={
+                'reference_no': pmt_obj.reference_no or f"PAY-{invoice.invoice_number}",
+                'date': invoice.invoice_date,
+                'description': f"Payment received for Invoice {invoice.invoice_number}",
+                'debit': Decimal('0.00'),
+                'credit': invoice.total_payment_received,
+                'running_balance': invoice.customer.outstanding_balance
+            }
+        )
+    else:
+        old_pmts = Payment.objects.filter(company=company, invoice=invoice, payment_type='RECEIPT')
+        for old_pmt in old_pmts:
+            CustomerLedger.objects.filter(company=company, entry_type='PAYMENT', reference_id=old_pmt.id).delete()
+        old_pmts.delete()
 
 
 def cancel_invoice_accounting(invoice):
@@ -707,46 +817,46 @@ def build_products_json(products):
 
 
 INDIAN_STATES_AND_UTS = [
-    {'code': '01', 'name': 'Jammu and Kashmir'},
-    {'code': '02', 'name': 'Himachal Pradesh'},
-    {'code': '03', 'name': 'Punjab'},
-    {'code': '04', 'name': 'Chandigarh'},
-    {'code': '05', 'name': 'Uttarakhand'},
-    {'code': '06', 'name': 'Haryana'},
-    {'code': '07', 'name': 'Delhi'},
-    {'code': '08', 'name': 'Rajasthan'},
-    {'code': '09', 'name': 'Uttar Pradesh'},
-    {'code': '10', 'name': 'Bihar'},
-    {'code': '11', 'name': 'Sikkim'},
-    {'code': '12', 'name': 'Arunachal Pradesh'},
-    {'code': '13', 'name': 'Nagaland'},
-    {'code': '14', 'name': 'Manipur'},
-    {'code': '15', 'name': 'Mizoram'},
-    {'code': '16', 'name': 'Tripura'},
-    {'code': '17', 'name': 'Meghalaya'},
-    {'code': '18', 'name': 'Assam'},
-    {'code': '19', 'name': 'West Bengal'},
-    {'code': '20', 'name': 'Jharkhand'},
-    {'code': '21', 'name': 'Odisha'},
-    {'code': '22', 'name': 'Chhattisgarh'},
-    {'code': '23', 'name': 'Madhya Pradesh'},
-    {'code': '24', 'name': 'Gujarat'},
-    {'code': '25', 'name': 'Daman and Diu'},
-    {'code': '26', 'name': 'Dadra and Nagar Haveli and Daman and Diu'},
-    {'code': '27', 'name': 'Maharashtra'},
-    {'code': '28', 'name': 'Andhra Pradesh (Old)'},
-    {'code': '29', 'name': 'Karnataka'},
-    {'code': '30', 'name': 'Goa'},
-    {'code': '31', 'name': 'Lakshadweep'},
-    {'code': '32', 'name': 'Kerala'},
-    {'code': '33', 'name': 'Tamil Nadu'},
-    {'code': '34', 'name': 'Puducherry'},
-    {'code': '35', 'name': 'Andaman and Nicobar Islands'},
-    {'code': '36', 'name': 'Telangana'},
-    {'code': '37', 'name': 'Andhra Pradesh'},
-    {'code': '38', 'name': 'Ladakh'},
-    {'code': '97', 'name': 'Other Territory'},
-    {'code': '99', 'name': 'Centre Jurisdiction'},
+    {'code': '01', 'name': 'Jammu and Kashmir', 'display': 'Jammu and Kashmir (01)'},
+    {'code': '02', 'name': 'Himachal Pradesh', 'display': 'Himachal Pradesh (02)'},
+    {'code': '03', 'name': 'Punjab', 'display': 'Punjab (03)'},
+    {'code': '04', 'name': 'Chandigarh', 'display': 'Chandigarh (04)'},
+    {'code': '05', 'name': 'Uttarakhand', 'display': 'Uttarakhand (05)'},
+    {'code': '06', 'name': 'Haryana', 'display': 'Haryana (06)'},
+    {'code': '07', 'name': 'Delhi', 'display': 'Delhi (07)'},
+    {'code': '08', 'name': 'Rajasthan', 'display': 'Rajasthan (08)'},
+    {'code': '09', 'name': 'Uttar Pradesh', 'display': 'Uttar Pradesh (09)'},
+    {'code': '10', 'name': 'Bihar', 'display': 'Bihar (10)'},
+    {'code': '11', 'name': 'Sikkim', 'display': 'Sikkim (11)'},
+    {'code': '12', 'name': 'Arunachal Pradesh', 'display': 'Arunachal Pradesh (12)'},
+    {'code': '13', 'name': 'Nagaland', 'display': 'Nagaland (13)'},
+    {'code': '14', 'name': 'Manipur', 'display': 'Manipur (14)'},
+    {'code': '15', 'name': 'Mizoram', 'display': 'Mizoram (15)'},
+    {'code': '16', 'name': 'Tripura', 'display': 'Tripura (16)'},
+    {'code': '17', 'name': 'Meghalaya', 'display': 'Meghalaya (17)'},
+    {'code': '18', 'name': 'Assam', 'display': 'Assam (18)'},
+    {'code': '19', 'name': 'West Bengal', 'display': 'West Bengal (19)'},
+    {'code': '20', 'name': 'Jharkhand', 'display': 'Jharkhand (20)'},
+    {'code': '21', 'name': 'Odisha', 'display': 'Odisha (21)'},
+    {'code': '22', 'name': 'Chhattisgarh', 'display': 'Chhattisgarh (22)'},
+    {'code': '23', 'name': 'Madhya Pradesh', 'display': 'Madhya Pradesh (23)'},
+    {'code': '24', 'name': 'Gujarat', 'display': 'Gujarat (24)'},
+    {'code': '25', 'name': 'Daman and Diu', 'display': 'Daman and Diu (25)'},
+    {'code': '26', 'name': 'Dadra and Nagar Haveli and Daman and Diu', 'display': 'Dadra and Nagar Haveli and Daman and Diu (26)'},
+    {'code': '27', 'name': 'Maharashtra', 'display': 'Maharashtra (27)'},
+    {'code': '28', 'name': 'Andhra Pradesh (Old)', 'display': 'Andhra Pradesh (Old) (28)'},
+    {'code': '29', 'name': 'Karnataka', 'display': 'Karnataka (29)'},
+    {'code': '30', 'name': 'Goa', 'display': 'Goa (30)'},
+    {'code': '31', 'name': 'Lakshadweep', 'display': 'Lakshadweep (31)'},
+    {'code': '32', 'name': 'Kerala', 'display': 'Kerala (32)'},
+    {'code': '33', 'name': 'Tamil Nadu', 'display': 'Tamil Nadu (33)'},
+    {'code': '34', 'name': 'Puducherry', 'display': 'Puducherry (34)'},
+    {'code': '35', 'name': 'Andaman and Nicobar Islands', 'display': 'Andaman and Nicobar Islands (35)'},
+    {'code': '36', 'name': 'Telangana', 'display': 'Telangana (36)'},
+    {'code': '37', 'name': 'Andhra Pradesh', 'display': 'Andhra Pradesh (37)'},
+    {'code': '38', 'name': 'Ladakh', 'display': 'Ladakh (38)'},
+    {'code': '97', 'name': 'Other Territory', 'display': 'Other Territory (97)'},
+    {'code': '99', 'name': 'Centre Jurisdiction', 'display': 'Centre Jurisdiction (99)'},
 ]
 
 INDIAN_STATE_CODE_MAP = {item['code']: item['name'] for item in INDIAN_STATES_AND_UTS}
@@ -757,6 +867,50 @@ def get_state_code_for_name(state_name):
         return None
     cleaned = state_name.strip().lower()
     return INDIAN_STATE_NAME_MAP.get(cleaned)
+
+def parse_state_and_code(val, fallback_code=None):
+    """
+    Parses input string like 'Odisha (21)', '21', or 'Odisha'
+    and returns tuple (state_name, 2-digit state_code).
+    """
+    if not val:
+        if fallback_code:
+            code_fmt = str(fallback_code).strip().zfill(2)
+            name = INDIAN_STATE_CODE_MAP.get(code_fmt, '')
+            return name, code_fmt
+        return '', ''
+
+    str_val = str(val).strip()
+    if '(' in str_val and ')' in str_val:
+        try:
+            name_part = str_val.rsplit('(', 1)[0].strip()
+            code_part = str_val.rsplit('(', 1)[1].replace(')', '').strip().zfill(2)
+            if code_part in INDIAN_STATE_CODE_MAP:
+                return INDIAN_STATE_CODE_MAP[code_part], code_part
+            return name_part, code_part
+        except Exception:
+            pass
+
+    if str_val.isdigit() or len(str_val) <= 2:
+        code_fmt = str_val.zfill(2)
+        if code_fmt in INDIAN_STATE_CODE_MAP:
+            return INDIAN_STATE_CODE_MAP[code_fmt], code_fmt
+
+    code_match = INDIAN_STATE_NAME_MAP.get(str_val.lower())
+    if code_match:
+        return INDIAN_STATE_CODE_MAP[code_match], code_match
+
+    return str_val, str(fallback_code or '').strip().zfill(2)
+
+def format_state_display(state_name, state_code):
+    s_name, s_code = parse_state_and_code(state_name, fallback_code=state_code)
+    if s_name and s_code:
+        return f"{s_name} ({s_code})"
+    elif s_name:
+        return s_name
+    elif s_code:
+        return f"State ({s_code})"
+    return ""
 
 def validate_state_and_code(state_name, state_code):
     """
@@ -812,5 +966,101 @@ def parse_product_specifications(description):
             notes.append(line)
             
     return {'specs': specs, 'notes': notes}
+
+
+DEFAULT_PREDEFINED_QUOTATION_TERMS = [
+    "Payment must be made according to the agreed payment terms.",
+    "Quotation is valid only for the specified validity period.",
+    "Prices are subject to applicable GST/taxes.",
+    "Delivery will be made according to the agreed schedule.",
+    "Any additional work or requirements may be charged separately.",
+    "Goods/services once confirmed cannot be cancelled without mutual agreement.",
+    "Any dispute will be subject to the applicable jurisdiction."
+]
+
+def get_or_create_predefined_quotation_terms(company=None):
+    from django.db import models
+    from .models import QuotationPredefinedTerm
+    existing = QuotationPredefinedTerm.objects.filter(
+        models.Q(company=company) | models.Q(company__isnull=True),
+        is_active=True
+    )
+    if not existing.exists():
+        terms_to_create = []
+        for idx, text in enumerate(DEFAULT_PREDEFINED_QUOTATION_TERMS):
+            terms_to_create.append(QuotationPredefinedTerm(
+                company=company,
+                term_text=text,
+                display_order=idx + 1,
+                is_active=True
+            ))
+        QuotationPredefinedTerm.objects.bulk_create(terms_to_create)
+        existing = QuotationPredefinedTerm.objects.filter(
+            models.Q(company=company) | models.Q(company__isnull=True),
+            is_active=True
+        )
+    return existing.order_by('display_order', 'id')
+
+
+def recalculate_quotation_totals(quotation):
+    items = quotation.items.all()
+    subtotal = Decimal('0.00')
+    discount_total = Decimal('0.00')
+    taxable_value = Decimal('0.00')
+    cgst_total = Decimal('0.00')
+    sgst_total = Decimal('0.00')
+    igst_total = Decimal('0.00')
+    cess_total = Decimal('0.00')
+
+    for item in items:
+        qty = Decimal(item.quantity)
+        rate = Decimal(item.rate)
+        disc_amt = Decimal(item.discount)
+        
+        gross = qty * rate
+        taxable = gross - disc_amt
+        
+        if item.product and getattr(item.product, 'tax_inclusive', False):
+            taxable = gross / (Decimal('1.00') + (Decimal(item.gst_rate) / Decimal('100.00')))
+            taxable = taxable - disc_amt
+
+        item.taxable_value = quantize_amount(taxable)
+        
+        cgst, sgst, igst, total_gst = calculate_item_gst(
+            quotation.company.state_code,
+            quotation.customer.billing_state_code or quotation.company.state_code,
+            item.taxable_value,
+            item.gst_rate
+        )
+        item.cgst_amount = cgst
+        item.sgst_amount = sgst
+        item.igst_amount = igst
+        
+        cess_rate_val = item.product.hsn_sac.cess_rate if (item.product and item.product.hsn_sac and hasattr(item.product.hsn_sac, 'cess_rate')) else Decimal('0.00')
+        item.cess_amount = quantize_amount(item.taxable_value * (Decimal(cess_rate_val) / Decimal('100.00')))
+        item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
+        item.save()
+
+        subtotal += gross
+        discount_total += disc_amt
+        taxable_value += item.taxable_value
+        cgst_total += item.cgst_amount
+        sgst_total += item.sgst_amount
+        igst_total += item.igst_amount
+        cess_total += item.cess_amount
+
+    quotation.subtotal = quantize_amount(subtotal)
+    quotation.discount_total = quantize_amount(discount_total)
+    quotation.taxable_value = quantize_amount(taxable_value)
+    quotation.cgst_total = quantize_amount(cgst_total)
+    quotation.sgst_total = quantize_amount(sgst_total)
+    quotation.igst_total = quantize_amount(igst_total)
+    quotation.cess_total = quantize_amount(cess_total)
+
+    gross_total = quotation.taxable_value + quotation.cgst_total + quotation.sgst_total + quotation.igst_total + quotation.cess_total
+    rounded_total = quantize_amount(gross_total.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+    quotation.round_off = quantize_amount(rounded_total - gross_total)
+    quotation.grand_total = rounded_total
+    quotation.save()
 
 

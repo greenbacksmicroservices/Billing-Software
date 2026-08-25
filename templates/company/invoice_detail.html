@@ -14,6 +14,11 @@
         <a href="{% url 'invoice_list' %}" class="btn btn-secondary">
             <i class="fa-solid fa-arrow-left"></i> Back
         </a>
+        {% if invoice.status != 'CANCELLED' %}
+            <a href="{% url 'invoice_edit' invoice.id %}" class="btn btn-secondary">
+                <i class="fa-solid fa-pen-to-square"></i> Edit
+            </a>
+        {% endif %}
         <a href="{% url 'invoice_pdf' invoice.id %}" target="_blank" class="btn btn-secondary">
             <i class="fa-solid fa-print"></i> Print / Download PDF
         </a>
@@ -176,13 +181,13 @@
                 <thead>
                     <tr>
                         <th style="width: 5%;" class="p-text-center">Sl No.</th>
-                        <th style="width: 45%;">Description of Goods</th>
+                        <th style="width: 40%;">Description of Goods</th>
                         <th style="width: 10%;" class="p-text-center">HSN/SAC</th>
                         <th style="width: 8%;" class="p-text-right">Quantity</th>
                         <th style="width: 10%;" class="p-text-right">Rate</th>
-                        <th style="width: 7%;" class="p-text-center">per</th>
+                        <th style="width: 7%;" class="p-text-center">GST %</th>
                         <th style="width: 7%;" class="p-text-right">Disc.</th>
-                        <th style="width: 8%;" class="p-text-right">Amount</th>
+                        <th style="width: 13%;" class="p-text-right">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -198,7 +203,7 @@
                             <td class="p-text-center"><code>{{ item.hsn_code|default:"-" }}</code></td>
                             <td class="p-text-right">{{ item.quantity }}</td>
                             <td class="p-text-right">₹{{ item.rate }}</td>
-                            <td class="p-text-center">{{ item.product.unit.code|default:"PCS" }}</td>
+                            <td class="p-text-center">{{ item.gst_rate }}%</td>
                             <td class="p-text-right">₹{{ item.discount }}</td>
                             <td class="p-text-right p-bold">₹{{ item.total_amount }}</td>
                         </tr>
@@ -286,6 +291,24 @@
                 Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong> Rupees Only.
             </div>
 
+            <!-- PAYMENT DETAILS PREVIEW TABLE -->
+            <div style="font-size: 11px; font-weight: 800; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 10px; background: #f5f5f5; color: #000; margin-bottom: 6px; text-transform: uppercase;">
+                PAYMENT DETAILS
+            </div>
+            <table class="preview-invoice-table p-border-bottom" style="margin-bottom: 8px; font-size: 9.5px;">
+                <tr>
+                    <td style="width: 50%; padding: 4px 10px;" class="p-border-right">
+                        Advance / Previous Payment: <strong>₹{{ invoice.advance_amount }}</strong><br>
+                        Amount Paid Now: <strong>₹{{ invoice.amount_paid_now }}</strong>
+                    </td>
+                    <td style="width: 50%; padding: 4px 10px;">
+                        Total Payment Received: <strong>₹{{ invoice.total_payment_received }}</strong><br>
+                        Remaining Balance: <strong>₹{{ invoice.balance_due }}</strong><br>
+                        Payment Status: <strong>{{ invoice.get_payment_status_display }}</strong>
+                    </td>
+                </tr>
+            </table>
+
             <!-- Bank details & Declaration -->
             <table class="preview-invoice-table p-border-bottom" style="margin-bottom: 8px;">
                 <tr>
@@ -354,8 +377,41 @@
         {% endif %}
     </div>
 
-    <!-- Settlement, Calculations & QR Payments -->
+    <!-- Settlement, Calculations & Payment Details Card -->
     <div>
+        <div class="card-container" style="margin-bottom: 1.5rem;">
+            <div class="card-header"><h3 class="card-title">Payment Details</h3></div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Advance / Previous Payment:</span>
+                    <span>₹{{ invoice.advance_amount }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Amount Paid Now:</span>
+                    <span>₹{{ invoice.amount_paid_now }}</span>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border);">
+
+                <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--success, #16a34a);">
+                    <span>Total Payment Received:</span>
+                    <span>₹{{ invoice.total_payment_received }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--destructive, #dc2626);">
+                    <span>Remaining Balance:</span>
+                    <span>₹{{ invoice.balance_due }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 0.5rem; margin-top: 0.25rem;">
+                    <span>Payment Status:</span>
+                    <span class="badge" style="font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 700; {% if invoice.payment_status == 'PAID' %}background: #dcfce7; color: #15803d;{% elif invoice.payment_status == 'PARTIALLY_PAID' %}background: #fef9c3; color: #a16207;{% else %}background: #e2e8f0; color: #475569;{% endif %}">
+                        {{ invoice.get_payment_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
         <div class="card-container">
             <div class="card-header"><h3 class="card-title">Financial Breakdown</h3></div>
             <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem;">
@@ -409,16 +465,6 @@
                 <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
                     <span>Grand Total:</span>
                     <span>₹{{ invoice.grand_total }}</span>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                    <span>Settled Amount:</span>
-                    <span>₹{{ invoice.paid_amount }}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 600; color: var(--destructive); background-color: rgba(239,68,68,0.05); padding: 0.4rem; border-radius: var(--radius);">
-                    <span>Net Balance:</span>
-                    <span>₹{{ invoice.outstanding_amount }}</span>
                 </div>
             </div>
         </div>

@@ -120,6 +120,54 @@
             </div>
         </div>
 
+        <!-- TERMS & CONDITIONS SECTION -->
+        <div class="card-container" style="margin-top: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+            <div style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-file-contract" style="color: var(--primary);"></i> Terms & Conditions
+                </h3>
+                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;" onclick="showAddCustomTermModal()">
+                    <i class="fa-solid fa-plus"></i> Add Term
+                </button>
+            </div>
+            <div>
+                <p style="font-size: 0.85rem; color: var(--muted-foreground); margin-top: 0; margin-bottom: 1rem;">
+                    Select the terms & conditions to include in this quotation. Unchecked terms will not be displayed on the quotation document.
+                </p>
+
+                <div id="terms-list-container" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                    {% for pt in predefined_terms %}
+                        <div class="term-checkbox-item" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--muted-bg, #f8fafc); border: 1px solid var(--border);">
+                            <input type="checkbox" class="quotation-term-checkbox" id="term_pred_{{ pt.id }}" data-term-text="{{ pt.term_text }}" data-is-custom="false" style="margin-top: 0.2rem; cursor: pointer; width: 16px; height: 16px;" {% if pt.is_selected_in_quotation %}checked{% endif %}>
+                            <label for="term_pred_{{ pt.id }}" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--foreground); flex: 1; line-height: 1.4;">{{ pt.term_text }}</label>
+                        </div>
+                    {% endfor %}
+
+                    {% for st in quotation.selected_terms.all %}
+                        {% if st.is_custom %}
+                            <div class="term-checkbox-item" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; background: #f0fdf4; border: 1px solid #bbf7d0;">
+                                <input type="checkbox" class="quotation-term-checkbox" id="term_cust_{{ st.id }}" data-term-text="{{ st.term_text }}" data-is-custom="true" style="margin-top: 0.2rem; cursor: pointer; width: 16px; height: 16px;" checked>
+                                <label for="term_cust_{{ st.id }}" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--foreground); flex: 1; line-height: 1.4;">{{ st.term_text }}</label>
+                                <button type="button" class="btn btn-secondary" onclick="this.parentElement.remove()" style="padding: 0.15rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Remove custom term">
+                                    <i class="fa-solid fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Add Custom Term Form -->
+                <div id="add-custom-term-box" style="display: none; margin-top: 1rem; padding: 1rem; border: 1px dashed var(--primary); border-radius: 6px; background: var(--card);">
+                    <h5 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: 600; color: var(--foreground);">Add Custom Terms & Conditions:</h5>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="text" id="custom-term-input" class="form-control" placeholder="Type custom term & condition here..." style="flex: 1; min-width: 250px;">
+                        <button type="button" class="btn btn-primary" onclick="confirmAddCustomTerm()">Add</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideAddCustomTermModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
             <a href="{% url 'quotation_list' %}" class="btn btn-secondary">Cancel</a>
             <button type="submit" id="submit-btn" class="btn btn-primary">Update Quotation</button>
@@ -629,24 +677,75 @@
         document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
     }
 
+    function showAddCustomTermModal() {
+        const box = document.getElementById('add-custom-term-box');
+        if (box) {
+            box.style.display = 'block';
+            const input = document.getElementById('custom-term-input');
+            if (input) { input.value = ''; input.focus(); }
+        }
+    }
+
+    function hideAddCustomTermModal() {
+        const box = document.getElementById('add-custom-term-box');
+        if (box) box.style.display = 'none';
+    }
+
+    let customTermCounter = 0;
+    function confirmAddCustomTerm() {
+        const input = document.getElementById('custom-term-input');
+        const text = input ? input.value.trim() : '';
+        if (!text) return;
+
+        customTermCounter++;
+        const termId = 'term_custom_' + Date.now() + '_' + customTermCounter;
+
+        const container = document.getElementById('terms-list-container');
+        const div = document.createElement('div');
+        div.className = 'term-checkbox-item';
+        div.style.cssText = 'display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; background: #f0fdf4; border: 1px solid #bbf7d0;';
+
+        div.innerHTML = `
+            <input type="checkbox" class="quotation-term-checkbox" id="${termId}" data-term-text="${text.replace(/"/g, '&quot;')}" data-is-custom="true" style="margin-top: 0.2rem; cursor: pointer; width: 16px; height: 16px;" checked>
+            <label for="${termId}" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--foreground); flex: 1; line-height: 1.4;">${text}</label>
+            <button type="button" class="btn btn-secondary" onclick="this.parentElement.remove()" style="padding: 0.15rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Remove custom term">
+                <i class="fa-solid fa-trash"></i> Remove
+            </button>
+        `;
+        container.appendChild(div);
+        input.value = '';
+        hideAddCustomTermModal();
+    }
+
+    function getSelectedTermsPayload() {
+        const checkboxes = document.querySelectorAll('.quotation-term-checkbox:checked');
+        const terms = [];
+        checkboxes.forEach(cb => {
+            const text = cb.getAttribute('data-term-text') || cb.nextElementSibling?.innerText || '';
+            const isCustom = cb.getAttribute('data-is-custom') === 'true';
+            if (text.trim()) {
+                terms.push({ term_text: text.trim(), is_custom: isCustom });
+            }
+        });
+        return terms;
+    }
+
     function submitQuotation(e) {
         if (e) e.preventDefault();
         window.setElementDisplay('form-error-toast', 'none');
         
         const customerEl = document.getElementById('customer');
         const qNoEl = document.getElementById('quotation-number');
-        const qDateEl = document.getElementById('quotation-date');
-        const validEl = document.getElementById('valid-until');
-        const notesEl = document.getElementById('notes');
+        window.setElementText('form-error-toast', '');
 
-        const customerId = customerEl ? customerEl.value : '';
-        const qNo = qNoEl ? qNoEl.value.trim() : '';
-        const qDate = qDateEl ? qDateEl.value : '';
-        const valid = validEl ? validEl.value : '';
-        const notes = notesEl ? notesEl.value : '';
+        const customerId = document.getElementById('customer').value;
+        const qNo = document.getElementById('quotation-number').value.trim();
+        const qDate = document.getElementById('quotation-date').value;
+        const valid = document.getElementById('valid-until').value;
+        const notes = document.getElementById('notes').value.trim();
         
         if (!customerId) {
-            const msg = "Unable to update quotation. Please select a customer.";
+            const msg = "Unable to save quotation. Please select a customer.";
             window.setElementText('form-error-toast', msg);
             window.setElementDisplay('form-error-toast', 'block');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -705,6 +804,8 @@
             return;
         }
 
+        const selectedTerms = getSelectedTermsPayload();
+
         const hiddenItemsInput = document.getElementById('items-json-input');
         if (hiddenItemsInput) {
             hiddenItemsInput.value = JSON.stringify(items);
@@ -725,7 +826,15 @@
                 'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ customer_id: parseInt(customerId), quotation_number: qNo, date: qDate, valid_until: valid, notes: notes, items: items })
+            body: JSON.stringify({ 
+                customer_id: parseInt(customerId), 
+                quotation_number: qNo, 
+                date: qDate, 
+                valid_until: valid, 
+                notes: notes, 
+                items: items,
+                selected_terms: selectedTerms
+            })
         })
         .then(res => res.json())
         .then(data => {

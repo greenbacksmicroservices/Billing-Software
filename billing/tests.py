@@ -1583,6 +1583,326 @@ class BillingSoftwareTests(TestCase):
         self.assertEqual(res_chart.status_code, 200)
         self.assertIn('sales_data', res_chart.json())
 
+    def test_tax_invoice_payment_details_and_gst_enhancements(self):
+        """
+        Comprehensive test for Tax Invoice Payment Details (Advance, Current Payment, Payment %, Balance, Status),
+        Overpayment validation, Indian Currency parsing, GST itemization, GST Summary, Edit Invoice, PDF & Ledger sync.
+        """
+        c = Client()
+        c.login(username="usera", password="passworda")
+
+        self.product_a.current_stock = Decimal('1000.00')
+        self.product_a.allow_negative_stock = True
+        self.product_a.save()
+
+        # 1. Unpaid Invoice (No Advance, No Payment Now)
+        res1 = c.post('/company/invoices/add/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'invoice_number': 'INV-PAY-001',
+            'invoice_date': '2026-08-25',
+            'due_date': '2026-09-25',
+            'place_of_supply': 'Maharashtra',
+            'place_of_supply_code': '27',
+            'advance_paid': False,
+            'advance_amount': '0.00',
+            'amount_paid_now': '0.00',
+            'payment_percentage': '0.00',
+            'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 50000, 'discount': 0}]
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        
+        self.assertEqual(res1.status_code, 200)
+        inv1 = Invoice.objects.get(invoice_number='INV-PAY-001')
+        self.assertEqual(inv1.grand_total, Decimal('118000.00'))
+        self.assertEqual(inv1.advance_amount, Decimal('0.00'))
+        self.assertEqual(inv1.amount_paid_now, Decimal('0.00'))
+        self.assertEqual(inv1.total_payment_received, Decimal('0.00'))
+        self.assertEqual(inv1.balance_due, Decimal('118000.00'))
+        self.assertEqual(inv1.payment_status, 'UNPAID')
+
+        # 2. Invoice with Advance + Payment Now
+        res2 = c.post('/company/invoices/add/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'invoice_number': 'INV-PAY-002',
+            'invoice_date': '2026-08-25',
+            'due_date': '2026-09-25',
+            'place_of_supply': 'Maharashtra',
+            'place_of_supply_code': '27',
+            'advance_paid': True,
+            'advance_amount': '₹20,000.00',
+            'amount_paid_now': '30,000.00',
+            'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 50000, 'discount': 0}]
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res2.status_code, 200)
+        inv2 = Invoice.objects.get(invoice_number='INV-PAY-002')
+        self.assertEqual(inv2.advance_amount, Decimal('20000.00'))
+        self.assertEqual(inv2.amount_paid_now, Decimal('30000.00'))
+        self.assertEqual(inv2.total_payment_received, Decimal('50000.00'))
+        self.assertEqual(inv2.balance_due, Decimal('68000.00'))
+        self.assertEqual(inv2.payment_status, 'PARTIALLY_PAID')
+
+        # Check payment receipt log creation
+        pmt = Payment.objects.filter(invoice=inv2, payment_type='RECEIPT').first()
+        self.assertIsNotNone(pmt)
+        self.assertEqual(pmt.amount, Decimal('50000.00'))
+
+        # 3. Overpayment validation error
+        res_err = c.post('/company/invoices/add/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'invoice_number': 'INV-PAY-ERR',
+            'invoice_date': '2026-08-25',
+            'due_date': '2026-09-25',
+            'place_of_supply': 'Maharashtra',
+            'place_of_supply_code': '27',
+            'advance_paid': True,
+            'advance_amount': '50,000.00',
+            'amount_paid_now': '80,000.00',
+            'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 50000, 'discount': 0}]
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res_err.status_code, 400)
+        self.assertIn("Payment amount cannot exceed the invoice total", res_err.json()['message'])
+
+        # 4. Tax Invoice View & PDF rendering
+        view_res = c.get(f'/company/invoices/{inv2.id}/')
+        self.assertEqual(view_res.status_code, 200)
+
+        pdf_res = c.get(f'/company/invoices/{inv2.id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertIn('PAYMENT DETAILS', pdf_res.content.decode('utf-8'))
+
+        # 5. Edit Tax Invoice
+        edit_res = c.post(f'/company/invoices/{inv2.id}/edit/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'invoice_number': inv2.invoice_number,
+            'invoice_date': '2026-08-25',
+            'due_date': '2026-09-25',
+            'place_of_supply': 'Maharashtra',
+            'place_of_supply_code': '27',
+            'advance_paid': True,
+            'advance_amount': '20,000.00',
+            'amount_paid_now': '98,000.00',
+            'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 50000, 'discount': 0}]
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(edit_res.status_code, 200)
+        inv2.refresh_from_db()
+        self.assertEqual(inv2.total_payment_received, Decimal('118000.00'))
+        self.assertEqual(inv2.balance_due, Decimal('0.00'))
+        self.assertEqual(inv2.payment_status, 'PAID')
+
+    def test_quotation_preview_direct_tab_and_pdf_endpoint(self):
+        c = Client()
+        c.login(username="usera", password="passworda")
+
+        # Create a test quotation
+        q = Quotation.objects.create(
+            company=self.company_a,
+            customer=self.customer_in_state,
+            quotation_number='QTN-PREVIEW-001',
+            date=date.today(),
+            valid_until=date.today() + timedelta(days=15),
+            status='DRAFT'
+        )
+        QuotationItem.objects.create(
+            quotation=q, product=self.product_a, quantity=Decimal('2'),
+            rate=Decimal('5000.00'), discount=Decimal('0.00'), taxable_value=Decimal('10000.00'),
+            gst_rate=Decimal('18.00'), cgst_amount=Decimal('900.00'), sgst_amount=Decimal('900.00'),
+            igst_amount=Decimal('0.00'), total_amount=Decimal('11800.00'), hsn_sac_code='8471'
+        )
+
+        # 1. Detail page view contains direct target="_blank" link to PDF URL and NO iframe
+        res_detail = c.get(f'/company/quotations/{q.id}/')
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertIn(f'/company/quotations/{q.id}/pdf/', res_detail.content.decode('utf-8'))
+        self.assertIn('target="_blank"', res_detail.content.decode('utf-8'))
+        self.assertNotIn('<iframe', res_detail.content.decode('utf-8'))
+
+        # 2. Directly accessing PDF endpoint renders Quotation PDF
+        res_pdf = c.get(f'/company/quotations/{q.id}/pdf/')
+        self.assertEqual(res_pdf.status_code, 200)
+        self.assertIn('QTN-PREVIEW-001', res_pdf.content.decode('utf-8'))
+
+        # 3. Convert quotation to Sales Order and verify PDF endpoint still opens original Quotation PDF
+        c.post(f'/company/quotations/{q.id}/convert-so/')
+        q.refresh_from_db()
+        self.assertEqual(q.status, 'CONVERTED')
+        self.assertIsNotNone(q.converted_to_sales_order)
+
+        res_converted_pdf = c.get(f'/company/quotations/{q.id}/pdf/')
+        self.assertEqual(res_converted_pdf.status_code, 200)
+        self.assertIn('QTN-PREVIEW-001', res_converted_pdf.content.decode('utf-8'))
+
+    def test_quotation_terms_selection_edit_and_pdf_compact_spacing(self):
+        c = Client()
+        c.login(username="usera", password="passworda")
+
+        # TEST 1: Create quotation with no selected terms
+        res_no_terms = c.post('/company/quotations/add/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'quotation_number': 'QTN-TERMS-001',
+            'date': '2026-08-25',
+            'valid_until': '2026-09-25',
+            'notes': 'Test notes',
+            'items': [{'product_id': self.product_a.id, 'quantity': 1, 'rate': 1000, 'discount': 0}],
+            'selected_terms': []
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res_no_terms.status_code, 200)
+        q1 = Quotation.objects.get(quotation_number='QTN-TERMS-001')
+
+        # Check View and PDF for no terms
+        res_view1 = c.get(f'/company/quotations/{q1.id}/')
+        self.assertEqual(res_view1.status_code, 200)
+        res_pdf1 = c.get(f'/company/quotations/{q1.id}/pdf/')
+        self.assertEqual(res_pdf1.status_code, 200)
+
+        # TEST 2 & 3 & 4 & 5: Create quotation with 3 predefined terms + 2 custom terms
+        terms_payload = [
+            {'term_text': 'Payment must be made according to the agreed payment terms.', 'is_custom': False},
+            {'term_text': 'Prices are subject to applicable GST/taxes.', 'is_custom': False},
+            {'term_text': 'Delivery will be made according to the agreed schedule.', 'is_custom': False},
+            {'term_text': '50% advance payment required before starting project.', 'is_custom': True},
+            {'term_text': 'Installation charges extra as applicable.', 'is_custom': True}
+        ]
+        res_terms = c.post('/company/quotations/add/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'quotation_number': 'QTN-TERMS-002',
+            'date': '2026-08-25',
+            'valid_until': '2026-09-25',
+            'notes': 'Custom terms quotation',
+            'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 5000, 'discount': 100}],
+            'selected_terms': terms_payload
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res_terms.status_code, 200)
+        q2 = Quotation.objects.get(quotation_number='QTN-TERMS-002')
+        self.assertEqual(q2.selected_terms.count(), 5)
+
+        # TEST 6 & 8: Edit page opens and loads previously selected terms
+        res_edit_page = c.get(f'/company/quotations/{q2.id}/edit/')
+        self.assertEqual(res_edit_page.status_code, 200)
+        edit_html = res_edit_page.content.decode('utf-8')
+        self.assertIn('50% advance payment required before starting project.', edit_html)
+
+        # TEST 7 & 9: Uncheck a term, change product qty/rate, and save
+        updated_terms = [
+            {'term_text': 'Payment must be made according to the agreed payment terms.', 'is_custom': False},
+            {'term_text': '50% advance payment required before starting project.', 'is_custom': True}
+        ]
+        res_edit_save = c.post(f'/company/quotations/{q2.id}/edit/', data=json.dumps({
+            'customer_id': self.customer_in_state.id,
+            'quotation_number': 'QTN-TERMS-002',
+            'date': '2026-08-25',
+            'valid_until': '2026-09-25',
+            'notes': 'Updated terms',
+            'items': [{'product_id': self.product_a.id, 'quantity': 5, 'rate': 2000, 'discount': 0}],
+            'selected_terms': updated_terms
+        }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res_edit_save.status_code, 200)
+        q2.refresh_from_db()
+        self.assertEqual(q2.selected_terms.count(), 2)
+        self.assertEqual(q2.grand_total, Decimal('11800.00'))
+
+        # TEST 10: PDF contains compact QUOTATION INFORMATION table and updated terms, and NO Status: SENT
+        res_pdf2 = c.get(f'/company/quotations/{q2.id}/pdf/')
+        self.assertEqual(res_pdf2.status_code, 200)
+        pdf2_html = res_pdf2.content.decode('utf-8')
+        self.assertIn('QUOTATION INFORMATION', pdf2_html)
+        self.assertIn('Payment must be made according to the agreed payment terms.', pdf2_html)
+        self.assertIn('50% advance payment required before starting project.', pdf2_html)
+        self.assertNotIn('Installation charges extra as applicable.', pdf2_html)
+        self.assertNotIn('Status:', pdf2_html)
+
+    def test_gst_dashboard_cards_and_quotation_pdf_status_removed(self):
+        c = Client()
+        c.login(username="usera", password="passworda")
+
+        # 1. Test GST Dashboard Context & Cards
+        res_gst = c.get('/company/gst/dashboard/')
+        self.assertEqual(res_gst.status_code, 200)
+        self.assertIn('output_tax', res_gst.context)
+        self.assertIn('input_tax', res_gst.context)
+        self.assertIn('net_payable', res_gst.context)
+
+        gst_html = res_gst.content.decode('utf-8')
+        self.assertIn('Output Tax Liability', gst_html)
+        self.assertIn('Eligible Input Tax Credit (ITC)', gst_html)
+        self.assertIn('Estimated Net GST Payable', gst_html)
+        self.assertIn('₹' + str(res_gst.context['output_tax']), gst_html)
+        self.assertIn('₹' + str(res_gst.context['input_tax']), gst_html)
+        self.assertIn('₹' + str(res_gst.context['net_payable']), gst_html)
+
+        # 2. Test Quotation PDF status removal
+        q = Quotation.objects.create(
+            company=self.company_a,
+            customer=self.customer_in_state,
+            quotation_number='QTN-STATUS-TEST-001',
+            date=date.today(),
+            valid_until=date.today(),
+            status='SENT',
+            grand_total=Decimal('1000.00')
+        )
+        res_pdf = c.get(f'/company/quotations/{q.id}/pdf/')
+        self.assertEqual(res_pdf.status_code, 200)
+        pdf_html = res_pdf.content.decode('utf-8')
+        self.assertNotIn('Status:', pdf_html)
+        self.assertNotIn('Status: SENT', pdf_html)
+        # Verify DB status is untouched
+        q.refresh_from_db()
+        self.assertEqual(q.status, 'SENT')
+
+    def test_hsn_sac_search_assignment_and_gst_dashboard_visibility(self):
+        c = Client()
+        c.login(username="usera", password="passworda")
+
+        # 1. Product Add page loads searchable HSN/SAC components cleanly
+        res_add_page = c.get('/company/products/add/')
+        self.assertEqual(res_add_page.status_code, 200)
+        html_add = res_add_page.content.decode('utf-8')
+        self.assertIn('id="hsn_search_input"', html_add)
+        self.assertIn('id="hsn_options_list"', html_add)
+        self.assertIn('HSN/SAC Code Assignment', html_add)
+
+        # 2. Add product with HSN/SAC assignment
+        from billing.models import HSNSACMaster, Unit
+        hsn_obj = HSNSACMaster.objects.filter(code='8517').first()
+        if not hsn_obj:
+            hsn_obj = HSNSACMaster.objects.create(code='8517', description='Telephones 8517', gst_rate=Decimal('18.00'), type='HSN')
+
+        unit_obj = Unit.objects.filter(company=self.company_a).first()
+        if not unit_obj:
+            unit_obj = Unit.objects.create(company=self.company_a, name='PCS', code='PCS-PIECES')
+
+        res_create = c.post('/company/products/add/', data={
+            'name': 'Searchable HSN Test Phone 8517',
+            'sku': 'SKU-8517-TEST',
+            'hsn_sac': hsn_obj.id,
+            'unit': unit_obj.id,
+            'selling_price': '15000.00',
+            'purchase_price': '10000.00',
+            'mrp': '16000.00',
+            'wholesale_price': '14000.00',
+            'retail_price': '15000.00',
+            'is_active': 'on'
+        })
+        self.assertEqual(res_create.status_code, 302)
+        prod = Product.objects.get(sku='SKU-8517-TEST')
+        self.assertEqual(prod.hsn_sac, hsn_obj)
+
+        # 3. Product Edit page preloads selected HSN/SAC
+        res_edit_page = c.get(f'/company/products/{prod.id}/edit/')
+        self.assertEqual(res_edit_page.status_code, 200)
+        self.assertIn('id="hsn_search_input"', res_edit_page.content.decode('utf-8'))
+
+        # 4. GST Dashboard cards visibility and links
+        res_dash = c.get('/company/gst/dashboard/')
+        self.assertEqual(res_dash.status_code, 200)
+        dash_html = res_dash.content.decode('utf-8')
+        self.assertIn('Output Tax Liability', dash_html)
+        self.assertIn('Eligible Input Tax Credit (ITC)', dash_html)
+        self.assertIn('Estimated Net GST Payable', dash_html)
+        self.assertIn('Tax collected on outward sales', dash_html)
+        self.assertIn('Tax paid on business purchases', dash_html)
+        self.assertIn('Formula: Output - ITC', dash_html)
+        self.assertIn('/company/gst/gstr1/', dash_html)
+        self.assertIn('/company/gst/gstr3b/', dash_html)
+
 
 class ProductMasterAndCompanyStateTests(TestCase):
     def setUp(self):
@@ -1908,6 +2228,104 @@ class QuotationPDFRedesignTests(TestCase):
         self.assertContains(res, "COMING SOON")
         self.assertContains(res, "working on something amazing for you.")
 
+
+class PurchaseOrderTests(TestCase):
+    def setUp(self):
+        from billing.models import Company, CustomUser, Supplier, Product, HSNSACMaster, Warehouse
+        self.company = Company.objects.create(name="PO Test Corp", state="Odisha", state_code="21")
+        self.user = CustomUser.objects.create_user(username="po_user", password="password123", company=self.company, role="COMPANY_ADMIN")
+        self.supplier = Supplier.objects.create(company=self.company, name="Global Supplies Ltd", state="Odisha", state_code="21", gstin="21ABCDE1234F1Z5")
+        self.hsn = HSNSACMaster.objects.create(code="8471", gst_rate=Decimal("18.00"))
+        self.product = Product.objects.create(company=self.company, name="Laptop Stand", purchase_price=Decimal("1500.00"), selling_price=Decimal("2000.00"), hsn_sac=self.hsn)
+        self.warehouse = Warehouse.objects.create(company=self.company, name="Central Warehouse")
+
+    def test_purchase_order_creation_and_isolation(self):
+        from billing.models import PurchaseOrder, StockMovement, SupplierLedger
+        from billing.services import PurchaseOrderService
+
+        initial_stock_movements = StockMovement.objects.count()
+        initial_supplier_ledgers = SupplierLedger.objects.count()
+
+        payload = {
+            'supplier': self.supplier.id,
+            'po_number': 'PO-2026-00001',
+            'po_date': '2026-08-25',
+            'expected_delivery_date': '2026-09-01',
+            'warehouse': self.warehouse.id,
+            'items': [
+                {
+                    'product_id': self.product.id,
+                    'quantity': 10,
+                    'rate': 1500,
+                    'discount': 0,
+                    'gst_rate': 18
+                }
+            ]
+        }
+
+        res = PurchaseOrderService.create_purchase_order(self.company, self.user, payload)
+        self.assertTrue(res['success'])
+
+        po = PurchaseOrder.objects.get(id=res['po_id'])
+        self.assertEqual(po.po_number, 'PO-2026-00001')
+        self.assertEqual(po.grand_total, Decimal('17700.00'))
+
+        # CRITICAL VERIFICATION: Stock and Supplier Ledger MUST NOT change on PO creation
+        self.assertEqual(StockMovement.objects.count(), initial_stock_movements)
+        self.assertEqual(SupplierLedger.objects.count(), initial_supplier_ledgers)
+
+    def test_purchase_order_pdf_endpoint_no_signature(self):
+        from billing.services import PurchaseOrderService
+        payload = {
+            'supplier': self.supplier.id,
+            'po_number': 'PO-2026-00002',
+            'po_date': '2026-08-25',
+            'items': [{'product_id': self.product.id, 'quantity': 2, 'rate': 1500, 'discount': 0}]
+        }
+        res = PurchaseOrderService.create_purchase_order(self.company, self.user, payload)
+        po_id = res['po_id']
+
+        c = Client()
+        c.login(username="po_user", password="password123")
+        pdf_res = c.get(f'/company/purchase-orders/{po_id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertContains(pdf_res, "PURCHASE ORDER")
+        self.assertContains(pdf_res, "PO-2026-00002")
+
+        # VERIFY AUTHORIZED SIGNATORY BLOCK IS PRESENT IN PO PDF
+        html_text = pdf_res.content.decode('utf-8')
+        self.assertIn("Authorized Signatory", html_text)
+
+    def test_convert_purchase_order_to_purchase_bill(self):
+        from billing.models import PurchaseBill
+        from billing.services import PurchaseOrderService
+        payload = {
+            'supplier': self.supplier.id,
+            'po_number': 'PO-2026-00003',
+            'po_date': '2026-08-25',
+            'items': [{'product_id': self.product.id, 'quantity': 5, 'rate': 1500, 'discount': 0}]
+        }
+        res = PurchaseOrderService.create_purchase_order(self.company, self.user, payload)
+        po_id = res['po_id']
+
+        conv_res = PurchaseOrderService.convert_to_purchase_bill(self.company, self.user, po_id)
+        self.assertTrue(conv_res['success'])
+
+        bill = PurchaseBill.objects.get(id=conv_res['bill_id'])
+        self.assertEqual(bill.supplier, self.supplier)
+        self.assertEqual(bill.grand_total, Decimal('8850.00'))
+
+        # Separate PDFs
+        c = Client()
+        c.login(username="po_user", password="password123")
+        po_pdf_res = c.get(f'/company/purchase-orders/{po_id}/pdf/')
+        bill_pdf_res = c.get(f'/company/purchase-bills/{bill.id}/pdf/')
+        self.assertEqual(po_pdf_res.status_code, 200)
+        self.assertEqual(bill_pdf_res.status_code, 200)
+        self.assertContains(po_pdf_res, "PURCHASE ORDER")
+        self.assertContains(bill_pdf_res, "PURCHASE BILL")
+
+
     def test_admin_delivery_page_access(self):
         from billing.models import CustomUser
         super_admin = CustomUser.objects.create_superuser(username="saas_admin", email="admin@saas.com", password="adminpassword123", role="SUPERADMIN")
@@ -1918,12 +2336,292 @@ class QuotationPDFRedesignTests(TestCase):
         self.assertContains(res, "Delivery")
         self.assertContains(res, "COMING SOON")
 
+
+class PurchaseOrderEnhancementTests(TestCase):
+    def setUp(self):
+        from billing.models import Company, CustomUser, Supplier, Product, HSNSACMaster, Warehouse, PurchaseBill
+        self.company = Company.objects.create(name="Enhancement Corp", state="Odisha", state_code="21")
+        self.other_company = Company.objects.create(name="Other Corp", state="Delhi", state_code="07")
+        self.user = CustomUser.objects.create_user(username="enh_user", password="password123", company=self.company, role="COMPANY_ADMIN")
+        self.other_user = CustomUser.objects.create_user(username="other_user", password="password123", company=self.other_company, role="COMPANY_ADMIN")
+        
+        self.supplier = Supplier.objects.create(company=self.company, name="Master Vendor Ltd", state="Odisha", state_code="21", gstin="21ABCDE1234F1Z5")
+        self.hsn = HSNSACMaster.objects.create(code="8471", gst_rate=Decimal("18.00"))
+        self.product = Product.objects.create(company=self.company, name="Monitor Stand", purchase_price=Decimal("1000.00"), selling_price=Decimal("1500.00"), hsn_sac=self.hsn)
+        self.warehouse = Warehouse.objects.create(company=self.company, name="Eastern Warehouse", code="WH-EAST", manager="Alice", contact="9998887770", address="Infocity, Bhubaneswar")
+
+        self.bill = PurchaseBill.objects.create(
+            company=self.company, supplier=self.supplier, supplier_bill_no="BILL-2026-101",
+            bill_date=date.today(), due_date=date.today(), grand_total=Decimal('1180.00')
+        )
+
+    def test_warehouse_detail_api(self):
+        c = Client()
+        c.login(username="enh_user", password="password123")
+        res = c.get(f'/api/company/warehouses/{self.warehouse.id}/detail/')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['warehouse']['name'], 'Eastern Warehouse')
+        self.assertEqual(data['warehouse']['manager'], 'Alice')
+
+    def test_manual_supplier_entry_po_creation(self):
+        from billing.services import PurchaseOrderService
+        from billing.models import PurchaseOrder
+        payload = {
+            'supplier_company_name': 'Manual Supplier Enterprises',
+            'supplier_phone': '9876543210',
+            'supplier_email': 'manual@supplier.com',
+            'supplier_gstin': '21XYZ0000000000',
+            'supplier_state': 'Odisha',
+            'supplier_state_code': '21',
+            'po_number': 'PO-2026-MANUAL-1',
+            'po_date': '2026-08-25',
+            'items': [{'product_id': self.product.id, 'quantity': 2, 'rate': 1000, 'discount': 0}]
+        }
+        res = PurchaseOrderService.create_purchase_order(self.company, self.user, payload)
+        self.assertTrue(res['success'])
+        po = PurchaseOrder.objects.get(id=res['po_id'])
+        self.assertIsNone(po.supplier)
+        self.assertEqual(po.supplier_name_snapshot, 'Manual Supplier Enterprises')
+        self.assertEqual(po.supplier_gstin_snapshot, '21XYZ0000000000')
+
+    def test_terms_checkboxes_and_pdf_no_signature(self):
+        from billing.services import PurchaseOrderService
+        payload = {
+            'supplier': self.supplier.id,
+            'po_number': 'PO-2026-TERMS-1',
+            'po_date': '2026-08-25',
+            'payment_terms': ["Payment within 15 days of invoice", "50% advance and remaining payment on delivery"],
+            'delivery_terms': ["Delivery within 7 working days"],
+            'warranty_terms': ["12 months warranty"],
+            'return_terms': ["Goods can be returned for manufacturing defects"],
+            'items': [{'product_id': self.product.id, 'quantity': 1, 'rate': 1000, 'discount': 0}]
+        }
+        res = PurchaseOrderService.create_purchase_order(self.company, self.user, payload)
+        po_id = res['po_id']
+
+        c = Client()
+        c.login(username="enh_user", password="password123")
+        pdf_res = c.get(f'/company/purchase-orders/{po_id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertContains(pdf_res, "Payment within 15 days of invoice")
+        self.assertContains(pdf_res, "12 months warranty")
+
+        # VERIFY AUTHORIZED SIGNATORY BLOCK IS PRESENT AT BOTTOM OF PDF
+        html_text = pdf_res.content.decode('utf-8')
+        self.assertIn("Authorized Signatory", html_text)
+
+    def test_purchase_bill_document_upload_security_and_delete(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from billing.models import PurchaseBillDocument
+
+        c = Client()
+        c.login(username="enh_user", password="password123")
+
+        # 1. Valid PDF file upload
+        pdf_file = SimpleUploadedFile("vendor_invoice.pdf", b"%PDF-1.4 dummy pdf content", content_type="application/pdf")
+        res = c.post(f'/company/purchase-bills/{self.bill.id}/documents/upload/', {'file': pdf_file})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        doc_id = data['document']['id']
+        self.assertTrue(PurchaseBillDocument.objects.filter(id=doc_id).exists())
+
+        # 2. Reject executable file upload
+        exe_file = SimpleUploadedFile("malicious.exe", b"MZ dummy executable", content_type="application/octet-stream")
+        bad_res = c.post(f'/company/purchase-bills/{self.bill.id}/documents/upload/', {'file': exe_file})
+        self.assertEqual(bad_res.status_code, 400)
+        self.assertIn("Invalid file format", bad_res.json()['message'])
+
+        # 3. View document (same company)
+        view_res = c.get(f'/company/purchase-bills/documents/{doc_id}/view/')
+        self.assertEqual(view_res.status_code, 200)
+
+        # 4. Security Check: Other company user cannot view document
+        c_other = Client()
+        c_other.login(username="other_user", password="password123")
+        other_view_res = c_other.get(f'/company/purchase-bills/documents/{doc_id}/view/')
+        self.assertIn(other_view_res.status_code, [403, 404])
+
+        # 5. Delete document
+        del_res = c.post(f'/company/purchase-bills/documents/{doc_id}/delete/')
+        self.assertEqual(del_res.status_code, 200)
+        self.assertFalse(PurchaseBillDocument.objects.filter(id=doc_id).exists())
+
+
+    def test_other_custom_product_and_editable_gst(self):
+        """
+        Verify creating a PO with a custom "Other" product, editable GST % override,
+        combined state selection parsing, and formatted currency input without photo.
+        """
+        from billing.models import PurchaseOrder, PurchaseOrderItem
+
+        c = Client()
+        c.login(username="enh_user", password="password123")
+
+        items_payload = json.dumps([
+            {
+                "row_index": "1",
+                "product_id": "OTHER",
+                "product_name": "Custom Office Laptop",
+                "description": "Custom configuration laptop 16GB RAM",
+                "hsn_sac": "8471",
+                "uqc": "PCS",
+                "quantity": 2,
+                "rate": "₹5,000.00",
+                "discount": "₹500.00",
+                "gst_rate": "12%"
+            }
+        ])
+
+        data = {
+            "supplier_company_name": "Unique Custom Supplier",
+            "supplier_phone": "9988776655",
+            "supplier_state": "Odisha (21)",
+            "po_number": "PO-CUSTOM-001",
+            "po_date": "2026-08-25",
+            "warehouse_id": self.warehouse.id,
+            "items_json": items_payload
+        }
+
+        res = c.post('/company/purchase-orders/add/', data)
+        self.assertEqual(res.status_code, 302)
+
+        po = PurchaseOrder.objects.get(po_number="PO-CUSTOM-001")
+        self.assertEqual(po.supplier_name_snapshot, "Unique Custom Supplier")
+        self.assertEqual(po.supplier_state_snapshot, "Odisha")
+        self.assertEqual(po.supplier_state_code_snapshot, "21")
+
+        items = po.items.all()
+        self.assertEqual(items.count(), 1)
+        item = items.first()
+        self.assertIsNone(item.product)
+        self.assertEqual(item.product_name_snapshot, "Custom Office Laptop")
+        self.assertEqual(item.rate, Decimal("5000.00"))
+        self.assertEqual(item.discount, Decimal("500.00"))
+        self.assertEqual(item.gst_rate, Decimal("12.00"))
+
+        # Check detail page view
+        view_res = c.get(f'/company/purchase-orders/{po.id}/')
+        self.assertEqual(view_res.status_code, 200)
+
+        # Check PDF page view
+        pdf_res = c.get(f'/company/purchase-orders/{po.id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+
+    def test_purchase_bill_creation_with_supporting_document(self):
+        """
+        Verify creating a Purchase Bill with an attached supporting document file.
+        """
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from billing.models import PurchaseBill, PurchaseBillDocument
+
+        c = Client()
+        c.login(username="enh_user", password="password123")
+
+        doc_file = SimpleUploadedFile("bill_receipt.pdf", b"%PDF-1.4 dummy bill content", content_type="application/pdf")
+
+        items_payload = json.dumps([
+            {
+                "product_id": self.product.id,
+                "quantity": 3,
+                "rate": 1200,
+                "discount": 100
+            }
+        ])
+
+        data = {
+            "supplier": self.supplier.id,
+            "supplier_bill_no": "BILL-DOC-999",
+            "bill_date": "2026-08-25",
+            "due_date": "2026-09-25",
+            "warehouse_id": self.warehouse.id,
+            "items_json": items_payload,
+            "supporting_document": doc_file
+        }
+
+        res = c.post('/company/purchase-bills/add/', data)
+        self.assertEqual(res.status_code, 302)
+
+        bill = PurchaseBill.objects.get(supplier_bill_no="BILL-DOC-999")
+        docs = PurchaseBillDocument.objects.filter(purchase_bill=bill)
+        self.assertEqual(docs.count(), 1)
+        doc = docs.first()
+        self.assertEqual(doc.file_name, "bill_receipt.pdf")
+        self.assertEqual(doc.file_type, "PDF")
+
+    def test_global_state_code_parsing_and_validation(self):
+        """
+        Verify parse_state_and_code and format_state_display work as expected across state formats.
+        """
+        from billing.utils import parse_state_and_code, format_state_display
+
+        # Test state name + code string
+        name, code = parse_state_and_code("Odisha (21)")
+        self.assertEqual(name, "Odisha")
+        self.assertEqual(code, "21")
+
+        # Test numeric state code string
+        name, code = parse_state_and_code("27")
+        self.assertEqual(name, "Maharashtra")
+        self.assertEqual(code, "27")
+
+        # Test state name string
+        name, code = parse_state_and_code("Karnataka")
+        self.assertEqual(name, "Karnataka")
+        self.assertEqual(code, "29")
+
+        # Test display formatting
+        disp = format_state_display("Odisha", "21")
+        self.assertEqual(disp, "Odisha (21)")
+
+    def test_purchase_order_edit_null_supplier_safety(self):
+        """
+        Verify that editing a Purchase Order with supplier = None (such as PO #3)
+        loads cleanly without raising VariableDoesNotExist, and PDF has no auto signature image.
+        """
+        from billing.models import PurchaseOrder, PurchaseOrderItem
+        po = PurchaseOrder.objects.create(
+            company=self.company,
+            supplier=None,
+            supplier_name_snapshot="Manual Vendor",
+            po_number="PO-NULL-SUPPLIER-3",
+            po_date=date.today(),
+            subtotal=Decimal('1000.00'),
+            taxable_amount=Decimal('1000.00'),
+            grand_total=Decimal('1180.00')
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            product_name_snapshot="Manual Item",
+            quantity=Decimal('1.00'),
+            rate=Decimal('1000.00'),
+            taxable_amount=Decimal('1000.00'),
+            total_amount=Decimal('1180.00')
+        )
+
+        c = Client()
+        c.login(username="enh_user", password="password123")
+        edit_res = c.get(f'/company/purchase-orders/{po.id}/edit/')
+        self.assertEqual(edit_res.status_code, 200)
+
+        pdf_res = c.get(f'/company/purchase-orders/{po.id}/pdf/')
+        self.assertEqual(pdf_res.status_code, 200)
+        html_text = pdf_res.content.decode('utf-8')
+        self.assertIn("Authorized Signatory", html_text)
+        self.assertNotIn("company.signature", html_text)
+        self.assertNotIn("company.stamp", html_text)
+
+
     def test_unauthenticated_delivery_access(self):
         c = Client()
         res_comp = c.get('/company/delivery/')
         self.assertEqual(res_comp.status_code, 302)
         res_admin = c.get('/admin/delivery/')
         self.assertEqual(res_admin.status_code, 403)
+
+
 
 
 

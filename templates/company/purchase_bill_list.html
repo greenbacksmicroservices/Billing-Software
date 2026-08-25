@@ -47,8 +47,11 @@
                         </td>
                         <td style="text-align: right;">
                             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'purchase_bill_view' bill.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
+                                <a href="{% url 'purchase_bill_view' bill.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Details">
                                     <i class="fa-regular fa-eye"></i> View
+                                </a>
+                                <a href="{% url 'purchase_bill_pdf' bill.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Print / PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
                                 </a>
                                 <button type="button" onclick="triggerGlobalDelete('/api/delete/purchase-bill/{{ bill.id }}/', '{{ bill.supplier_bill_no }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Bill">
                                     <i class="fa-regular fa-trash-can"></i>

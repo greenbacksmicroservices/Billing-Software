@@ -7,7 +7,7 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.http import JsonResponse, Http404, HttpResponse
+from django.http import JsonResponse, Http404, HttpResponse, FileResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Sum, Count, Q, F
@@ -18,19 +18,20 @@ from django.core.exceptions import PermissionDenied
 
 import json
 import os
+import mimetypes
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 
 from .models import (
     Company, CustomUser, SubscriptionPlan, Customer, Supplier, Product, Category, Brand, Unit,
     HSNSACMaster, Warehouse, StockMovement, Invoice, InvoiceItem, Quotation, QuotationItem,
-    SalesOrder, SalesOrderItem, PurchaseBill, PurchaseBillItem, CreditNote, CreditNoteItem,
+    SalesOrder, SalesOrderItem, PurchaseOrder, PurchaseOrderItem, PurchaseBill, PurchaseBillItem, PurchaseBillDocument, CreditNote, CreditNoteItem,
     DebitNote, DebitNoteItem, Payment, Expense, ExpenseCategory, AuditLog, Notification,
     SupportTicket, Announcement, GSTTransaction, CustomerLedger, SupplierLedger, PasswordResetOTP
 )
 from .forms import CompanyForm, ProductForm, CustomerForm, SupplierForm, WarehouseForm, PlanForm, ExpenseForm
 from .mixins import CompanyRequiredMixin, RoleRequiredMixin, CompanyQuerySetMixin, PaginationMixin, AjaxFormMixin
-from .services import QuotationService
+from .services import QuotationService, PurchaseOrderService
 from .utils import (
     quantize_amount, calculate_item_gst, calculate_gst, recalculate_invoice_totals,
     recalculate_purchase_totals, update_product_stock, generate_upi_qr_string, log_action,
@@ -3858,11 +3859,15 @@ class QuotationCreateView(CompanyRequiredMixin, View):
             count += 1
             q_no = f"QTN-{company.financial_year}-{str(count).zfill(5)}"
         
+        from .utils import get_or_create_predefined_quotation_terms
+        predefined_terms = get_or_create_predefined_quotation_terms(company)
+
         return render(request, 'company/quotation_add.html', {
             'customers': customers,
             'products': products,
             'products_json': build_products_json(products),
-            'quotation_number': q_no
+            'quotation_number': q_no,
+            'predefined_terms': predefined_terms
         })
 
     def post(self, request):
@@ -3896,11 +3901,14 @@ class QuotationCreateView(CompanyRequiredMixin, View):
                 return JsonResponse(result, status=400, encoder=DjangoJSONEncoder)
             customers = Customer.objects.filter(company=company, is_active=True)
             products = Product.objects.filter(company=company, is_active=True)
+            from .utils import get_or_create_predefined_quotation_terms
+            predefined_terms = get_or_create_predefined_quotation_terms(company)
             return render(request, 'company/quotation_add.html', {
                 'customers': customers,
                 'products': products,
                 'products_json': build_products_json(products),
                 'quotation_number': data.get('quotation_number', ''),
+                'predefined_terms': predefined_terms,
                 'form_data': data,
                 'errors': result.get('errors', {})
             })
@@ -3932,13 +3940,26 @@ class QuotationUpdateView(CompanyRequiredMixin, View):
                 'taxable_value': float(item.taxable_value),
                 'total_amount': float(item.total_amount)
             })
+
+        from .utils import get_or_create_predefined_quotation_terms
+        predefined_terms = get_or_create_predefined_quotation_terms(company)
+        selected_terms = list(quotation.selected_terms.all().order_by('display_order', 'id'))
+        selected_texts = set(st.term_text for st in selected_terms)
+        has_selected = len(selected_terms) > 0
+
+        predefined_terms_list = []
+        for pt in predefined_terms:
+            pt.is_selected_in_quotation = (pt.term_text in selected_texts) if has_selected else True
+            predefined_terms_list.append(pt)
             
         return render(request, 'company/quotation_edit.html', {
             'customers': customers,
             'products': products,
             'products_json': build_products_json(products),
             'quotation': quotation,
-            'items_json': json.dumps(items_data, cls=DjangoJSONEncoder)
+            'items_json': json.dumps(items_data, cls=DjangoJSONEncoder),
+            'predefined_terms': predefined_terms_list,
+            'selected_terms': selected_terms
         })
 
     def post(self, request, pk):
@@ -4050,8 +4071,12 @@ def build_quotation_context(quotation):
         hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
 
     total_tax = quotation.cgst_total + quotation.sgst_total + quotation.igst_total
-    raw_terms = quotation.terms or company.terms_and_conditions or ""
-    terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
+    selected_terms = list(quotation.selected_terms.all().order_by('display_order', 'id'))
+    if selected_terms:
+        terms_list = [st.term_text for st in selected_terms]
+    else:
+        raw_terms = quotation.terms or company.terms_and_conditions or ""
+        terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
 
     return {
         'quotation': quotation,
@@ -4072,11 +4097,15 @@ class QuotationPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     context_object_name = 'quotation'
 
     def get(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        context = self.get_context_data(object=self.object)
-        q_context = build_quotation_context(self.object)
-        context.update(q_context)
-        return render(request, self.template_name, context)
+        try:
+            self.object = self.get_object()
+            context = self.get_context_data(object=self.object)
+            q_context = build_quotation_context(self.object)
+            context.update(q_context)
+            return render(request, self.template_name, context)
+        except Exception as e:
+            messages.error(request, f"Unable to generate Quotation PDF. Please try again. ({str(e)})")
+            return HttpResponse(f"<div style='font-family: sans-serif; padding: 2rem; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;'><h3>Unable to generate Quotation PDF</h3><p>{str(e)}</p></div>", status=500)
 
 
 
@@ -4528,10 +4557,16 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
             if created_items_count == 0:
                 raise ValueError("At least one valid item is required in the invoice.")
 
-            recalculate_invoice_totals(invoice)
+            adv_paid = data.get('advance_paid')
+            adv_amt = data.get('advance_amount')
+            amt_now = data.get('amount_paid_now')
+            pmt_pct = data.get('payment_percentage')
+            pmt_status = data.get('payment_status')
+
+            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status)
             
-            # Update customer receivable ledger
-            customer.outstanding_balance += invoice.grand_total
+            # Update customer receivable balance
+            customer.outstanding_balance += invoice.balance_due
             customer.save()
             
             record_invoice_accounting(invoice)
@@ -4562,6 +4597,184 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
                 'invoice_number': data.get('invoice_number', ''),
                 'form_data': data
             })
+
+
+class InvoiceUpdateView(CompanyRequiredMixin, View):
+    def get(self, request, pk):
+        company = request.user.company
+        invoice = get_object_or_404(Invoice, id=pk, company=company)
+        if invoice.status == 'CANCELLED':
+            messages.error(request, "Cancelled invoices cannot be edited.")
+            return redirect('invoice_view', pk=invoice.id)
+            
+        customers = Customer.objects.filter(company=company, is_active=True)
+        products = Product.objects.filter(company=company, is_active=True)
+        warehouses = Warehouse.objects.filter(company=company, is_active=True)
+        
+        return render(request, 'company/invoice_edit.html', {
+            'invoice': invoice,
+            'customers': customers,
+            'products': products,
+            'products_json': build_products_json(products),
+            'warehouses': warehouses,
+        })
+
+    @transaction.atomic
+    def post(self, request, pk):
+        company = request.user.company
+        invoice = get_object_or_404(Invoice, id=pk, company=company)
+        if invoice.status == 'CANCELLED':
+            raise ValueError("Cancelled invoices cannot be edited.")
+
+        if request.user.role not in ('ADMIN', 'ACCOUNTANT', 'SUPERADMIN') and not request.user.is_superuser:
+            raise PermissionDenied("Only Company Admin and Accountant are authorized to modify invoice payment details.")
+
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        try:
+            old_balance_due = invoice.balance_due or max(Decimal('0.00'), invoice.grand_total - invoice.paid_amount)
+            old_customer = invoice.customer
+
+            cust_id = data.get('customer_id') or data.get('customer')
+            if cust_id:
+                customer = get_object_or_404(Customer, id=int(str(cust_id).strip()), company=company)
+                invoice.customer = customer
+
+            inv_date_raw = data.get('invoice_date') or data.get('date')
+            if inv_date_raw:
+                try:
+                    invoice.invoice_date = datetime.strptime(str(inv_date_raw).strip(), '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+
+            due_date_raw = data.get('due_date')
+            if due_date_raw:
+                try:
+                    invoice.due_date = datetime.strptime(str(due_date_raw).strip(), '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+
+            if data.get('place_of_supply'):
+                invoice.place_of_supply = data.get('place_of_supply').strip()
+            if data.get('place_of_supply_code'):
+                invoice.place_of_supply_code = data.get('place_of_supply_code').strip().zfill(2)
+            if 'reverse_charge' in data:
+                invoice.reverse_charge = bool(data.get('reverse_charge'))
+            if 'notes' in data:
+                invoice.notes = (data.get('notes') or '').strip()
+
+            items_data = data.get('items', [])
+            if isinstance(items_data, str):
+                try:
+                    items_data = json.loads(items_data)
+                except Exception:
+                    items_data = []
+
+            if items_data:
+                for item in invoice.items.all():
+                    if item.product and item.product.track_inventory:
+                        StockMovement.objects.create(
+                            company=company, product=item.product, warehouse=Warehouse.objects.filter(company=company).first(),
+                            quantity=item.quantity, movement_type='ADJUSTMENT', reference_id=invoice.id,
+                            reference_no=f"EDIT-{invoice.invoice_number}", created_by=request.user
+                        )
+                        update_product_stock(item.product.id)
+                invoice.items.all().delete()
+
+                wh_id = data.get('warehouse_id')
+                warehouse = Warehouse.objects.filter(id=int(wh_id), company=company).first() if wh_id else Warehouse.objects.filter(company=company, is_active=True).first()
+
+                for item in items_data:
+                    prod_id = item.get('product_id') or item.get('product')
+                    if not prod_id:
+                        continue
+                    prod = get_object_or_404(Product, id=int(str(prod_id).strip()), company=company)
+                    qty = parse_money(item.get('quantity', 1))
+                    rate = parse_money(item.get('rate', 0))
+                    disc = parse_money(item.get('discount', 0))
+                    if qty <= Decimal('0.00'):
+                        continue
+                    if prod.track_inventory and not prod.allow_negative_stock:
+                        if prod.current_stock < qty:
+                            raise ValueError(f"Insufficient stock for product '{prod.name}' (Available: {prod.current_stock}, Requested: {qty})")
+
+                    hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
+                    gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
+                    InvoiceItem.objects.create(
+                        invoice=invoice, product=prod, quantity=qty, rate=rate,
+                        discount=disc, taxable_value=Decimal('0.00'), hsn_sac_code=hsn_code,
+                        gst_rate=gst_rate, total_amount=Decimal('0.00')
+                    )
+
+                    if prod.track_inventory:
+                        StockMovement.objects.create(
+                            company=company, product=prod, warehouse=warehouse,
+                            quantity=-qty, movement_type='SALE', reference_id=invoice.id,
+                            reference_no=invoice.invoice_number, created_by=request.user
+                        )
+                        update_product_stock(prod.id)
+
+            adv_paid = data.get('advance_paid')
+            adv_amt = data.get('advance_amount')
+            amt_now = data.get('amount_paid_now')
+            pmt_pct = data.get('payment_percentage')
+            pmt_status = data.get('payment_status')
+
+            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status)
+
+            if old_customer != invoice.customer:
+                old_customer.outstanding_balance -= old_balance_due
+                old_customer.save()
+                invoice.customer.outstanding_balance += invoice.balance_due
+                invoice.customer.save()
+            else:
+                diff = invoice.balance_due - old_balance_due
+                invoice.customer.outstanding_balance += diff
+                invoice.customer.save()
+
+            record_invoice_accounting(invoice)
+
+            log_action(request.user, 'EDIT_INVOICE', 'INVOICE', invoice.id, new_values={'amount': str(invoice.grand_total), 'paid': str(invoice.total_payment_received)}, request=request)
+            messages.success(request, f"Invoice {invoice.invoice_number} updated successfully!")
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'status': 'success',
+                    'message': f"Invoice {invoice.invoice_number} updated successfully!",
+                    'invoice_id': invoice.id,
+                    'redirect_url': f"/company/invoices/{invoice.id}/"
+                }, encoder=DjangoJSONEncoder)
+            return redirect('invoice_view', pk=invoice.id)
+        except Exception as e:
+            messages.error(request, str(e))
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': str(e)}, status=400, encoder=DjangoJSONEncoder)
+            customers = Customer.objects.filter(company=company, is_active=True)
+            products = Product.objects.filter(company=company, is_active=True)
+            warehouses = Warehouse.objects.filter(company=company, is_active=True)
+            return render(request, 'company/invoice_edit.html', {
+                'invoice': invoice,
+                'customers': customers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'warehouses': warehouses,
+                'form_data': data
+            })
+
 
 
 def add_invoice_hsn_summary_to_context(invoice, context):
@@ -4724,6 +4937,428 @@ def invoice_post(request, pk):
     return redirect('invoice_view', pk=invoice.id)
 
 
+# --- PURCHASE ORDERS ---
+
+class PurchaseOrderListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixin, ListView):
+    model = PurchaseOrder
+    template_name = 'company/purchase_order_list.html'
+    context_object_name = 'purchase_orders'
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('supplier', 'warehouse', 'created_by').prefetch_related('items').order_by('-po_date', '-id')
+        search = self.request.GET.get('search')
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(po_number__icontains=search) |
+                Q(supplier__name__icontains=search) |
+                Q(supplier__business_name__icontains=search) |
+                Q(supplier__gstin__icontains=search) |
+                Q(status__icontains=search)
+            )
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        
+        supplier_id = self.request.GET.get('supplier')
+        if supplier_id:
+            try:
+                qs = qs.filter(supplier_id=int(supplier_id))
+            except (ValueError, TypeError):
+                pass
+                
+        date_from = self.request.GET.get('date_from')
+        if date_from:
+            qs = qs.filter(po_date__gte=date_from)
+            
+        date_to = self.request.GET.get('date_to')
+        if date_to:
+            qs = qs.filter(po_date__lte=date_to)
+            
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        company = self.request.user.company
+        context['suppliers'] = Supplier.objects.filter(company=company, is_active=True).order_by('name')
+        context['statuses'] = PurchaseOrder.STATUS_CHOICES
+        context['selected_status'] = self.request.GET.get('status', '')
+        context['selected_supplier'] = self.request.GET.get('supplier', '')
+        context['selected_search'] = self.request.GET.get('search', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
+        return context
+
+
+class PurchaseOrderCreateView(CompanyRequiredMixin, View):
+    def get(self, request):
+        company = request.user.company
+        suppliers = Supplier.objects.filter(company=company, is_active=True).order_by('name')
+        products = Product.objects.filter(company=company, is_active=True).order_by('name')
+        warehouses = Warehouse.objects.filter(company=company, is_active=True).order_by('name')
+        po_no = PurchaseOrderService.generate_po_number(company)
+
+        return render(request, 'company/purchase_order_add.html', {
+            'suppliers': suppliers,
+            'products': products,
+            'products_json': build_products_json(products),
+            'warehouses': warehouses,
+            'po_number': po_no,
+            'today_date': date.today().strftime('%Y-%m-%d')
+        })
+
+    def post(self, request):
+        company = request.user.company
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        result = PurchaseOrderService.create_purchase_order(company, request.user, data, files=request.FILES)
+        if result.get('success'):
+            messages.success(request, result.get('message', 'Purchase Order saved successfully!'))
+            if is_ajax:
+                return JsonResponse(result, status=200, encoder=DjangoJSONEncoder)
+            return redirect('purchase_order_view', pk=result.get('po_id'))
+        else:
+            err_msg = result.get('message', 'Unable to save Purchase Order. Please check the entered details.')
+            messages.error(request, err_msg)
+            if is_ajax:
+                return JsonResponse(result, status=400, encoder=DjangoJSONEncoder)
+            suppliers = Supplier.objects.filter(company=company, is_active=True).order_by('name')
+            products = Product.objects.filter(company=company, is_active=True).order_by('name')
+            warehouses = Warehouse.objects.filter(company=company, is_active=True).order_by('name')
+            return render(request, 'company/purchase_order_add.html', {
+                'suppliers': suppliers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'warehouses': warehouses,
+                'po_number': data.get('po_number', ''),
+                'form_data': data,
+                'errors': result.get('errors', {})
+            })
+
+
+class PurchaseOrderUpdateView(CompanyRequiredMixin, View):
+    def get(self, request, pk):
+        company = request.user.company
+        po = get_object_or_404(PurchaseOrder, id=pk, company=company)
+
+        suppliers = Supplier.objects.filter(company=company, is_active=True).order_by('name')
+        products = Product.objects.filter(company=company, is_active=True).order_by('name')
+        warehouses = Warehouse.objects.filter(company=company, is_active=True).order_by('name')
+
+        from .utils import parse_state_and_code
+        supplier_state_raw = po.supplier_state_code_snapshot or po.supplier_state_snapshot or (po.supplier.state_code if po.supplier else '') or (po.supplier.state if po.supplier else '') or ''
+        supplier_state_name, supplier_state_code = parse_state_and_code(supplier_state_raw)
+
+        items_json = []
+        for item in po.items.all():
+            items_json.append({
+                'product_id': item.product.id if item.product else 'OTHER',
+                'product_name': item.product_name_snapshot,
+                'description': item.description_snapshot or '',
+                'hsn_sac': item.hsn_sac_snapshot or '',
+                'uqc': item.uqc_snapshot or '',
+                'quantity': float(item.quantity),
+                'rate': float(item.rate),
+                'discount': float(item.discount),
+                'taxable_amount': float(item.taxable_amount),
+                'gst_rate': float(item.gst_rate),
+                'cgst_amount': float(item.cgst_amount),
+                'sgst_amount': float(item.sgst_amount),
+                'igst_amount': float(item.igst_amount),
+                'cess_amount': float(item.cess_amount),
+                'total_amount': float(item.total_amount),
+                'image_url': ''
+            })
+
+        return render(request, 'company/purchase_order_edit.html', {
+            'po': po,
+            'suppliers': suppliers,
+            'products': products,
+            'products_json': build_products_json(products),
+            'warehouses': warehouses,
+            'po_items_json': json.dumps(items_json),
+            'statuses': PurchaseOrder.STATUS_CHOICES,
+            'supplier_state_name': supplier_state_name,
+            'supplier_state_code': supplier_state_code,
+        })
+
+    def post(self, request, pk):
+        company = request.user.company
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+                if 'items_json' in request.POST:
+                    data['items'] = request.POST['items_json']
+        except Exception:
+            data = request.POST.dict()
+
+        result = PurchaseOrderService.update_purchase_order(company, request.user, pk, data, files=request.FILES)
+        if result.get('success'):
+            messages.success(request, result.get('message', 'Purchase Order updated successfully!'))
+            if is_ajax:
+                return JsonResponse(result, status=200, encoder=DjangoJSONEncoder)
+            return redirect('purchase_order_view', pk=pk)
+        else:
+            err_msg = result.get('message', 'Unable to update Purchase Order. Please check the entered details.')
+            messages.error(request, err_msg)
+            if is_ajax:
+                return JsonResponse(result, status=400, encoder=DjangoJSONEncoder)
+            po = get_object_or_404(PurchaseOrder, id=pk, company=company)
+            suppliers = Supplier.objects.filter(company=company, is_active=True).order_by('name')
+            products = Product.objects.filter(company=company, is_active=True).order_by('name')
+            warehouses = Warehouse.objects.filter(company=company, is_active=True).order_by('name')
+            return render(request, 'company/purchase_order_edit.html', {
+                'po': po,
+                'suppliers': suppliers,
+                'products': products,
+                'products_json': build_products_json(products),
+                'warehouses': warehouses,
+                'form_data': data,
+                'errors': result.get('errors', {}),
+                'statuses': PurchaseOrder.STATUS_CHOICES
+            })
+
+
+class PurchaseOrderDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = PurchaseOrder
+    template_name = 'company/purchase_order_detail.html'
+    context_object_name = 'po'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        po = self.object
+        company = po.company
+        supplier = po.supplier
+        
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        supplier_state_code = str(po.supplier_state_code_snapshot or (supplier.state_code if supplier else company_state_code)).strip().zfill(2)
+        is_interstate = (company_state_code != supplier_state_code)
+        
+        context['is_interstate'] = is_interstate
+        context['statuses'] = PurchaseOrder.STATUS_CHOICES
+        return context
+
+
+class PurchaseOrderPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = PurchaseOrder
+    template_name = 'company/purchase_order_pdf.html'
+    context_object_name = 'po'
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        context = self.get_context_data(object=self.object)
+        po = self.object
+        company = po.company
+        supplier = po.supplier
+
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        supplier_state_code = str(po.supplier_state_code_snapshot or (supplier.state_code if supplier else company_state_code)).strip().zfill(2)
+        is_interstate = (company_state_code != supplier_state_code)
+
+        raw_terms = company.terms_and_conditions or ""
+        terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
+
+        context.update({
+            'po': po,
+            'company': company,
+            'supplier': supplier,
+            'is_interstate': is_interstate,
+            'terms_list': terms_list,
+        })
+        return self.render_to_response(context)
+
+
+def purchase_order_status_change(request, pk, status):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    
+    company = request.user.company
+    po = get_object_or_404(PurchaseOrder, id=pk, company=company)
+    
+    valid_statuses = [choice[0] for choice in PurchaseOrder.STATUS_CHOICES]
+    status_upper = status.upper().strip()
+    if status_upper not in valid_statuses:
+        return JsonResponse({'success': False, 'message': f'Invalid status "{status}".'}, status=400)
+
+    po.status = status_upper
+    po.save()
+    log_action(request.user, 'CHANGE_PO_STATUS', 'PURCHASE_ORDER', po.id, new_values={'status': status_upper}, request=request)
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+        return JsonResponse({'success': True, 'message': f"Purchase Order status changed to {po.get_status_display()}.", 'status': po.status, 'status_display': po.get_status_display()})
+    
+    messages.success(request, f"Purchase Order status updated to {po.get_status_display()}.")
+    return redirect('purchase_order_view', pk=po.id)
+
+
+def purchase_order_duplicate(request, pk):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        messages.error(request, "Authentication required.")
+        return redirect('login')
+
+    company = request.user.company
+    try:
+        new_po = PurchaseOrderService.duplicate_purchase_order(company, request.user, pk)
+        messages.success(request, f"Purchase Order duplicated successfully as {new_po.po_number}.")
+        return redirect('purchase_order_edit', pk=new_po.id)
+    except Exception as e:
+        messages.error(request, f"Error duplicating Purchase Order: {str(e)}")
+        return redirect('purchase_order_list')
+
+
+def purchase_order_send_email(request, pk):
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
+        return JsonResponse({'success': False, 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST request required.'}, status=405)
+
+    company = request.user.company
+    po = get_object_or_404(PurchaseOrder, id=pk, company=company)
+
+    try:
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST.dict()
+
+        recipient_email = str(data.get('recipient_email') or data.get('email') or (po.supplier.email if po.supplier else '')).strip()
+        subject_input = str(data.get('subject') or '').strip()
+        message_input = str(data.get('message') or '').strip()
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid input data.'}, status=400)
+
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not recipient_email or not re.match(email_regex, recipient_email):
+        return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
+
+    company_state_code = str(company.state_code or '').strip().zfill(2)
+    supplier_state_code = str(po.supplier.state_code or company_state_code if po.supplier else company_state_code).strip().zfill(2)
+    is_interstate = (company_state_code != supplier_state_code)
+    raw_terms = company.terms_and_conditions or ""
+    terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
+
+    context = {
+        'po': po,
+        'company': company,
+        'supplier': po.supplier,
+        'is_interstate': is_interstate,
+        'terms_list': terms_list
+    }
+
+    from django.template.loader import render_to_string
+    html_content = render_to_string('company/purchase_order_pdf.html', context, request=request)
+
+    pdf_data = html_to_pdf_bytes(html_content)
+    if not pdf_data or len(pdf_data) == 0:
+        return JsonResponse({'success': False, 'message': 'Failed to generate Purchase Order PDF document.'}, status=500)
+
+    from django.core.mail import EmailMessage
+    from django.conf import settings
+
+    supplier_name = po.supplier.name if po.supplier else "Valued Supplier"
+    subject = subject_input or f"Purchase Order {po.po_number} from {company.name}"
+    date_str = po.po_date.strftime('%d %b %Y') if hasattr(po.po_date, 'strftime') else str(po.po_date)
+    
+    default_body = (
+        f"Dear {supplier_name},\n\n"
+        f"Please find attached Purchase Order {po.po_number} from {company.name}.\n\n"
+        f"PO Date: {date_str}\n"
+        f"Total Amount: ₹{po.grand_total}\n\n"
+        f"Please confirm receipt and expected delivery date.\n\n"
+        f"Regards,\n"
+        f"{company.name}"
+    )
+    body = message_input or default_body
+
+    try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@gblbilling.com')
+        email = EmailMessage(
+            subject,
+            body,
+            from_email,
+            [recipient_email]
+        )
+        safe_filename = f"PurchaseOrder-{po.po_number}.pdf".replace(' ', '_').replace('/', '_')
+        email.attach(safe_filename, pdf_data, 'application/pdf')
+        email.send()
+
+        po.status = 'SENT'
+        po.save()
+        log_action(request.user, 'SEND_EMAIL_PO', 'PURCHASE_ORDER', po.id, new_values={'recipient': recipient_email}, request=request)
+        return JsonResponse({'success': True, 'message': f"Purchase Order PDF sent successfully to {recipient_email}."})
+    except Exception as e:
+        import logging
+        logging.getLogger('django').error(f"SMTP Error sending Purchase Order {po.po_number}: {str(e)}")
+        return JsonResponse({'success': False, 'message': f'Unable to send email: {str(e)}'}, status=500)
+
+
+def purchase_order_convert_to_bill(request, pk):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        messages.error(request, "Authentication required.")
+        return redirect('login')
+
+    company = request.user.company
+    result = PurchaseOrderService.convert_to_purchase_bill(company, request.user, pk)
+    if result.get('success'):
+        messages.success(request, result.get('message'))
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return JsonResponse(result)
+        return redirect('purchase_bill_view', pk=result.get('bill_id'))
+    else:
+        messages.error(request, result.get('message'))
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return JsonResponse(result, status=400)
+        return redirect('purchase_order_view', pk=pk)
+
+
+def purchase_order_delete(request, pk):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        messages.error(request, "Authentication required.")
+        return redirect('login')
+
+    company = request.user.company
+    po = get_object_or_404(PurchaseOrder, id=pk, company=company)
+
+    if po.converted_to_purchase_bill:
+        messages.error(request, f"Purchase Order {po.po_number} cannot be deleted because it has been converted to Purchase Bill {po.converted_to_purchase_bill.supplier_bill_no}.")
+        return redirect('purchase_order_view', pk=po.id)
+
+    if request.method == 'POST' or request.GET.get('confirm') == 'true':
+        po_no = po.po_number
+        with transaction.atomic():
+            po.items.all().delete()
+            po.delete()
+            log_action(request.user, 'DELETE_PURCHASE_ORDER', 'PURCHASE_ORDER', pk, request=request)
+        messages.success(request, f"Purchase Order {po_no} deleted successfully.")
+        return redirect('purchase_order_list')
+
+    messages.error(request, "Deletion requires POST confirmation.")
+    return redirect('purchase_order_view', pk=po.id)
+
+
 # --- PURCHASE BILLS ---
 
 class PurchaseBillListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixin, ListView):
@@ -4878,6 +5513,23 @@ class PurchaseBillCreateView(CompanyRequiredMixin, View):
             supplier.save()
             
             record_purchase_accounting(bill)
+
+            if request.FILES:
+                for file_key, upload_file in request.FILES.items():
+                    if upload_file:
+                        filename = upload_file.name
+                        ext = os.path.splitext(filename)[1].lower().strip('.')
+                        ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx'}
+                        DANGEROUS_EXTENSIONS = {'exe', 'bat', 'sh', 'js', 'py', 'php', 'cmd', 'vbs', 'ps1', 'cgi', 'pl', 'jar'}
+                        if ext not in DANGEROUS_EXTENSIONS and ext in ALLOWED_EXTENSIONS and upload_file.size <= 10 * 1024 * 1024:
+                            PurchaseBillDocument.objects.create(
+                                purchase_bill=bill,
+                                file=upload_file,
+                                file_name=filename,
+                                file_type=ext.upper(),
+                                file_size=upload_file.size,
+                                uploaded_by=request.user if request.user and request.user.is_authenticated else None
+                            )
             
             log_action(request.user, 'CREATE_PURCHASE_BILL', 'PURCHASE_BILL', bill.id, request=request)
             messages.success(request, f"Purchase bill {bill.supplier_bill_no} posted successfully!")
@@ -4939,6 +5591,133 @@ class PurchaseBillPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView
             'terms_list': terms_list,
         })
         return render(request, self.template_name, context)
+
+
+def warehouse_detail_api(request, pk):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    company = request.user.company
+    try:
+        w = Warehouse.objects.get(id=pk, company=company, is_active=True)
+        return JsonResponse({
+            'status': 'success',
+            'warehouse': {
+                'id': w.id,
+                'name': w.name,
+                'code': w.code or '',
+                'manager': w.manager or 'Not specified',
+                'contact': w.contact or 'Not specified',
+                'address': w.address or 'No address recorded',
+                'city': getattr(w, 'city', company.city or ''),
+                'state': getattr(w, 'state', company.state or ''),
+                'state_code': getattr(w, 'state_code', company.state_code or ''),
+                'pincode': getattr(w, 'pincode', company.pincode or ''),
+                'gstin': getattr(w, 'gstin', company.gstin or ''),
+            }
+        })
+    except Warehouse.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Unable to load warehouse details.'}, status=404)
+
+
+def purchase_bill_upload_document(request, pk):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
+
+    company = request.user.company
+    bill = get_object_or_404(PurchaseBill, id=pk, company=company)
+
+    upload_file = request.FILES.get('file') or request.FILES.get('document_file')
+    if not upload_file:
+        return JsonResponse({'status': 'error', 'message': 'No file uploaded.'}, status=400)
+
+    filename = upload_file.name
+    ext = os.path.splitext(filename)[1].lower().strip('.')
+    
+    ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx'}
+    DANGEROUS_EXTENSIONS = {'exe', 'bat', 'sh', 'js', 'py', 'php', 'cmd', 'vbs', 'ps1', 'cgi', 'pl', 'jar'}
+
+    if ext in DANGEROUS_EXTENSIONS or ext not in ALLOWED_EXTENSIONS:
+        return JsonResponse({'status': 'error', 'message': f'Invalid file format (.{ext}). Allowed formats: PDF, JPG, PNG, WEBP, DOC, DOCX, XLS, XLSX.'}, status=400)
+
+    MAX_SIZE = 10 * 1024 * 1024  # 10MB
+    if upload_file.size > MAX_SIZE:
+        return JsonResponse({'status': 'error', 'message': 'File size exceeds maximum limit of 10MB.'}, status=400)
+
+    try:
+        doc = PurchaseBillDocument.objects.create(
+            purchase_bill=bill,
+            file=upload_file,
+            file_name=filename,
+            file_type=ext.upper(),
+            file_size=upload_file.size,
+            uploaded_by=request.user
+        )
+        log_action(request.user, 'UPLOAD_PURCHASE_BILL_DOC', 'PURCHASE_BILL', bill.id, request=request)
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Document uploaded successfully.',
+            'document': {
+                'id': doc.id,
+                'file_name': doc.file_name,
+                'file_type': doc.file_type,
+                'file_size': doc.file_size,
+                'uploaded_by': doc.uploaded_by.get_full_name() or doc.uploaded_by.username if doc.uploaded_by else 'User',
+                'uploaded_at': doc.uploaded_at.strftime('%d %b %Y %I:%M %p'),
+                'view_url': f'/company/purchase-bills/documents/{doc.id}/view/',
+                'delete_url': f'/company/purchase-bills/documents/{doc.id}/delete/'
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Unable to upload document: {str(e)}'}, status=500)
+
+
+def purchase_bill_delete_document(request, doc_id):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    if request.method not in ['POST', 'DELETE']:
+        return JsonResponse({'status': 'error', 'message': 'POST/DELETE request required.'}, status=405)
+
+    company = request.user.company
+    doc = get_object_or_404(PurchaseBillDocument, id=doc_id, purchase_bill__company=company)
+
+    try:
+        doc_name = doc.file_name
+        bill_id = doc.purchase_bill.id
+        try:
+            if doc.file and hasattr(doc.file, 'path') and os.path.isfile(doc.file.path):
+                os.remove(doc.file.path)
+        except Exception:
+            pass
+        doc.delete()
+        log_action(request.user, 'DELETE_PURCHASE_BILL_DOC', 'PURCHASE_BILL', bill_id, request=request)
+        return JsonResponse({'status': 'success', 'message': f'Document "{doc_name}" deleted successfully.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Unable to delete document: {str(e)}'}, status=500)
+
+
+def purchase_bill_view_document(request, doc_id):
+    if not request.user.is_authenticated or not getattr(request.user, 'company', None):
+        raise PermissionDenied("Authentication required.")
+
+    company = request.user.company
+    doc = get_object_or_404(PurchaseBillDocument, id=doc_id, purchase_bill__company=company)
+
+    if not doc.file or not os.path.isfile(doc.file.path):
+        raise Http404("Requested document file does not exist on disk.")
+
+    mime_type, _ = mimetypes.guess_type(doc.file.path)
+    if not mime_type:
+        mime_type = 'application/octet-stream'
+
+    ext = doc.file_type.lower()
+    is_previewable = ext in ['pdf', 'jpg', 'jpeg', 'png', 'webp']
+
+    response = FileResponse(open(doc.file.path, 'rb'), content_type=mime_type)
+    disposition = 'inline' if is_previewable else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{doc.file_name}"'
+    return response
 
 
 @transaction.atomic
@@ -5325,19 +6104,53 @@ class GSTDashboardView(CompanyRequiredMixin, TemplateView):
             cgst=Sum('cgst_amount'), sgst=Sum('sgst_amount'), igst=Sum('igst_amount'), total=Sum('taxable_value')
         )
 
-        context['out_cgst'] = outward['cgst'] or Decimal('0.00')
-        context['out_sgst'] = outward['sgst'] or Decimal('0.00')
-        context['out_igst'] = outward['igst'] or Decimal('0.00')
-        context['out_taxable'] = outward['total'] or Decimal('0.00')
-        context['output_tax'] = context['out_cgst'] + context['out_sgst'] + context['out_igst']
+        out_cgst = quantize_amount(outward['cgst'] or Decimal('0.00'))
+        out_sgst = quantize_amount(outward['sgst'] or Decimal('0.00'))
+        out_igst = quantize_amount(outward['igst'] or Decimal('0.00'))
+        out_taxable = quantize_amount(outward['total'] or Decimal('0.00'))
 
-        context['in_cgst'] = inward['cgst'] or Decimal('0.00')
-        context['in_sgst'] = inward['sgst'] or Decimal('0.00')
-        context['in_igst'] = inward['igst'] or Decimal('0.00')
-        context['in_taxable'] = inward['total'] or Decimal('0.00')
-        context['input_tax'] = context['in_cgst'] + context['in_sgst'] + context['in_igst']
-        
-        context['net_payable'] = max(Decimal('0.00'), context['output_tax'] - context['input_tax'])
+        # Fallback to posted Invoice records if GSTTransaction total is 0
+        if (out_cgst + out_sgst + out_igst + out_taxable) == Decimal('0.00'):
+            inv_agg = Invoice.objects.filter(company=company, status='POSTED').aggregate(
+                cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'), total=Sum('taxable_value')
+            )
+            out_cgst = quantize_amount(inv_agg['cgst'] or Decimal('0.00'))
+            out_sgst = quantize_amount(inv_agg['sgst'] or Decimal('0.00'))
+            out_igst = quantize_amount(inv_agg['igst'] or Decimal('0.00'))
+            out_taxable = quantize_amount(inv_agg['total'] or Decimal('0.00'))
+
+        in_cgst = quantize_amount(inward['cgst'] or Decimal('0.00'))
+        in_sgst = quantize_amount(inward['sgst'] or Decimal('0.00'))
+        in_igst = quantize_amount(inward['igst'] or Decimal('0.00'))
+        in_taxable = quantize_amount(inward['total'] or Decimal('0.00'))
+
+        # Fallback to posted PurchaseBill records if GSTTransaction total is 0
+        if (in_cgst + in_sgst + in_igst + in_taxable) == Decimal('0.00'):
+            bill_agg = PurchaseBill.objects.filter(company=company, status='POSTED').aggregate(
+                cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'), total=Sum('taxable_value')
+            )
+            in_cgst = quantize_amount(bill_agg['cgst'] or Decimal('0.00'))
+            in_sgst = quantize_amount(bill_agg['sgst'] or Decimal('0.00'))
+            in_igst = quantize_amount(bill_agg['igst'] or Decimal('0.00'))
+            in_taxable = quantize_amount(bill_agg['total'] or Decimal('0.00'))
+
+        output_tax = quantize_amount(out_cgst + out_sgst + out_igst)
+        input_tax = quantize_amount(in_cgst + in_sgst + in_igst)
+        net_payable = quantize_amount(max(Decimal('0.00'), output_tax - input_tax))
+
+        context['out_cgst'] = f"{out_cgst:.2f}"
+        context['out_sgst'] = f"{out_sgst:.2f}"
+        context['out_igst'] = f"{out_igst:.2f}"
+        context['out_taxable'] = f"{out_taxable:.2f}"
+        context['output_tax'] = f"{output_tax:.2f}"
+
+        context['in_cgst'] = f"{in_cgst:.2f}"
+        context['in_sgst'] = f"{in_sgst:.2f}"
+        context['in_igst'] = f"{in_igst:.2f}"
+        context['in_taxable'] = f"{in_taxable:.2f}"
+        context['input_tax'] = f"{input_tax:.2f}"
+
+        context['net_payable'] = f"{net_payable:.2f}"
         return context
 
 

@@ -49,6 +49,11 @@ class MoneyModelForm(forms.ModelForm):
                 self.fields[name] = money_field
 
 
+from .utils import INDIAN_STATES_AND_UTS, parse_state_and_code, validate_state_and_code
+
+STATE_CHOICES = [('', '-- Select State Code --')] + [(st['code'], st['display']) for st in INDIAN_STATES_AND_UTS]
+
+
 class CompanyForm(MoneyModelForm):
     class Meta:
         model = Company
@@ -62,10 +67,17 @@ class CompanyForm(MoneyModelForm):
         widgets = {
             'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'terms_and_conditions': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'state_code': forms.Select(choices=STATE_CHOICES, attrs={'class': 'form-control state-code-select'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            if not self.instance.state_code and self.instance.state:
+                _, code = parse_state_and_code(self.instance.state)
+                if code:
+                    self.initial['state_code'] = code
+
         for field_name, field in self.fields.items():
             if field_name not in ['address', 'terms_and_conditions', 'logo', 'signature', 'stamp']:
                 field.widget.attrs['class'] = 'form-control'
@@ -74,13 +86,13 @@ class CompanyForm(MoneyModelForm):
         cleaned_data = super().clean()
         state = cleaned_data.get('state')
         state_code = cleaned_data.get('state_code')
-        from .utils import validate_state_and_code
-        if state_code:
-            is_valid, msg_or_code = validate_state_and_code(state, state_code)
-            if not is_valid:
-                self.add_error('state_code', msg_or_code)
-            else:
-                cleaned_data['state_code'] = msg_or_code
+        if state or state_code:
+            st_name, st_code = parse_state_and_code(state_code or state)
+            if st_name:
+                cleaned_data['state'] = st_name
+            if st_code:
+                cleaned_data['state_code'] = st_code
+                state_code = st_code
 
         gstin = cleaned_data.get('gstin')
         if gstin and state_code:
@@ -91,7 +103,6 @@ class CompanyForm(MoneyModelForm):
                 if gstin_state_code != state_code_fmt:
                     self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected State Code '{state_code_fmt}'.")
         return cleaned_data
-
 
 
 class ProductForm(MoneyModelForm):
@@ -136,10 +147,22 @@ class CustomerForm(MoneyModelForm):
         widgets = {
             'billing_address': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'shipping_address': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'billing_state_code': forms.Select(choices=STATE_CHOICES, attrs={'class': 'form-control state-code-select'}),
+            'shipping_state_code': forms.Select(choices=STATE_CHOICES, attrs={'class': 'form-control state-code-select'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            if not self.instance.billing_state_code and self.instance.billing_state:
+                _, code = parse_state_and_code(self.instance.billing_state)
+                if code:
+                    self.initial['billing_state_code'] = code
+            if not self.instance.shipping_state_code and self.instance.shipping_state:
+                _, code = parse_state_and_code(self.instance.shipping_state)
+                if code:
+                    self.initial['shipping_state_code'] = code
+
         for field_name, field in self.fields.items():
             if field_name != 'name':
                 field.required = False
@@ -148,14 +171,33 @@ class CustomerForm(MoneyModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        b_state = cleaned_data.get('billing_state')
+        b_code = cleaned_data.get('billing_state_code')
+        if b_state or b_code:
+            st_name, st_code = parse_state_and_code(b_code or b_state)
+            if st_name:
+                cleaned_data['billing_state'] = st_name
+            if st_code:
+                cleaned_data['billing_state_code'] = st_code
+
+        s_state = cleaned_data.get('shipping_state')
+        s_code = cleaned_data.get('shipping_state_code')
+        if s_state or s_code:
+            sh_name, sh_code = parse_state_and_code(s_code or s_state)
+            if sh_name:
+                cleaned_data['shipping_state'] = sh_name
+            if sh_code:
+                cleaned_data['shipping_state_code'] = sh_code
+
         gstin = cleaned_data.get('gstin')
         billing_state_code = cleaned_data.get('billing_state_code')
         if gstin and billing_state_code:
             gstin = gstin.strip()
             billing_state_code = billing_state_code.strip().zfill(2)
-            gstin_state_code = gstin[:2]
-            if gstin_state_code != billing_state_code:
-                self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected Billing State Code '{billing_state_code}'.")
+            if len(gstin) >= 2 and gstin[:2].isdigit():
+                gstin_state_code = gstin[:2]
+                if gstin_state_code != billing_state_code:
+                    self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected Billing State Code '{billing_state_code}'.")
         return cleaned_data
 
 
@@ -169,10 +211,17 @@ class SupplierForm(MoneyModelForm):
         ]
         widgets = {
             'address': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'state_code': forms.Select(choices=STATE_CHOICES, attrs={'class': 'form-control state-code-select'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            if not self.instance.state_code and self.instance.state:
+                _, code = parse_state_and_code(self.instance.state)
+                if code:
+                    self.initial['state_code'] = code
+
         for field_name, field in self.fields.items():
             if field_name != 'name':
                 field.required = False
@@ -181,14 +230,24 @@ class SupplierForm(MoneyModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        gstin = cleaned_data.get('gstin')
+        state = cleaned_data.get('state')
         state_code = cleaned_data.get('state_code')
+        if state or state_code:
+            st_name, st_code = parse_state_and_code(state_code or state)
+            if st_name:
+                cleaned_data['state'] = st_name
+            if st_code:
+                cleaned_data['state_code'] = st_code
+                state_code = st_code
+
+        gstin = cleaned_data.get('gstin')
         if gstin and state_code:
             gstin = gstin.strip()
             state_code = state_code.strip().zfill(2)
-            gstin_state_code = gstin[:2]
-            if gstin_state_code != state_code:
-                self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected State Code '{state_code}'.")
+            if len(gstin) >= 2 and gstin[:2].isdigit():
+                gstin_state_code = gstin[:2]
+                if gstin_state_code != state_code:
+                    self.add_error('gstin', f"GSTIN state code '{gstin_state_code}' does not match selected State Code '{state_code}'.")
         return cleaned_data
 
 

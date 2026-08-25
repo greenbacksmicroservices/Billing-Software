@@ -538,6 +538,20 @@ class Invoice(models.Model):
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     
     paid_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    # Payment Details Fields
+    PAYMENT_STATUS_CHOICES = [
+        ('UNPAID', 'Unpaid'),
+        ('PARTIALLY_PAID', 'Partially Paid'),
+        ('PAID', 'Paid'),
+    ]
+    advance_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    amount_paid_now = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    payment_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    total_payment_received = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    balance_due = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='UNPAID')
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='CASH')
     
@@ -560,6 +574,8 @@ class Invoice(models.Model):
         unique_together = ('company', 'invoice_number')
 
     def outstanding_amount(self):
+        if self.balance_due is not None and self.balance_due > Decimal('0.00'):
+            return self.balance_due
         return max(Decimal('0.00'), self.grand_total - self.paid_amount)
 
     def __str__(self):
@@ -605,19 +621,50 @@ class Quotation(models.Model):
     date = models.DateField()
     valid_until = models.DateField()
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     taxable_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     notes = models.TextField(blank=True, null=True)
     terms = models.TextField(blank=True, null=True)
+    payment_terms = models.CharField(max_length=255, blank=True, null=True, default='As specified in proposal')
     converted_to_invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True)
     converted_to_sales_order = models.ForeignKey('SalesOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_quotations')
 
     class Meta:
         unique_together = ('company', 'quotation_number')
+
+
+class QuotationPredefinedTerm(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    term_text = models.TextField()
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.term_text[:50]
+
+
+class QuotationSelectedTerm(models.Model):
+    quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name='selected_terms')
+    predefined_term = models.ForeignKey(QuotationPredefinedTerm, on_delete=models.SET_NULL, null=True, blank=True)
+    term_text = models.TextField()
+    display_order = models.IntegerField(default=0)
+    is_custom = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return f"Term for {self.quotation.quotation_number}: {self.term_text[:30]}"
 
 
 class QuotationItem(models.Model):
@@ -732,6 +779,107 @@ class ProformaInvoiceItem(models.Model):
 
 # --- PURCHASE MODULES ---
 
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),
+        ('SENT', 'Sent'),
+        ('CONFIRMED', 'Confirmed'),
+        ('PARTIALLY_RECEIVED', 'Partially Received'),
+        ('RECEIVED', 'Received'),
+        ('CANCELLED', 'Cancelled'),
+        ('CLOSED', 'Closed'),
+    ]
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_orders')
+    supplier_name_snapshot = models.CharField(max_length=200, null=True, blank=True)
+    supplier_phone_snapshot = models.CharField(max_length=50, null=True, blank=True)
+    supplier_email_snapshot = models.CharField(max_length=100, null=True, blank=True)
+    supplier_gstin_snapshot = models.CharField(max_length=20, null=True, blank=True)
+    supplier_pan_snapshot = models.CharField(max_length=20, null=True, blank=True)
+    supplier_address_snapshot = models.TextField(null=True, blank=True)
+    supplier_state_snapshot = models.CharField(max_length=100, null=True, blank=True)
+    supplier_state_code_snapshot = models.CharField(max_length=10, null=True, blank=True)
+
+    po_number = models.CharField(max_length=50)
+    po_date = models.DateField()
+    expected_delivery_date = models.DateField(null=True, blank=True)
+    supplier_reference = models.CharField(max_length=100, null=True, blank=True)
+    supplier_reference_date = models.DateField(null=True, blank=True)
+    
+    payment_terms = models.TextField(null=True, blank=True)
+    delivery_terms = models.TextField(null=True, blank=True)
+    warranty_terms = models.TextField(null=True, blank=True)
+    return_terms = models.TextField(null=True, blank=True)
+    special_instructions = models.TextField(null=True, blank=True)
+    shipping_method = models.CharField(max_length=100, null=True, blank=True)
+    
+    warehouse = models.ForeignKey('Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_orders')
+    place_of_supply = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    state_code = models.CharField(max_length=10, null=True, blank=True)
+    
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    taxable_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    notes = models.TextField(null=True, blank=True)
+    internal_notes = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='DRAFT')
+    
+    created_by = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_purchase_orders')
+    converted_to_purchase_bill = models.ForeignKey('PurchaseBill', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_purchase_orders')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('company', 'po_number')
+        ordering = ['-po_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.po_number} - {self.supplier.name} ({self.grand_total})"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
+    product_name_snapshot = models.CharField(max_length=255)
+    item_image = models.ImageField(upload_to='purchase_order_item_photos/', null=True, blank=True)
+    description_snapshot = models.TextField(null=True, blank=True)
+    hsn_sac_snapshot = models.CharField(max_length=20, null=True, blank=True)
+    uqc_snapshot = models.CharField(max_length=20, null=True, blank=True)
+    
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    rate = models.DecimalField(max_digits=12, decimal_places=2)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    taxable_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('18.00'))
+    cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2)
+
+    @property
+    def hsn_code(self):
+        if self.hsn_sac_snapshot:
+            return self.hsn_sac_snapshot
+        if self.product and self.product.hsn_sac:
+            return self.product.hsn_sac.code
+        return ""
+
+    def __str__(self):
+        return f"{self.product_name_snapshot} x {self.quantity}"
+
+
 class PurchaseBill(models.Model):
     STATUS_CHOICES = [
         ('DRAFT', 'Draft'),
@@ -796,6 +944,20 @@ class PurchaseBillItem(models.Model):
         if self.product and self.product.hsn_sac:
             return self.product.hsn_sac.code
         return ""
+
+
+class PurchaseBillDocument(models.Model):
+    purchase_bill = models.ForeignKey(PurchaseBill, on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to='purchase_bill_docs/')
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50)
+    file_size = models.BigIntegerField(default=0)
+    uploaded_by = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.file_name} ({self.purchase_bill.supplier_bill_no})"
+
 
 
 # --- CREDIT NOTES, DEBIT NOTES & RETURNS ---

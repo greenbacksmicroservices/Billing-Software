@@ -11,7 +11,7 @@
     </a>
 </div>
 
-<form id="purchase-bill-form" method="POST" action="{% url 'purchase_bill_add' %}" onsubmit="submitBill(event)" class="card-container" novalidate>
+<form id="purchase-bill-form" method="POST" action="{% url 'purchase_bill_add' %}" enctype="multipart/form-data" onsubmit="submitBill(event)" class="card-container" novalidate>
     {% csrf_token %}
     <input type="hidden" name="items_json" id="items-json-input">
     <div class="card-header"><h3 class="card-title">Purchase Bill Details</h3></div>
@@ -145,6 +145,24 @@
                 </div>
             </div>
         </div>
+
+        <!-- Supporting Documents Section -->
+        <h4 style="margin: 2rem 0 1rem 0; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-paperclip"></i> Supporting Documents
+        </h4>
+        <div id="doc-dropzone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('bill-doc-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.2rem; color: var(--primary); margin-bottom: 0.5rem;"></i>
+            <div style="font-weight: 700; font-size: 1rem; color: #1e293b;">Drag & Drop your supplier invoice file here</div>
+            <div style="font-size: 0.85rem; color: var(--muted-foreground); margin: 0.25rem 0 0.75rem 0;">OR click the button below to browse</div>
+            <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('bill-doc-input').click();" style="font-size: 0.85rem; padding: 0.4rem 1rem;">
+                <i class="fa-solid fa-plus"></i> Upload Document
+            </button>
+            <div style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.75rem;">Supported Formats: PDF, JPG, PNG, WEBP, DOC, DOCX, XLS, XLSX (Max 10MB)</div>
+        </div>
+        <input type="file" id="bill-doc-input" name="supporting_document" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" style="display: none;" onchange="handleFileSelect(this.files)">
+
+        <!-- Selected File Preview Container -->
+        <div id="selected-doc-preview-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;"></div>
 
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
             <a href="{% url 'purchase_bill_list' %}" class="btn btn-secondary">Cancel</a>
@@ -536,9 +554,85 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Supplier';
             console.error(errObj);
-            err.innerText = 'Unable to add supplier. Please try again.';
+        err.innerText = 'Unable to add supplier. Please try again.';
             err.style.display = 'block';
         });
+    }
+
+    // Drag & Drop Document Handling
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('doc-dropzone').style.borderColor = 'var(--primary)';
+        document.getElementById('doc-dropzone').style.background = '#f0f9ff';
+    }
+
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('doc-dropzone').style.borderColor = 'var(--border)';
+        document.getElementById('doc-dropzone').style.background = '#f8fafc';
+    }
+
+    function handleFileDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleDragLeave(e);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const input = document.getElementById('bill-doc-input');
+            input.files = e.dataTransfer.files;
+            handleFileSelect(e.dataTransfer.files);
+        }
+    }
+
+    function handleFileSelect(files) {
+        const previewList = document.getElementById('selected-doc-preview-list');
+        previewList.innerHTML = '';
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        const ext = file.name.split('.').pop().toLowerCase();
+        const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx'];
+        const dangerous = ['exe', 'bat', 'sh', 'js', 'py', 'cmd', 'vbs', 'ps1'];
+
+        if (dangerous.includes(ext) || !allowed.includes(ext)) {
+            alert(`Unsupported file type (.${ext}). Allowed formats: PDF, JPG, PNG, WEBP, DOC, DOCX, XLS, XLSX.`);
+            document.getElementById('bill-doc-input').value = '';
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File size exceeds maximum limit of 10MB.');
+            document.getElementById('bill-doc-input').value = '';
+            return;
+        }
+
+        const sizeFormatted = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+        const itemDiv = document.createElement('div');
+        itemDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);';
+        itemDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fa-solid fa-file-lines" style="font-size: 1.5rem; color: var(--primary);"></i>
+                <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b;">${escapeHtml(file.name)}</div>
+                    <div style="font-size: 0.75rem; color: var(--muted-foreground);">${ext.toUpperCase()} • ${sizeFormatted}</div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="removeSelectedFile()" style="font-size: 0.75rem; padding: 0.25rem 0.6rem; color: var(--danger);">
+                <i class="fa-solid fa-trash"></i> Remove
+            </button>
+        `;
+        previewList.appendChild(itemDiv);
+    }
+
+    function removeSelectedFile() {
+        document.getElementById('bill-doc-input').value = '';
+        document.getElementById('selected-doc-preview-list').innerHTML = '';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 </script>
 {% endblock %}

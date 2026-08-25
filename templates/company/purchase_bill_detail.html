@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        <div class="card-container">
+        <div class="card-container" style="margin-bottom: 1.5rem;">
             <div class="card-header"><h3 class="card-title">Inward Supplies Table</h3></div>
             <div class="table-responsive">
                 <table class="custom-table">
@@ -83,6 +83,64 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- SUPPORTING DOCUMENTS SECTION -->
+        <div class="card-container">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 0.75rem;">
+                <h3 class="card-title" style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-paperclip"></i> Supporting Documents
+                </h3>
+                <button type="button" onclick="openDocUploadModal()" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                    <i class="fa-solid fa-upload"></i> + Upload Document
+                </button>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                <div class="table-responsive">
+                    <table class="custom-table" id="doc-table">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th>File Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Uploaded By</th>
+                                <th>Uploaded Date</th>
+                                <th style="text-align: center; width: 140px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doc-tbody">
+                            {% for doc in bill.documents.all %}
+                                <tr id="doc-row-{{ doc.id }}">
+                                    <td><strong>{{ doc.file_name }}</strong></td>
+                                    <td><span class="badge badge-info">{{ doc.file_type }}</span></td>
+                                    <td>{{ doc.file_size|filesizeformat }}</td>
+                                    <td>{{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username|default:"User" }}</td>
+                                    <td>{{ doc.uploaded_at|date:"d M Y h:i A" }}</td>
+                                    <td style="text-align: center; display: flex; gap: 0.25rem; justify-content: center;">
+                                        {% if doc.file_type == 'PDF' or doc.file_type == 'JPG' or doc.file_type == 'JPEG' or doc.file_type == 'PNG' or doc.file_type == 'WEBP' %}
+                                            <button type="button" onclick="previewDoc('{% url 'purchase_bill_view_document' doc.id %}', '{{ doc.file_name }}', '{{ doc.file_type }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Document">
+                                                <i class="fa-regular fa-eye"></i> View
+                                            </button>
+                                        {% endif %}
+                                        <a href="{% url 'purchase_bill_view_document' doc.id %}" target="_blank" download class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Download File">
+                                            <i class="fa-solid fa-download"></i> Download
+                                        </a>
+                                        <button type="button" onclick="deleteDoc({{ doc.id }}, '{{ doc.file_name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Delete File">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr id="no-docs-row">
+                                    <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">
+                                        No supporting documents uploaded yet.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -150,4 +208,185 @@
         </div>
     </div>
 </div>
+
+<!-- UPLOAD DOCUMENT MODAL -->
+<div id="upload-doc-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #fff); width: 100%; max-width: 480px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 style="margin: 0; color: var(--primary); font-size: 1.1rem;"><i class="fa-solid fa-upload"></i> Upload Supporting Document</h3>
+            <button type="button" onclick="closeDocUploadModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <form id="upload-doc-form" onsubmit="submitUploadDoc(event)" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div id="upload-doc-error" style="display: none; padding: 0.75rem; border-radius: 6px; background: #fef2f2; color: #991b1b; font-size: 0.85rem; margin-bottom: 1rem;"></div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="doc-file-input">Select File *</label>
+                <input type="file" id="doc-file-input" name="file" class="form-control" required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx">
+                <small style="color: var(--muted-foreground); display: block; margin-top: 0.35rem; font-size: 0.75rem;">
+                    Allowed Formats: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX (Max 10MB).
+                </small>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeDocUploadModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="btn-upload-submit" class="btn btn-primary">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Document
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PREVIEW DOCUMENT MODAL -->
+<div id="preview-doc-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1050; align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="background: #fff; width: 100%; max-width: 900px; height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.3);">
+        <div style="background: #1e293b; color: #fff; padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+            <strong id="preview-doc-title" style="font-size: 0.95rem;">Document Preview</strong>
+            <button type="button" onclick="closePreviewModal()" style="background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer;">&times;</button>
+        </div>
+        <div id="preview-doc-body" style="flex: 1; background: #000; overflow: auto; display: flex; align-items: center; justify-content: center;">
+            <!-- Iframe / Img will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    function openDocUploadModal() { document.getElementById('upload-doc-modal').style.display = 'flex'; }
+    function closeDocUploadModal() { document.getElementById('upload-doc-modal').style.display = 'none'; }
+    function closePreviewModal() { document.getElementById('preview-doc-modal').style.display = 'none'; document.getElementById('preview-doc-body').innerHTML = ''; }
+
+    function submitUploadDoc(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('doc-file-input');
+        const btn = document.getElementById('btn-upload-submit');
+        const errBox = document.getElementById('upload-doc-error');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            errBox.innerText = 'Please select a file to upload.';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+        errBox.style.display = 'none';
+
+        fetch('/company/purchase-bills/{{ bill.id }}/documents/upload/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Document';
+            if (data.status === 'success' && data.document) {
+                closeDocUploadModal();
+                fileInput.value = '';
+                addDocRowToTable(data.document);
+            } else {
+                errBox.innerText = data.message || 'Unable to upload document. Please try again.';
+                errBox.style.display = 'block';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Document';
+            errBox.innerText = 'Unable to upload document. Please try again.';
+            errBox.style.display = 'block';
+        });
+    }
+
+    function addDocRowToTable(doc) {
+        const noDocsRow = document.getElementById('no-docs-row');
+        if (noDocsRow) noDocsRow.remove();
+
+        const tbody = document.getElementById('doc-tbody');
+        const tr = document.createElement('tr');
+        tr.id = `doc-row-${doc.id}`;
+
+        const isPreviewable = ['PDF', 'JPG', 'JPEG', 'PNG', 'WEBP'].includes(doc.file_type.toUpperCase());
+        const viewBtn = isPreviewable ? `
+            <button type="button" onclick="previewDoc('${doc.view_url}', '${escapeHtml(doc.file_name)}', '${doc.file_type}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Document">
+                <i class="fa-regular fa-eye"></i> View
+            </button>
+        ` : '';
+
+        tr.innerHTML = `
+            <td><strong>${escapeHtml(doc.file_name)}</strong></td>
+            <td><span class="badge badge-info">${doc.file_type}</span></td>
+            <td>${formatBytes(doc.file_size)}</td>
+            <td>${escapeHtml(doc.uploaded_by)}</td>
+            <td>${doc.uploaded_at}</td>
+            <td style="text-align: center; display: flex; gap: 0.25rem; justify-content: center;">
+                ${viewBtn}
+                <a href="${doc.view_url}" target="_blank" download class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Download File">
+                    <i class="fa-solid fa-download"></i> Download
+                </a>
+                <button type="button" onclick="deleteDoc(${doc.id}, '${escapeHtml(doc.file_name)}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Delete File">
+                    <i class="fa-regular fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+        tbody.prepend(tr);
+    }
+
+    function deleteDoc(docId, fileName) {
+        if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+
+        fetch(`/company/purchase-bills/documents/${docId}/delete/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`doc-row-${docId}`);
+                if (row) row.remove();
+                
+                const tbody = document.getElementById('doc-tbody');
+                if (tbody.children.length === 0) {
+                    tbody.innerHTML = `
+                        <tr id="no-docs-row">
+                            <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">
+                                No supporting documents uploaded yet.
+                            </td>
+                        </tr>
+                    `;
+                }
+            } else {
+                alert(data.message || 'Unable to delete document.');
+            }
+        });
+    }
+
+    function previewDoc(url, title, type) {
+        const body = document.getElementById('preview-doc-body');
+        document.getElementById('preview-doc-title').innerText = title;
+        body.innerHTML = '';
+
+        const ext = type.toUpperCase();
+        if (ext === 'PDF') {
+            body.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
+        } else {
+            body.innerHTML = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        }
+        document.getElementById('preview-doc-modal').style.display = 'flex';
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>
 {% endblock %}

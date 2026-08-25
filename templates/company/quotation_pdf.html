@@ -423,8 +423,7 @@
                     <div style="margin-top: 10px; font-size: 8.5pt; color: #334155; line-height: 1.4;">
                         Quotation No: <strong style="color: #0f172a; font-size: 9.5pt;">{{ quotation.quotation_number }}</strong><br>
                         Date: <strong>{{ quotation.date|date:"d-M-Y" }}</strong><br>
-                        Valid Until: <strong style="color: #b91c1c;">{{ quotation.valid_until|date:"d-M-Y" }}</strong><br>
-                        Status: <strong style="text-transform: uppercase; color: #1d4ed8;">{{ quotation.status }}</strong>
+                        Valid Until: <strong style="color: #b91c1c;">{{ quotation.valid_until|date:"d-M-Y" }}</strong>
                     </div>
                 </td>
             </tr>
@@ -449,26 +448,26 @@
                 </td>
                 <td>
                     <div class="section-header-title">QUOTATION INFORMATION</div>
-                    <table style="width: 100%; font-size: 8.5pt; line-height: 1.5;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt; line-height: 1.35; margin-top: 2px;">
                         <tr>
-                            <td class="info-label" style="width: 45%;">Quotation Number:</td>
-                            <td><strong>{{ quotation.quotation_number }}</strong></td>
+                            <td class="info-label" style="padding: 2px 6px 2px 0; white-space: nowrap; width: 32%; color: #475569; font-weight: 600;">Quotation Number:</td>
+                            <td style="padding: 2px 0; color: #0f172a;"><strong>{{ quotation.quotation_number }}</strong></td>
                         </tr>
                         <tr>
-                            <td class="info-label">Quotation Date:</td>
-                            <td><strong>{{ quotation.date|date:"d-M-Y" }}</strong></td>
+                            <td class="info-label" style="padding: 2px 6px 2px 0; white-space: nowrap; color: #475569; font-weight: 600;">Quotation Date:</td>
+                            <td style="padding: 2px 0; color: #0f172a;"><strong>{{ quotation.date|date:"d-M-Y" }}</strong></td>
                         </tr>
                         <tr>
-                            <td class="info-label">Validity Period:</td>
-                            <td><strong>30 Days</strong> (Until {{ quotation.valid_until|date:"d-M-Y" }})</td>
+                            <td class="info-label" style="padding: 2px 6px 2px 0; white-space: nowrap; color: #475569; font-weight: 600;">Validity Period:</td>
+                            <td style="padding: 2px 0; color: #0f172a;"><strong>Until {{ quotation.valid_until|date:"d-M-Y" }}</strong></td>
                         </tr>
                         <tr>
-                            <td class="info-label">Payment Terms:</td>
-                            <td><strong>As specified in proposal</strong></td>
+                            <td class="info-label" style="padding: 2px 6px 2px 0; white-space: nowrap; color: #475569; font-weight: 600;">Payment Terms:</td>
+                            <td style="padding: 2px 0; color: #0f172a;"><strong>{{ quotation.payment_terms|default:"As specified in proposal" }}</strong></td>
                         </tr>
                         <tr>
-                            <td class="info-label">GST Supply Type:</td>
-                            <td>
+                            <td class="info-label" style="padding: 2px 6px 2px 0; white-space: nowrap; color: #475569; font-weight: 600;">GST Supply Type:</td>
+                            <td style="padding: 2px 0;">
                                 {% if is_interstate %}
                                     <strong style="color: #b91c1c;">Inter-State (IGST)</strong>
                                 {% else %}

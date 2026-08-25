@@ -1,0 +1,167 @@
+{% extends 'base_company.html' %}
+{% load indian_numbers %}
+
+{% block title %}Purchase Orders - Purchases{% endblock %}
+{% block sub_purchase_orders %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Purchase Orders</h1>
+        <p style="color: var(--muted-foreground); margin: 0.25rem 0 0 0; font-size: 0.9rem;">Manage vendor purchase orders, track expected deliveries and convert to bills.</p>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="{% url 'purchase_order_add' %}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Create Purchase Order
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card-container" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="GET" action="{% url 'purchase_order_list' %}" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 220px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">Search</label>
+            <input type="text" name="search" class="form-control" placeholder="Search PO Number, Supplier, GSTIN..." value="{{ selected_search }}">
+        </div>
+        <div style="width: 160px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">Status</label>
+            <select name="status" class="form-control">
+                <option value="">All Statuses</option>
+                {% for code, label in statuses %}
+                    <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="width: 180px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">Supplier</label>
+            <select name="supplier" class="form-control">
+                <option value="">All Suppliers</option>
+                {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if selected_supplier == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="width: 140px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">From Date</label>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+        </div>
+        <div style="width: 140px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">To Date</label>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-filter"></i> Filter
+            </button>
+            <a href="{% url 'purchase_order_list' %}" class="btn btn-secondary" style="padding: 0.5rem 0.75rem;" title="Reset Filters">
+                <i class="fa-solid fa-rotate-left"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="table-container-ajax" id="table-container">
+<div class="card-container">
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>PO Number</th>
+                    <th>PO Date</th>
+                    <th>Supplier</th>
+                    <th>Expected Delivery</th>
+                    <th style="text-align: center;">Items</th>
+                    <th style="text-align: right;">Subtotal</th>
+                    <th style="text-align: right;">Tax</th>
+                    <th style="text-align: right;">Grand Total</th>
+                    <th>Status</th>
+                    <th>Created By</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'purchase_order_view' po.id %}" style="font-weight: 700; color: var(--primary); text-decoration: none;">
+                                {{ po.po_number }}
+                            </a>
+                        </td>
+                        <td>{{ po.po_date|date:"d M Y" }}</td>
+                        <td>
+                            <strong>{{ po.supplier.name }}</strong>
+                            {% if po.supplier.business_name %}<br><small style="color: var(--muted-foreground);">{{ po.supplier.business_name }}</small>{% endif %}
+                        </td>
+                        <td>{{ po.expected_delivery_date|date:"d M Y"|default:"-" }}</td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary" style="font-size: 0.75rem;">{{ po.items.count }}</span>
+                        </td>
+                        <td style="text-align: right;">{{ po.subtotal|indian_currency }}</td>
+                        <td style="text-align: right;">
+                            {% with tax_total=po.cgst_total|add:po.sgst_total|add:po.igst_total|add:po.cess_total %}
+                                {{ tax_total|indian_currency }}
+                            {% endwith %}
+                        </td>
+                        <td style="text-align: right; font-weight: 700; color: var(--primary);">{{ po.grand_total|indian_currency }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if po.status == 'RECEIVED' or po.status == 'CONFIRMED' %}badge-success
+                                {% elif po.status == 'SENT' or po.status == 'PARTIALLY_RECEIVED' %}badge-info
+                                {% elif po.status == 'DRAFT' %}badge-warning
+                                {% elif po.status == 'CANCELLED' %}badge-danger
+                                {% else %}badge-secondary{% endif %}">
+                                {{ po.get_status_display }}
+                            </span>
+                        </td>
+                        <td><small>{{ po.created_by.get_full_name|default:po.created_by.username|default:"System" }}</small></td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.4rem; justify-content: flex-end; align-items: center;">
+                                <a href="{% url 'purchase_order_view' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="View Details">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                                <a href="{% url 'purchase_order_edit' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Edit PO">
+                                    <i class="fa-regular fa-pen-to-square"></i>
+                                </a>
+                                <a href="{% url 'purchase_order_pdf' po.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Print / PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                {% if not po.converted_to_purchase_bill %}
+                                    <a href="{% url 'purchase_order_convert_bill' po.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Convert to Purchase Bill">
+                                        <i class="fa-solid fa-arrow-right-arrow-left"></i> Bill
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'purchase_bill_view' po.converted_to_purchase_bill.id %}" class="btn btn-info" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Linked Purchase Bill">
+                                        <i class="fa-solid fa-receipt"></i> Linked
+                                    </a>
+                                {% endif %}
+                                <a href="{% url 'purchase_order_duplicate' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Duplicate PO">
+                                    <i class="fa-regular fa-copy"></i>
+                                </a>
+                                {% if not po.converted_to_purchase_bill %}
+                                    <form method="POST" action="{% url 'purchase_order_delete' po.id %}?confirm=true" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete Purchase Order {{ po.po_number }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger); font-size: 0.8rem;" title="Delete PO">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" style="text-align: center; color: var(--muted-foreground); padding: 3rem;">
+                            <i class="fa-solid fa-file-contract" style="font-size: 2.5rem; color: var(--border); margin-bottom: 1rem; display: block;"></i>
+                            No Purchase Orders found. Click "Create Purchase Order" to place your first supplier order.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'common_pagination.html' %}
+</div>
+</div>
+{% endblock %}

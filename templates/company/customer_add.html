@@ -78,13 +78,10 @@
                 <label class="form-label">City *</label>
                 {{ form.billing_city }}
             </div>
-            <div class="form-group">
-                <label class="form-label">State *</label>
-                {{ form.billing_state }}
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2;">
                 <label class="form-label">State Code *</label>
                 {{ form.billing_state_code }}
+                <input type="hidden" name="billing_state" id="id_billing_state" value="{{ form.billing_state.value|default:'' }}">
             </div>
             <div class="form-group">
                 <label class="form-label">Pincode *</label>
@@ -107,13 +104,10 @@
                 <label class="form-label">City</label>
                 {{ form.shipping_city }}
             </div>
-            <div class="form-group">
-                <label class="form-label">State</label>
-                {{ form.shipping_state }}
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2;">
                 <label class="form-label">State Code</label>
                 {{ form.shipping_state_code }}
+                <input type="hidden" name="shipping_state" id="id_shipping_state" value="{{ form.shipping_state.value|default:'' }}">
             </div>
             <div class="form-group">
                 <label class="form-label">Pincode</label>

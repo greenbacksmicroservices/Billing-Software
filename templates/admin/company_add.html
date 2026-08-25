@@ -84,15 +84,15 @@
                 <label class="form-label" for="city">City / District *</label>
                 <input type="text" name="city" id="city" class="form-control" placeholder="Mumbai" value="{{ form_data.city|default:'' }}" required>
             </div>
-            <div class="form-group" style="position: relative; grid-column: span 2;">
-                <label class="form-label" for="state_search_input">State / UT (Search by Name or Code) *</label>
-                <input type="text" id="state_search_input" class="form-control" placeholder="Type name (e.g. Odisha) or code (e.g. 21)" autocomplete="off" value="{% if form_data.state and form_data.state_code %}{{ form_data.state }} — {{ form_data.state_code }}{% endif %}" required>
-                <input type="hidden" name="state" id="state" value="{{ form_data.state|default:'' }}">
-                <div id="state_suggestions" class="autocomplete-suggestions-box" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 1050; background: var(--card, #ffffff); border: 1px solid var(--border, #ccc); border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 2px;"></div>
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2;">
                 <label class="form-label" for="state_code">State Code *</label>
-                <input type="text" name="state_code" id="state_code" class="form-control" placeholder="21" maxlength="2" value="{{ form_data.state_code|default:'' }}" readonly required style="background: var(--background, #f9fafb);">
+                <select name="state_code" id="state_code" class="form-control state-code-select" onchange="document.getElementById('state').value = this.options[this.selectedIndex].getAttribute('data-state-name') || '';" required>
+                    <option value="">-- Select State Code --</option>
+                    {% for st in indian_states %}
+                        <option value="{{ st.code }}" data-state-name="{{ st.name }}" {% if form_data.state_code == st.code or form_data.state == st.name %}selected{% endif %}>{{ st.name }} ({{ st.code }})</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="state" id="state" value="{{ form_data.state|default:'' }}">
             </div>
             <div class="form-group">
                 <label class="form-label" for="pincode">Pincode *</label>

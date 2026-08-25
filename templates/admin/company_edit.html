@@ -118,19 +118,15 @@
                 {% endif %}
             </div>
 
-            <div class="form-group {% if form.state.errors %}has-error{% endif %}" style="position: relative;">
-                <label class="form-label" for="state_search_input">State / UT (Search by Name or Code) *</label>
-                <input type="text" id="state_search_input" class="form-control" placeholder="Type name or code..." autocomplete="off" value="{% if form.instance.state and form.instance.state_code %}{{ form.instance.state }} — {{ form.instance.state_code }}{% endif %}">
-                <input type="hidden" name="state" id="id_state" value="{{ form.instance.state|default:'' }}">
-                <div id="state_suggestions" class="autocomplete-suggestions-box" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 1050; background: var(--card, #ffffff); border: 1px solid var(--border, #ccc); border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 2px;"></div>
-                {% if form.state.errors %}
-                    <span class="field-error-message">{{ form.state.errors.0 }}</span>
-                {% endif %}
-            </div>
-
-            <div class="form-group {% if form.state_code.errors %}has-error{% endif %}">
+            <div class="form-group {% if form.state_code.errors %}has-error{% endif %}" style="grid-column: span 2;">
                 <label class="form-label" for="id_state_code">State Code *</label>
-                <input type="text" name="state_code" id="id_state_code" class="form-control" placeholder="27" maxlength="2" value="{{ form.instance.state_code|default:'' }}" readonly style="background: var(--background, #f9fafb);">
+                <select name="state_code" id="id_state_code" class="form-control state-code-select" onchange="document.getElementById('id_state').value = this.options[this.selectedIndex].getAttribute('data-state-name') || '';" required>
+                    <option value="">-- Select State Code --</option>
+                    {% for st in indian_states %}
+                        <option value="{{ st.code }}" data-state-name="{{ st.name }}" {% if form.instance.state_code == st.code or form.instance.state == st.name %}selected{% endif %}>{{ st.name }} ({{ st.code }})</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="state" id="id_state" value="{{ form.instance.state|default:'' }}">
                 {% if form.state_code.errors %}
                     <span class="field-error-message">{{ form.state_code.errors.0 }}</span>
                 {% endif %}

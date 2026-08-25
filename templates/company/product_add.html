@@ -68,9 +68,25 @@
 
         <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">2. Tax & Code configuration</h4>
         <div class="form-row">
-            <div class="form-group">
+            <div class="form-group" style="position: relative;">
                 <label class="form-label">HSN/SAC Code Assignment</label>
-                {{ form.hsn_sac }}
+                <div style="display: none;">
+                    {{ form.hsn_sac }}
+                </div>
+                <div class="hsn-searchable-select-wrapper" style="position: relative;">
+                    <div id="hsn_select_display" class="form-control" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--card, #ffffff);">
+                        <span id="hsn_select_label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; color: var(--foreground);">Search HSN/SAC Code...</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: var(--muted-foreground); margin-left: 8px;"></i>
+                    </div>
+                    <div id="hsn_select_dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1060; background: var(--card, #ffffff); border: 1px solid var(--border, #cbd5e1); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); margin-top: 4px; padding: 10px;">
+                        <div style="position: relative; margin-bottom: 8px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); font-size: 0.85rem;"></i>
+                            <input type="text" id="hsn_search_input" class="form-control" placeholder="Search HSN/SAC Code..." style="padding-left: 32px; font-size: 0.875rem;" autocomplete="off">
+                        </div>
+                        <div id="hsn_options_list" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Unit of Measure (UQC)</label>
@@ -343,6 +359,112 @@ document.addEventListener('DOMContentLoaded', function() {
         searchUrl: "{% url 'brand_search_api' %}",
         quickAddUrl: "{% url 'brand_quick_add' %}"
     });
+
+    // --- Searchable HSN/SAC Dropdown ---
+    (function() {
+        const rawSelect = document.getElementById('id_hsn_sac');
+        const display = document.getElementById('hsn_select_display');
+        const label = document.getElementById('hsn_select_label');
+        const dropdown = document.getElementById('hsn_select_dropdown');
+        const searchInput = document.getElementById('hsn_search_input');
+        const optionsList = document.getElementById('hsn_options_list');
+
+        if (!rawSelect || !display || !dropdown || !searchInput || !optionsList) return;
+
+        const options = [];
+        Array.from(rawSelect.options).forEach(opt => {
+            options.push({
+                value: opt.value,
+                text: opt.text.trim()
+            });
+        });
+
+        function updateLabel() {
+            const selectedOpt = options.find(o => String(o.value) === String(rawSelect.value));
+            if (selectedOpt && selectedOpt.value) {
+                label.innerText = selectedOpt.text;
+                label.style.color = 'var(--foreground, #0f172a)';
+            } else {
+                label.innerText = 'Search HSN/SAC Code...';
+                label.style.color = 'var(--muted-foreground, #64748b)';
+            }
+        }
+
+        updateLabel();
+
+        function renderOptions(filterText = '') {
+            optionsList.innerHTML = '';
+            const query = filterText.trim().toLowerCase();
+            const filtered = options.filter(o => {
+                if (!query) return true;
+                return o.text.toLowerCase().includes(query) || String(o.value).toLowerCase().includes(query);
+            });
+
+            if (filtered.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.cssText = 'padding: 8px 12px; font-size: 0.85rem; color: var(--muted-foreground); text-align: center;';
+                emptyDiv.innerText = 'No matching HSN/SAC codes found';
+                optionsList.appendChild(emptyDiv);
+                return;
+            }
+
+            filtered.forEach(o => {
+                const item = document.createElement('div');
+                item.className = 'hsn-option-item';
+                const isSelected = String(o.value) === String(rawSelect.value);
+                item.style.cssText = `padding: 8px 12px; font-size: 0.875rem; cursor: pointer; border-radius: 6px; color: var(--foreground, #0f172a); transition: background 0.15s; ${isSelected ? 'background: var(--primary-bg, #eff6ff); font-weight: 600; color: var(--primary, #2563eb);' : ''}`;
+                item.innerText = o.text || '---------';
+
+                item.addEventListener('mouseenter', () => {
+                    if (String(o.value) !== String(rawSelect.value)) item.style.background = 'var(--muted-bg, #f1f5f9)';
+                });
+                item.addEventListener('mouseleave', () => {
+                    if (String(o.value) !== String(rawSelect.value)) item.style.background = 'transparent';
+                });
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    rawSelect.value = o.value;
+                    const event = new Event('change', { bubbles: true });
+                    rawSelect.dispatchEvent(event);
+                    updateLabel();
+                    closeDropdown();
+                });
+
+                optionsList.appendChild(item);
+            });
+        }
+
+        function openDropdown() {
+            dropdown.style.display = 'block';
+            searchInput.value = '';
+            renderOptions();
+            searchInput.focus();
+        }
+
+        function closeDropdown() {
+            dropdown.style.display = 'none';
+        }
+
+        display.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (dropdown.style.display === 'block') {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        searchInput.addEventListener('input', function() {
+            renderOptions(this.value);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!display.contains(e.target) && !dropdown.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+    })();
 });
 </script>
 {% endblock %}

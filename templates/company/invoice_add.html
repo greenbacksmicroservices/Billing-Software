@@ -152,6 +152,60 @@
             </div>
         </div>
 
+        <!-- 4. Payment Details Section -->
+        <div style="margin-top: 2rem; border-top: 2px solid var(--border); padding-top: 1.5rem;">
+            <h4 style="margin-bottom: 1rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-wallet"></i> Payment Details
+            </h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Left: Payment Inputs -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 600;">Advance Paid?</label>
+                        <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                                <input type="radio" name="advance_paid_toggle" value="no" checked onchange="toggleAdvancePayment(false)"> No
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                                <input type="radio" name="advance_paid_toggle" value="yes" onchange="toggleAdvancePayment(true)"> Yes
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="advance-amount-group" style="display: none;">
+                        <label class="form-label" for="advance-amount">Advance / Previous Payment (₹)</label>
+                        <input type="text" id="advance-amount" name="advance_amount" class="form-control" value="0.00" oninput="onAdvanceInput()" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="amount-paid-now">Amount Paid Now (₹)</label>
+                        <input type="text" id="amount-paid-now" name="amount_paid_now" class="form-control" value="0.00" oninput="onPaidNowInput()" placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Right: Calculated Payment Status & Balances -->
+                <div style="background: var(--muted-bg, #f8fafc); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; justify-content: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 500; color: var(--muted-foreground);">Total Payment Received:</span>
+                        <strong id="display-total-payment" style="font-size: 1.1rem; color: var(--success, #16a34a);">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 500; color: var(--muted-foreground);">Remaining Balance:</span>
+                        <strong id="display-remaining-balance" style="font-size: 1.1rem; color: var(--destructive, #dc2626);">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 0.75rem; margin-top: 0.25rem;">
+                        <label for="payment-status-select" style="font-weight: 600; margin: 0; cursor: pointer;">Payment Status:</label>
+                        <select id="payment-status-select" name="payment_status" class="form-control" style="width: auto; font-weight: 700; padding: 0.35rem 0.75rem; cursor: pointer; background: #e2e8f0; color: #475569; border-color: #cbd5e1;" onchange="onPaymentStatusDropdownChange()">
+                            <option value="UNPAID" selected>Unpaid</option>
+                            <option value="PARTIALLY_PAID">Partially Paid</option>
+                            <option value="PAID">Paid</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
             <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Cancel</a>
             <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
@@ -174,6 +228,7 @@
         products = JSON.parse(document.getElementById('products-data').textContent || '[]');
     } catch(e) { console.error('Error parsing products JSON:', e); products = []; }
     const companyStateCode = "{{ request.user.company.state_code }}";
+    let isUpdatingFromDropdown = false;
 
     document.addEventListener('DOMContentLoaded', () => {
         const invDateInput = document.getElementById('invoice-date');
@@ -203,6 +258,114 @@
         if (posInput) posInput.addEventListener('input', recalculateAll);
         if (posCodeInput) posCodeInput.addEventListener('input', recalculateAll);
     });
+
+    function toggleAdvancePayment(isYes) {
+        const advGroup = document.getElementById('advance-amount-group');
+        const advInput = document.getElementById('advance-amount');
+        if (isYes) {
+            advGroup.style.display = 'block';
+            if (advInput && parseFloat(window.parseMoney(advInput.value) || 0) === 0) {
+                advInput.focus();
+            }
+        } else {
+            advGroup.style.display = 'none';
+            if (advInput) advInput.value = '0.00';
+        }
+        recalculatePaymentDetails();
+    }
+
+    function onAdvanceInput() {
+        recalculatePaymentDetails();
+    }
+
+    function onPaidNowInput() {
+        recalculatePaymentDetails();
+    }
+
+    function onPaymentStatusDropdownChange() {
+        if (isUpdatingFromDropdown) return;
+        isUpdatingFromDropdown = true;
+
+        const selectEl = document.getElementById('payment-status-select');
+        const selectedStatus = selectEl ? selectEl.value : 'UNPAID';
+        const grandTotal = getGrandTotalFromSummary();
+
+        const isAdvYes = document.querySelector('input[name="advance_paid_toggle"]:checked')?.value === 'yes';
+        const advInput = document.getElementById('advance-amount');
+        const advance = isAdvYes ? window.parseMoney(advInput ? advInput.value : 0) : 0;
+
+        const paidNowInput = document.getElementById('amount-paid-now');
+
+        if (selectedStatus === 'PAID') {
+            const neededPaidNow = Math.max(0, grandTotal - advance);
+            if (paidNowInput) paidNowInput.value = neededPaidNow.toFixed(2);
+        } else if (selectedStatus === 'UNPAID') {
+            const noToggle = document.querySelector('input[name="advance_paid_toggle"][value="no"]');
+            if (noToggle) {
+                noToggle.checked = true;
+                toggleAdvancePayment(false);
+            }
+            if (paidNowInput) paidNowInput.value = '0.00';
+        } else if (selectedStatus === 'PARTIALLY_PAID') {
+            let currentPaid = window.parseMoney(paidNowInput ? paidNowInput.value : 0);
+            let total = advance + currentPaid;
+            if (total <= 0 || total >= grandTotal) {
+                const defaultPartial = Math.max(0, (grandTotal - advance) / 2);
+                if (paidNowInput) paidNowInput.value = defaultPartial.toFixed(2);
+            }
+        }
+
+        isUpdatingFromDropdown = false;
+        recalculatePaymentDetails(false);
+    }
+
+    function getGrandTotalFromSummary() {
+        const grandText = document.getElementById('summary-grand').innerText || '0';
+        return window.parseMoney(grandText);
+    }
+
+    function recalculatePaymentDetails(updateDropdown = true) {
+        const grandTotal = getGrandTotalFromSummary();
+
+        const isAdvYes = document.querySelector('input[name="advance_paid_toggle"]:checked')?.value === 'yes';
+        const advInput = document.getElementById('advance-amount');
+        const advance = isAdvYes ? window.parseMoney(advInput ? advInput.value : 0) : 0;
+
+        const paidNow = window.parseMoney(document.getElementById('amount-paid-now').value || 0);
+
+        const totalReceived = advance + paidNow;
+        const remainingBalance = Math.max(0, grandTotal - totalReceived);
+
+        document.getElementById('display-total-payment').innerText = window.formatIndianCurrency(totalReceived);
+        document.getElementById('display-remaining-balance').innerText = window.formatIndianCurrency(remainingBalance);
+
+        const selectEl = document.getElementById('payment-status-select');
+        if (selectEl) {
+            if (updateDropdown && !isUpdatingFromDropdown) {
+                if (totalReceived <= 0) {
+                    selectEl.value = 'UNPAID';
+                } else if (totalReceived >= grandTotal && grandTotal > 0) {
+                    selectEl.value = 'PAID';
+                } else {
+                    selectEl.value = 'PARTIALLY_PAID';
+                }
+            }
+
+            if (selectEl.value === 'PAID') {
+                selectEl.style.background = '#dcfce7';
+                selectEl.style.color = '#15803d';
+                selectEl.style.borderColor = '#86efac';
+            } else if (selectEl.value === 'PARTIALLY_PAID') {
+                selectEl.style.background = '#fef9c3';
+                selectEl.style.color = '#a16207';
+                selectEl.style.borderColor = '#fde047';
+            } else {
+                selectEl.style.background = '#e2e8f0';
+                selectEl.style.color = '#475569';
+                selectEl.style.borderColor = '#cbd5e1';
+            }
+        }
+    }
 
     function onCustomerChange() {
         const select = document.getElementById('customer');
@@ -362,6 +525,8 @@
         document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
         document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
         document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+
+        recalculatePaymentDetails();
     }
 
     function submitInvoice(e) {
@@ -444,10 +609,47 @@
             return;
         }
 
+        // Payment validation
+        const grandTotal = getGrandTotalFromSummary();
+        const isAdvYes = document.querySelector('input[name="advance_paid_toggle"]:checked')?.value === 'yes';
+        const advInput = document.getElementById('advance-amount');
+        const advance = isAdvYes ? window.parseMoney(advInput ? advInput.value : 0) : 0;
+        const paidNow = window.parseMoney(document.getElementById('amount-paid-now').value || 0);
+
+        if (advance < 0) {
+            const msg = "Advance payment amount cannot be negative.";
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if (paidNow < 0) {
+            const msg = "Amount paid now cannot be negative.";
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
+        if ((advance + paidNow) > grandTotal) {
+            const msg = "Payment amount cannot exceed the invoice total.";
+            window.setElementText('form-error-toast', msg);
+            window.setElementDisplay('form-error-toast', 'block');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (typeof window.showToast === 'function') window.showToast('error', msg);
+            return;
+        }
+
         const hiddenItemsInput = document.getElementById('items-json-input');
         if (hiddenItemsInput) {
             hiddenItemsInput.value = JSON.stringify(items);
         }
+
+        const pmtStatusSelect = document.getElementById('payment-status-select');
+        const pmtStatus = pmtStatusSelect ? pmtStatusSelect.value : 'UNPAID';
 
         const payload = {
             customer_id: parseInt(customerId),
@@ -459,7 +661,11 @@
             warehouse_id: parseInt(whId),
             reverse_charge: reverse,
             notes: notes,
-            items: items
+            items: items,
+            advance_paid: isAdvYes,
+            advance_amount: advance,
+            amount_paid_now: paidNow,
+            payment_status: pmtStatus
         };
 
         const submitBtn = document.getElementById('submit-btn');
@@ -517,3 +723,4 @@
     }
 </script>
 {% endblock %}
+

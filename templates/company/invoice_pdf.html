@@ -271,13 +271,13 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">Sl No.</th>
-                    <th style="width: 45%;">Description of Goods</th>
+                    <th style="width: 40%;">Description of Goods</th>
                     <th style="width: 10%;" class="text-center">HSN/SAC</th>
                     <th style="width: 8%;" class="text-right">Quantity</th>
                     <th style="width: 10%;" class="text-right">Rate</th>
-                    <th style="width: 7%;" class="text-center">per</th>
+                    <th style="width: 7%;" class="text-center">GST %</th>
                     <th style="width: 7%;" class="text-right">Disc.</th>
-                    <th style="width: 8%;" class="text-right">Amount</th>
+                    <th style="width: 13%;" class="text-right">Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -293,7 +293,7 @@
                         <td class="text-center"><code>{{ item.hsn_code|default:"-" }}</code></td>
                         <td class="text-right">{{ item.quantity }}</td>
                         <td class="text-right">₹{{ item.rate }}</td>
-                        <td class="text-center">{{ item.product.unit.code|default:"PCS" }}</td>
+                        <td class="text-center">{{ item.gst_rate }}%</td>
                         <td class="text-right">₹{{ item.discount }}</td>
                         <td class="text-right bold">₹{{ item.total_amount }}</td>
                     </tr>
@@ -382,6 +382,23 @@
         <div style="border-bottom: 1px solid #000; padding: 6px 10px; font-size: 9.5px; background: #fafafa;">
             Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong> Rupees Only.
         </div>
+
+        <!-- PAYMENT DETAILS TABLE -->
+        <div style="font-size: 11px; font-weight: 800; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 10px; background: #fafafa; text-transform: uppercase;">
+            PAYMENT DETAILS
+        </div>
+        <table class="border-bottom" style="font-size: 9.5px;">
+            <tr>
+                <td style="width: 50%; padding: 6px 10px;" class="border-right">
+                    Advance / Previous Payment: <strong>₹{{ invoice.advance_amount }}</strong><br>
+                    Amount Paid Now: <strong>₹{{ invoice.amount_paid_now }}</strong>
+                </td>
+                <td style="width: 50%; padding: 6px 10px;">
+                    Total Payment Received: <strong>₹{{ invoice.total_payment_received }}</strong><br>
+                    Balance Due: <strong>₹{{ invoice.balance_due }}</strong> | Payment Status: <strong>{{ invoice.get_payment_status_display }}</strong>
+                </td>
+            </tr>
+        </table>
 
         <!-- Bank details & Declaration -->
         <table class="border-bottom">
