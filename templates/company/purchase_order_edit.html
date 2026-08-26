@@ -35,7 +35,7 @@
         </button>
     </div>
     <div class="card-body" style="padding: 1.5rem;">
-        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
             <!-- Searchable Supplier Selection -->
             <div class="form-group" style="position: relative;">
                 <label class="form-label" for="supplier-search-input">Search & Select Supplier</label>
@@ -56,33 +56,38 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Supplier Phone & Email</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <input type="text" id="supplier-phone" name="supplier_phone" class="form-control" placeholder="Phone" value="{% if po.supplier_phone_snapshot %}{{ po.supplier_phone_snapshot }}{% elif po.supplier %}{{ po.supplier.mobile|default:'' }}{% endif %}">
-                    <input type="email" id="supplier-email" name="supplier_email" class="form-control" placeholder="Email" value="{% if po.supplier_email_snapshot %}{{ po.supplier_email_snapshot }}{% elif po.supplier %}{{ po.supplier.email|default:'' }}{% endif %}">
-                </div>
+                <label class="form-label" for="supplier-phone">Supplier Phone Number</label>
+                <input type="text" id="supplier-phone" name="supplier_phone" class="form-control" placeholder="Phone" value="{% if po.supplier_phone_snapshot %}{{ po.supplier_phone_snapshot }}{% elif po.supplier %}{{ po.supplier.mobile|default:'' }}{% endif %}">
             </div>
 
             <div class="form-group">
-                <label class="form-label">GSTIN & PAN</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <input type="text" id="supplier-gstin" name="supplier_gstin" class="form-control" placeholder="GSTIN" value="{% if po.supplier_gstin_snapshot %}{{ po.supplier_gstin_snapshot }}{% elif po.supplier %}{{ po.supplier.gstin|default:'' }}{% endif %}" oninput="onGstinChange(this.value)">
-                    <input type="text" id="supplier-pan" name="supplier_pan" class="form-control" placeholder="PAN" value="{% if po.supplier_pan_snapshot %}{{ po.supplier_pan_snapshot }}{% elif po.supplier %}{{ po.supplier.pan|default:'' }}{% endif %}">
-                </div>
+                <label class="form-label" for="supplier-email">Supplier Email Address</label>
+                <input type="email" id="supplier-email" name="supplier_email" class="form-control" placeholder="Email" value="{% if po.supplier_email_snapshot %}{{ po.supplier_email_snapshot }}{% elif po.supplier %}{{ po.supplier.email|default:'' }}{% endif %}">
             </div>
 
-            <!-- Single State & State Code Selector UI Field -->
+            <div class="form-group">
+                <label class="form-label" for="supplier-gstin">Supplier GSTIN</label>
+                <input type="text" id="supplier-gstin" name="supplier_gstin" class="form-control" placeholder="GSTIN" value="{% if po.supplier_gstin_snapshot %}{{ po.supplier_gstin_snapshot }}{% elif po.supplier %}{{ po.supplier.gstin|default:'' }}{% endif %}" oninput="onGstinChange(this.value)">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="supplier-pan">Supplier PAN Number</label>
+                <input type="text" id="supplier-pan" name="supplier_pan" class="form-control" placeholder="PAN" value="{% if po.supplier_pan_snapshot %}{{ po.supplier_pan_snapshot }}{% elif po.supplier %}{{ po.supplier.pan|default:'' }}{% endif %}">
+            </div>
+
             <div class="form-group" style="grid-column: span 2;">
-                <label class="form-label">Billing Address & State *</label>
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
-                    <input type="text" id="supplier-address" name="supplier_address" class="form-control" placeholder="Address" value="{% if po.supplier_address_snapshot %}{{ po.supplier_address_snapshot }}{% elif po.supplier %}{{ po.supplier.address|default:'' }}{% endif %}">
-                    <select id="supplier-state" name="supplier_state" class="form-control" onchange="onStateSelectChange(this.value)" required>
-                        <option value="">-- Select State Code --</option>
-                        {% for st in indian_states %}
-                            <option value="{{ st.name }} ({{ st.code }})" {% if st.code == supplier_state_code or st.name == supplier_state_name %}selected{% endif %}>{{ st.name }} ({{ st.code }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <label class="form-label" for="supplier-address">Billing Address</label>
+                <input type="text" id="supplier-address" name="supplier_address" class="form-control" placeholder="Address" value="{% if po.supplier_address_snapshot %}{{ po.supplier_address_snapshot }}{% elif po.supplier %}{{ po.supplier.address|default:'' }}{% endif %}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="supplier-state">Supplier State (Code) *</label>
+                <select id="supplier-state" name="supplier_state" class="form-control" onchange="onStateSelectChange(this.value)" required>
+                    <option value="">-- Select State Code --</option>
+                    {% for st in indian_states %}
+                        <option value="{{ st.name }} ({{ st.code }})" {% if st.code == supplier_state_code or st.name == supplier_state_name %}selected{% endif %}>{{ st.name }} ({{ st.code }})</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
     </div>
@@ -94,7 +99,7 @@
         </h3>
     </div>
     <div class="card-body" style="padding: 1.5rem;">
-        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
             <div class="form-group">
                 <label class="form-label" for="po-number">PO Number *</label>
                 <input type="text" id="po-number" name="po_number" class="form-control" value="{{ po.po_number }}" required>
@@ -116,11 +121,12 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label" for="supplier-reference">Supplier Ref No & Date</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <input type="text" id="supplier-reference" name="supplier_reference" class="form-control" placeholder="Ref No" value="{{ po.supplier_reference|default:'' }}">
-                    <input type="date" id="supplier-reference-date" name="supplier_reference_date" class="form-control" value="{{ po.supplier_reference_date|date:'Y-m-d'|default:'' }}">
-                </div>
+                <label class="form-label" for="supplier-reference">Supplier Ref No</label>
+                <input type="text" id="supplier-reference" name="supplier_reference" class="form-control" placeholder="Ref No" value="{{ po.supplier_reference|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="supplier-reference-date">Supplier Ref Date</label>
+                <input type="date" id="supplier-reference-date" name="supplier_reference_date" class="form-control" value="{{ po.supplier_reference_date|date:'Y-m-d'|default:'' }}">
             </div>
             <div class="form-group">
                 <label class="form-label" for="shipping-method">Shipping Method</label>
@@ -176,24 +182,24 @@
     </div>
     <div class="card-body" style="padding: 1.5rem;">
         <div style="overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
-            <table class="custom-table" id="items-table" style="width: 100%; min-width: 1250px; border-collapse: collapse;">
+            <table class="custom-table" id="items-table" style="width: 100%; min-width: 1420px; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid var(--border);">
-                        <th style="width: 30px; text-align: center;">#</th>
-                        <th style="width: 220px;">Product *</th>
-                        <th style="width: 200px;">Description</th>
-                        <th style="width: 100px;">HSN/SAC</th>
-                        <th style="width: 80px;">Qty *</th>
-                        <th style="width: 70px;">Unit</th>
-                        <th style="width: 110px;">Purchase Rate *</th>
-                        <th style="width: 90px;">Disc (₹)</th>
-                        <th style="width: 100px;">Taxable</th>
-                        <th style="width: 75px;">GST %</th>
-                        <th style="width: 85px;" class="cgst-col">CGST (₹)</th>
-                        <th style="width: 85px;" class="sgst-col">SGST (₹)</th>
-                        <th style="width: 85px;" class="igst-col">IGST (₹)</th>
-                        <th style="width: 110px; text-align: right;">Total (₹)</th>
-                        <th style="width: 40px; text-align: center;"></th>
+                        <th style="width: 35px; text-align: center;">#</th>
+                        <th style="width: 250px;">Product *</th>
+                        <th style="width: 220px;">Description</th>
+                        <th style="width: 110px;">HSN/SAC</th>
+                        <th style="width: 95px;">Qty *</th>
+                        <th style="width: 85px;">Unit</th>
+                        <th style="width: 130px;">Purchase Rate *</th>
+                        <th style="width: 105px;">Disc (₹)</th>
+                        <th style="width: 115px;">Taxable</th>
+                        <th style="width: 85px;">GST %</th>
+                        <th style="width: 95px;" class="cgst-col">CGST (₹)</th>
+                        <th style="width: 95px;" class="sgst-col">SGST (₹)</th>
+                        <th style="width: 95px;" class="igst-col">IGST (₹)</th>
+                        <th style="width: 125px; text-align: right;">Total (₹)</th>
+                        <th style="width: 45px; text-align: center;"></th>
                     </tr>
                 </thead>
                 <tbody id="items-tbody"></tbody>
@@ -425,6 +431,49 @@
         transition: background 0.15s;
     }
     .term-checkbox-label:hover { background: #f1f5f9; }
+
+    /* Form level controls & label sizing for easy reading and typing */
+    #purchase-order-form .form-control {
+        font-size: 0.95rem;
+        padding: 0.55rem 0.75rem;
+        min-height: 44px;
+        border-radius: 6px;
+    }
+    #purchase-order-form .form-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.4rem;
+        display: inline-block;
+    }
+
+    /* Order Items Grid Enhanced Styling for better readability & typing */
+    #items-table th {
+        padding: 0.75rem 0.6rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        color: var(--primary, #0f172a) !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+    #items-table td {
+        padding: 0.6rem 0.4rem !important;
+        vertical-align: middle !important;
+    }
+    #items-table .form-control {
+        font-size: 0.92rem !important;
+        padding: 0.5rem 0.65rem !important;
+        min-height: 42px !important;
+        height: 42px !important;
+        border-radius: 6px !important;
+        box-sizing: border-box !important;
+    }
+    #items-table textarea.form-control {
+        min-height: 42px !important;
+        height: 42px !important;
+        line-height: 1.35 !important;
+        resize: vertical !important;
+    }
 </style>
 
 <script>
@@ -657,29 +706,29 @@
         productOptions += `<option value="OTHER" ${otherSel}>+ Other (Custom Product)</option>`;
 
         tr.innerHTML = `
-            <td style="text-align: center; font-weight: 600; color: var(--muted-foreground); font-size: 0.85rem;" class="row-sl">${tbody.children.length + 1}</td>
+            <td style="text-align: center; font-weight: 600; color: var(--muted-foreground); font-size: 0.9rem;" class="row-sl">${tbody.children.length + 1}</td>
             <td>
-                <select class="form-control item-product" onchange="onProductSelect(this, ${currentIdx})" style="font-size: 0.85rem; padding: 0.35rem 0.5rem; margin-bottom: 0.35rem;">
+                <select class="form-control item-product" onchange="onProductSelect(this, ${currentIdx})" style="margin-bottom: 0.35rem;">
                     ${productOptions}
                 </select>
-                <input type="text" class="form-control item-custom-name" placeholder="Enter Product Name *" value="${data ? escapeHtml(data.product_name || '') : ''}" style="display: ${data && (data.product_id === 'OTHER' || !data.product_id) ? 'block' : 'none'}; font-size: 0.85rem; padding: 0.35rem 0.5rem;">
+                <input type="text" class="form-control item-custom-name" placeholder="Enter Product Name *" value="${data ? escapeHtml(data.product_name || '') : ''}" style="display: ${data && (data.product_id === 'OTHER' || !data.product_id) ? 'block' : 'none'};">
             </td>
             <td>
-                <textarea class="form-control item-desc" rows="2" placeholder="Product description..." style="font-size: 0.85rem; padding: 0.35rem 0.5rem; resize: vertical;">${data ? escapeHtml(data.description || '') : ''}</textarea>
+                <textarea class="form-control item-desc" rows="1" placeholder="Product description...">${data ? escapeHtml(data.description || '') : ''}</textarea>
             </td>
-            <td><input type="text" class="form-control item-hsn" placeholder="HSN/SAC" value="${data ? escapeHtml(data.hsn_sac || '') : ''}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td><input type="number" step="0.01" min="0.01" class="form-control item-qty" placeholder="1" value="${data ? data.quantity : '1'}" oninput="calculateRow(${currentIdx})" required style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td><input type="text" class="form-control item-unit" placeholder="PCS" value="${data ? escapeHtml(data.uqc || 'PCS') : 'PCS'}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td><input type="text" class="form-control item-rate" placeholder="₹0.00" value="${data ? data.rate : ''}" oninput="calculateRow(${currentIdx})" onblur="formatMoneyInput(this)" required style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td><input type="text" class="form-control item-disc" placeholder="0.00" value="${data ? data.discount : '0.00'}" oninput="calculateRow(${currentIdx})" onblur="formatMoneyInput(this)" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td><input type="text" class="form-control item-taxable" readonly placeholder="0.00" style="font-size: 0.85rem; padding: 0.35rem 0.5rem; background: var(--muted-bg, #f8fafc);"></td>
-            <td><input type="number" step="0.01" min="0" max="100" class="form-control item-gstrate" placeholder="18" value="${data ? data.gst_rate : '18'}" oninput="calculateRow(${currentIdx})" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"></td>
-            <td style="text-align: right; font-size: 0.85rem; color: #475569;" class="item-cgst">₹0.00</td>
-            <td style="text-align: right; font-size: 0.85rem; color: #475569;" class="item-sgst">₹0.00</td>
-            <td style="text-align: right; font-size: 0.85rem; color: #475569;" class="item-igst">₹0.00</td>
-            <td style="text-align: right; font-weight: 700; color: var(--primary);" class="item-tot">₹0.00</td>
+            <td><input type="text" class="form-control item-hsn" placeholder="HSN/SAC" value="${data ? escapeHtml(data.hsn_sac || '') : ''}"></td>
+            <td><input type="number" step="0.01" min="0.01" class="form-control item-qty" placeholder="1" value="${data ? data.quantity : '1'}" oninput="calculateRow(${currentIdx})" required></td>
+            <td><input type="text" class="form-control item-unit" placeholder="PCS" value="${data ? escapeHtml(data.uqc || 'PCS') : 'PCS'}"></td>
+            <td><input type="text" class="form-control item-rate" placeholder="₹0.00" value="${data ? data.rate : ''}" oninput="calculateRow(${currentIdx})" onblur="formatMoneyInput(this)" required></td>
+            <td><input type="text" class="form-control item-disc" placeholder="0.00" value="${data ? data.discount : '0.00'}" oninput="calculateRow(${currentIdx})" onblur="formatMoneyInput(this)"></td>
+            <td><input type="text" class="form-control item-taxable" readonly placeholder="0.00" style="background: var(--muted-bg, #f8fafc);"></td>
+            <td><input type="number" step="0.01" min="0" max="100" class="form-control item-gstrate" placeholder="18" value="${data ? data.gst_rate : '18'}" oninput="calculateRow(${currentIdx})"></td>
+            <td style="text-align: right; font-size: 0.9rem; color: #475569;" class="item-cgst">₹0.00</td>
+            <td style="text-align: right; font-size: 0.9rem; color: #475569;" class="item-sgst">₹0.00</td>
+            <td style="text-align: right; font-size: 0.9rem; color: #475569;" class="item-igst">₹0.00</td>
+            <td style="text-align: right; font-weight: 700; font-size: 0.95rem; color: var(--primary);" class="item-tot">₹0.00</td>
             <td style="text-align: center;">
-                <button type="button" onclick="removeRow(${currentIdx})" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem;" title="Remove row">&times;</button>
+                <button type="button" onclick="removeRow(${currentIdx})" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.3rem; padding: 0.2rem 0.4rem;" title="Remove row">&times;</button>
             </td>
         `;
 

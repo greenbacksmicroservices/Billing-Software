@@ -360,6 +360,76 @@
             </tbody>
         </table>
 
+        <!-- GST Tax Calculation Summary Table -->
+        {% if hsn_summary %}
+            <div style="font-size: 8pt; font-weight: 700; color: #0f172a; text-transform: uppercase; margin-bottom: 4px;">GST TAX CALCULATION SUMMARY</div>
+            <table class="items-table" style="margin-bottom: 12px;">
+                <thead>
+                    <tr>
+                        <th style="width: 14%;" rowspan="2">HSN/SAC</th>
+                        <th style="width: 16%; text-align: right;" rowspan="2">Taxable Value</th>
+                        <th colspan="2" style="width: 22%; text-align: center;">Central Tax (CGST)</th>
+                        <th colspan="2" style="width: 22%; text-align: center;">State Tax (SGST)</th>
+                        <th colspan="2" style="width: 22%; text-align: center;">Integrated Tax (IGST)</th>
+                        <th style="width: 18%; text-align: right;" rowspan="2">Total Tax</th>
+                    </tr>
+                    <tr>
+                        <th style="text-align: center;">Rate</th>
+                        <th style="text-align: right;">Amount</th>
+                        <th style="text-align: center;">Rate</th>
+                        <th style="text-align: right;">Amount</th>
+                        <th style="text-align: center;">Rate</th>
+                        <th style="text-align: right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hsn_summary %}
+                        <tr>
+                            <td style="text-align: center;">{{ row.hsn }}</td>
+                            <td style="text-align: right;">{{ row.taxable_value|indian_currency }}</td>
+                            {% if is_interstate %}
+                                <td style="text-align: center;"></td>
+                                <td style="text-align: right;"></td>
+                                <td style="text-align: center;"></td>
+                                <td style="text-align: right;"></td>
+                                <td style="text-align: center;">{{ row.gst_rate }}%</td>
+                                <td style="text-align: right;">{{ row.igst_amount|indian_currency }}</td>
+                            {% else %}
+                                <td style="text-align: center;">{{ row.cgst_rate }}%</td>
+                                <td style="text-align: right;">{{ row.cgst_amount|indian_currency }}</td>
+                                <td style="text-align: center;">{{ row.sgst_rate }}%</td>
+                                <td style="text-align: right;">{{ row.sgst_amount|indian_currency }}</td>
+                                <td style="text-align: center;"></td>
+                                <td style="text-align: right;"></td>
+                            {% endif %}
+                            <td style="text-align: right; font-weight: 700;">{{ row.total_tax|indian_currency }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr style="background: #f8fafc; font-weight: 700;">
+                        <td colspan="2">Total</td>
+                        {% if is_interstate %}
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: right; font-weight: 700;">{{ po.igst_total|indian_currency }}</td>
+                        {% else %}
+                            <td></td>
+                            <td style="text-align: right; font-weight: 700;">{{ po.cgst_total|indian_currency }}</td>
+                            <td></td>
+                            <td style="text-align: right; font-weight: 700;">{{ po.sgst_total|indian_currency }}</td>
+                            <td></td>
+                            <td></td>
+                        {% endif %}
+                        <td style="text-align: right; font-weight: 700;">
+                            {{ po.cgst_total|add:po.sgst_total|add:po.igst_total|indian_currency }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
         <!-- Terms & Summary Block -->
         <div class="clearfix" style="page-break-inside: avoid; break-inside: avoid;">
             <div class="terms-box">

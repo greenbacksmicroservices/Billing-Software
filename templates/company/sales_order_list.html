@@ -6,8 +6,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Sales Orders</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search sales order, customer..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Sales_Orders')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Sales_Orders')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'sales_order_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Create Sales Order
         </a>
@@ -43,13 +49,13 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'sales_order_view' o.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">View</a>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'sales_order_view' o.id %}" class="btn-action-view" title="View Details"><i class="fa-regular fa-eye"></i> View</a>
                                 {% if o.status != 'INVOICED' %}
-                                    <a href="{% url 'sales_order_convert' o.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Bill Order</a>
+                                    <a href="{% url 'sales_order_convert' o.id %}" class="btn-action-convert" title="Bill Order"><i class="fa-solid fa-arrows-spin"></i> Bill Order</a>
                                 {% endif %}
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/sales-order/{{ o.id }}/', '{{ o.order_number }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Order">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/sales-order/{{ o.id }}/', '{{ o.order_number }}')" class="btn-action-delete" title="Delete Order">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>

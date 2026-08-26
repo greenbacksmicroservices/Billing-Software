@@ -29,8 +29,14 @@
                 </select>
             </div>
 
-            <button type="submit" class="btn btn-primary">Apply Filters</button>
-            <a href="{% url 'admin_companies_list' %}" class="btn btn-secondary">Reset</a>
+            <button type="submit" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">Apply Filters</button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Companies_Directory')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+                <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Companies_Directory')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+                <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+            </button>
+            <a href="{% url 'admin_companies_list' %}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">Reset</a>
         </form>
     </div>
 </div>
@@ -46,7 +52,7 @@
                     <th>GSTIN</th>
                     <th>Email</th>
                     <th>Mobile</th>
-                    <th>Plan</th>
+                    <th>Current Plan</th>
                     <th>Expiry Date</th>
                     <th>Status</th>
                     <th style="text-align: right;">Actions</th>
@@ -56,7 +62,7 @@
                 {% for comp in companies %}
                     <tr>
                         <td>
-                            <div><strong>{{ comp.name }}</strong></div>
+                            <strong>{{ comp.name }}</strong><br>
                             <small style="color: var(--muted-foreground);">FY: {{ comp.financial_year }}</small>
                         </td>
                         <td><code>{{ comp.gstin|default:"N/A" }}</code></td>
@@ -70,18 +76,18 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'admin_company_view' comp.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Company Profile">
-                                    <i class="fa-regular fa-eye"></i>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'admin_company_view' comp.id %}" class="btn-action-view" title="View Company Profile">
+                                    <i class="fa-regular fa-eye"></i> View
                                 </a>
-                                <a href="{% url 'admin_company_edit' comp.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Edit Business Info">
-                                    <i class="fa-regular fa-pen-to-square"></i>
+                                <a href="{% url 'admin_company_edit' comp.id %}" class="btn-action-edit" title="Edit Business Info">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
                                 </a>
-                                <a href="{% url 'admin_login_as_company' comp.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Login As Company Admin">
+                                <a href="{% url 'admin_login_as_company' comp.id %}" class="btn-action-convert" title="Login As Company Admin">
                                     <i class="fa-solid fa-right-to-bracket"></i> Login As
                                 </a>
-                                <button class="btn btn-secondary" onclick="triggerGlobalDelete('/api/delete/company/{{ comp.id }}/', '{{ comp.name }}')" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Company">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <button class="btn-action-delete" onclick="triggerGlobalDelete('/api/delete/company/{{ comp.id }}/', '{{ comp.name }}')" title="Delete Company">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>

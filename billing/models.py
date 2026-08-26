@@ -354,6 +354,15 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.category_id and self.company_id:
+            try:
+                cat, _ = Category.objects.get_or_create(company_id=self.company_id, name='General')
+                self.category = cat
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
     def get_image_url(self):
         if self.image:
             try:

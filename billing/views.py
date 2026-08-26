@@ -5283,11 +5283,16 @@ def purchase_order_send_email(request, pk):
     raw_terms = company.terms_and_conditions or ""
     terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
 
+    from .utils import build_hsn_sac_tax_summary
+    summary_list, total_qty = build_hsn_sac_tax_summary(po.items.all(), company_state_code, supplier_state_code)
+
     context = {
         'po': po,
         'company': company,
         'supplier': po.supplier,
         'is_interstate': is_interstate,
+        'hsn_summary': summary_list,
+        'total_quantity': total_qty,
         'terms_list': terms_list
     }
 
@@ -7952,7 +7957,18 @@ def company_sales_order_send_email(request, pk):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
     from django.template.loader import render_to_string
-    context = {'order': order}
+    from .utils import build_hsn_sac_tax_summary
+    comp_code = str(order.company.state_code or '').strip().zfill(2)
+    pos_code = str(getattr(order.customer, 'billing_state_code', comp_code) or comp_code).strip().zfill(2)
+    summary_list, total_qty = build_hsn_sac_tax_summary(order.items.all(), comp_code, pos_code)
+    context = {
+        'order': order,
+        'company': company,
+        'customer': order.customer,
+        'is_interstate': (comp_code != pos_code),
+        'hsn_summary': summary_list,
+        'total_quantity': total_qty,
+    }
     html_content = render_to_string('company/sales_order_pdf.html', context, request=request)
     
     pdf_data = html_to_pdf_bytes(html_content)
@@ -8087,7 +8103,17 @@ def company_credit_note_send_email(request, pk):
         return JsonResponse({'success': False, 'message': 'Please enter a valid email address.'}, status=400)
 
     from django.template.loader import render_to_string
-    context = {'note': note}
+    from .utils import build_hsn_sac_tax_summary
+    company_state_code = str(note.company.state_code or '').strip().zfill(2)
+    pos_code = str(getattr(getattr(note, 'invoice', None), 'place_of_supply_code', getattr(getattr(getattr(note, 'invoice', None), 'customer', None), 'billing_state_code', company_state_code)) or company_state_code).strip().zfill(2)
+    summary_list, total_qty = build_hsn_sac_tax_summary(note.items.all(), company_state_code, pos_code)
+    context = {
+        'note': note,
+        'company': company,
+        'is_interstate': (company_state_code != pos_code),
+        'hsn_summary': summary_list,
+        'total_quantity': total_qty,
+    }
     html_content = render_to_string('company/credit_note_pdf.html', context, request=request)
     
     pdf_data = html_to_pdf_bytes(html_content)
@@ -8128,5 +8154,128 @@ def company_credit_note_send_email(request, pk):
         import logging
         logging.getLogger('django').error(f"SMTP Error sending credit note {note.note_number}: {str(e)}")
         return JsonResponse({'success': False, 'message': 'Unable to send email. Please check your email configuration and try again.'}, status=500)
+
+
+def api_product_detail(request, pk):
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    company = request.user.company
+    prod = get_object_or_404(Product, id=pk, company=company)
+    data = {
+        'id': prod.id,
+        'name': prod.name,
+        'product_type': prod.get_product_type_display(),
+        'sku': prod.sku or '-',
+        'barcode': prod.barcode or '-',
+        'category': prod.category.name if prod.category else '-',
+        'brand': prod.brand.name if prod.brand else '-',
+        'hsn_sac': prod.hsn_sac.code if prod.hsn_sac else '-',
+        'gst_rate': str(prod.hsn_sac.gst_rate) if prod.hsn_sac else '0.00',
+        'unit': prod.unit.name if prod.unit else 'PCS',
+        'purchase_price': str(prod.purchase_price),
+        'selling_price': str(prod.selling_price),
+        'mrp': str(prod.mrp),
+        'wholesale_price': str(prod.wholesale_price),
+        'retail_price': str(prod.retail_price),
+        'min_selling_price': str(prod.min_selling_price),
+        'tax_inclusive': prod.tax_inclusive,
+        'track_inventory': prod.track_inventory,
+        'current_stock': str(prod.current_stock),
+        'min_stock': str(prod.min_stock),
+        'max_stock': str(prod.max_stock),
+        'description': prod.description or '',
+        'image_url': prod.get_image_url(),
+        'is_active': prod.is_active,
+        'created_at': prod.created_at.strftime('%d %b %Y %H:%M') if prod.created_at else '-'
+    }
+    return JsonResponse({'status': 'success', 'data': data})
+
+
+def api_expense_detail(request, pk):
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    company = request.user.company
+    exp = get_object_or_404(Expense, id=pk, company=company)
+    total_amount = (exp.amount or Decimal('0.00')) + (exp.gst_amount or Decimal('0.00'))
+    data = {
+        'id': exp.id,
+        'category_id': exp.category.id if exp.category else None,
+        'category_name': exp.category.name if exp.category else '-',
+        'vendor': exp.vendor or '-',
+        'amount': str(exp.amount),
+        'gst_amount': str(exp.gst_amount),
+        'total_amount': str(total_amount),
+        'payment_method': exp.payment_method or 'CASH',
+        'reference_no': exp.reference_no or '-',
+        'notes': exp.description or exp.notes if hasattr(exp, 'notes') else getattr(exp, 'description', '') or '',
+        'date': exp.created_at.strftime('%Y-%m-%d') if hasattr(exp, 'created_at') and exp.created_at else '',
+        'created_at': exp.created_at.strftime('%d %b %Y %H:%M') if hasattr(exp, 'created_at') and exp.created_at else '-'
+    }
+    return JsonResponse({'status': 'success', 'data': data})
+
+
+def api_expense_edit(request, pk):
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST method required.'}, status=405)
+    
+    company = request.user.company
+    exp = get_object_or_404(Expense, id=pk, company=company)
+    
+    try:
+        data = json.loads(request.body) if request.body and request.content_type == 'application/json' else request.POST
+        if 'category_id' in data and data['category_id']:
+            exp.category_id = int(data['category_id'])
+        if 'vendor' in data:
+            exp.vendor = str(data['vendor']).strip()
+        if 'amount' in data:
+            exp.amount = Decimal(str(data['amount']))
+        if 'gst_amount' in data:
+            exp.gst_amount = Decimal(str(data['gst_amount']))
+        if 'payment_method' in data:
+            exp.payment_method = str(data['payment_method'])
+        if 'reference_no' in data:
+            exp.reference_no = str(data['reference_no']).strip()
+        if 'notes' in data:
+            if hasattr(exp, 'description'):
+                exp.description = str(data['notes'])
+            if hasattr(exp, 'notes'):
+                exp.notes = str(data['notes'])
+        exp.save()
+        return JsonResponse({'status': 'success', 'message': 'Expense updated successfully.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+def api_payment_detail(request, pk):
+    if not request.user.is_authenticated or getattr(request.user, 'company', None) is None:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    company = request.user.company
+    pm = get_object_or_404(Payment, id=pk, company=company)
+    
+    party_name = pm.customer.name if pm.customer else (pm.supplier.name if pm.supplier else '-')
+    ref_doc = '-'
+    if pm.payment_type == 'RECEIPT' and pm.invoice:
+        ref_doc = f"Invoice #{pm.invoice.invoice_number}"
+    elif pm.payment_type == 'PAYMENT' and pm.purchase_bill:
+        ref_doc = f"Purchase Bill #{pm.purchase_bill.supplier_bill_no}"
+    else:
+        ref_doc = "On Account"
+        
+    data = {
+        'id': pm.id,
+        'payment_date': pm.payment_date.strftime('%d %b %Y') if pm.payment_date else '-',
+        'payment_type': pm.get_payment_type_display(),
+        'party_name': party_name,
+        'reference_doc': ref_doc,
+        'amount': str(pm.amount),
+        'payment_method': pm.get_payment_method_display(),
+        'reference_no': pm.reference_no or '-',
+        'notes': pm.notes or '-',
+        'created_at': pm.created_at.strftime('%d %b %Y %H:%M') if pm.created_at else '-'
+    }
+    return JsonResponse({'status': 'success', 'data': data})
+
 
 

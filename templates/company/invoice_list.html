@@ -30,8 +30,14 @@
                 </select>
             </div>
             
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Reset</a>
+            <button type="submit" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">Filter</button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Tax_Invoices')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+                <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Tax_Invoices')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+                <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+            </button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">Reset</a>
         </form>
     </div>
 </div>
@@ -67,15 +73,18 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'invoice_view' inv.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Details">
-                                    <i class="fa-regular fa-eye"></i>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'invoice_view' inv.id %}" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
                                 </a>
-                                <a href="{% url 'invoice_pdf' inv.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Print PDF">
-                                    <i class="fa-solid fa-print"></i>
+                                <a href="{% url 'invoice_edit' inv.id %}" class="btn-action-edit" title="Edit Invoice">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
                                 </a>
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/invoice/{{ inv.id }}/', '{{ inv.invoice_number }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete / Cancel Invoice">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <a href="{% url 'invoice_pdf' inv.id %}" target="_blank" class="btn-action-pdf" title="Print PDF">
+                                    <i class="fa-solid fa-print"></i> PDF
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/invoice/{{ inv.id }}/', '{{ inv.invoice_number }}')" class="btn-action-delete" title="Delete / Cancel Invoice">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>

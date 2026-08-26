@@ -432,4 +432,86 @@ window.setElementText = function(id, text) {
     }
 };
 
+// --- GLOBAL UNIVERSAL TABLE EXPORT HELPER (EXCEL & CSV) ---
+window.exportTableData = function(format, customFilename) {
+    const table = document.querySelector('#table-container table.custom-table, table.custom-table');
+    if (!table) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('error', 'No table data found to export.');
+        } else {
+            alert('No table data found to export.');
+        }
+        return;
+    }
+
+    let rawTitle = customFilename || document.title || 'Exported_Table';
+    rawTitle = rawTitle.replace(/GBL Billing|GST Billing System|-/gi, '').trim() || 'Data_Export';
+    const title = rawTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `${title}_${dateStr}.${format === 'excel' ? 'csv' : 'csv'}`;
+
+    const headers = [];
+    const headerCells = table.querySelectorAll('thead tr th');
+    const skipIndices = [];
+
+    headerCells.forEach((th, idx) => {
+        const text = th.innerText.trim();
+        if (text.toLowerCase() === 'actions' || text.toLowerCase() === 'action') {
+            skipIndices.push(idx);
+        } else {
+            headers.push(text);
+        }
+    });
+
+    const rowsData = [];
+    const bodyRows = table.querySelectorAll('tbody tr');
+
+    bodyRows.forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length <= 1 && skipIndices.length > 0) return;
+        
+        const row = [];
+        cells.forEach((td, idx) => {
+            if (skipIndices.includes(idx)) return;
+            let text = td.innerText.trim();
+            text = text.replace(/\n+/g, ' | ').replace(/\s+/g, ' ');
+            row.push(text);
+        });
+        if (row.length > 0) {
+            rowsData.push(row);
+        }
+    });
+
+    if (rowsData.length === 0) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('warning', 'Table has no data to export.');
+        } else {
+            alert('Table has no data to export.');
+        }
+        return;
+    }
+
+    let csvContent = '\uFEFF'; // UTF-8 BOM for Microsoft Excel compatibility
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\r\n';
+
+    rowsData.forEach(row => {
+        csvContent += row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',') + '\r\n';
+    });
+
+    const mimeType = format === 'excel' ? 'text/csv;charset=utf-8;' : 'text/csv;charset=utf-8;';
+    const blob = new Blob([csvContent], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof window.showToast === 'function') {
+        window.showToast('success', `Exported ${rowsData.length} records to ${filename}!`);
+    }
+};
+
 

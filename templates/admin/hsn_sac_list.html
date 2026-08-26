@@ -309,15 +309,15 @@
                                 </span>
                             </td>
                             <td style="text-align: right;">
-                                <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
-                                    <button class="btn btn-secondary" onclick="openViewModal({{ item.id }})" style="padding: 0.25rem 0.5rem;" title="View Details">
-                                        <i class="fa-regular fa-eye"></i>
+                                <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                    <button class="btn-action-view" onclick="openViewModal({{ item.id }})" title="View Details">
+                                        <i class="fa-regular fa-eye"></i> View
                                     </button>
-                                    <button class="btn btn-secondary" onclick="openEditModal({{ item.id }})" style="padding: 0.25rem 0.5rem;" title="Edit Code">
-                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    <button class="btn-action-edit" onclick="openEditModal({{ item.id }})" title="Edit Code">
+                                        <i class="fa-regular fa-pen-to-square"></i> Edit
                                     </button>
-                                    <button class="btn btn-secondary" onclick="deleteCode({{ item.id }}, '{{ item.code }}')" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete / Deactivate">
-                                        <i class="fa-regular fa-trash-can"></i>
+                                    <button class="btn-action-delete" onclick="deleteCode({{ item.id }}, '{{ item.code }}')" title="Delete / Deactivate">
+                                        <i class="fa-regular fa-trash-can"></i> Delete
                                     </button>
                                 </div>
                             </td>

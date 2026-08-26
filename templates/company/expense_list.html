@@ -7,8 +7,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Overhead Expenses</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search expense, vendor..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Expenses_Ledger')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Expenses_Ledger')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'expense_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Log New Expense
         </a>
@@ -46,14 +52,22 @@
                         <td>{{ exp.payment_method }}</td>
                         <td>{{ exp.reference_no|default:"-" }}</td>
                         <td style="text-align: right;">
-                            <button type="button" onclick="triggerGlobalDelete('/api/delete/expense/{{ exp.id }}/', 'Expense #{{ exp.id }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Expense">
-                                <i class="fa-regular fa-trash-can"></i>
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <button type="button" onclick="openExpenseViewModal('{{ exp.id }}')" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </button>
+                                <button type="button" onclick="openExpenseEditModal('{{ exp.id }}')" class="btn-action-edit" title="Edit Expense">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
+                                </button>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/expense/{{ exp.id }}/', 'Expense #{{ exp.id }}')" class="btn-action-delete" title="Delete Expense">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="9" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No expenses logged. Click "Log New Expense" to track overheads.</td>
+                        <td colspan="10" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No expenses logged. Click "Log New Expense" to track overheads.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -63,4 +77,206 @@
     {% include 'common_pagination.html' %}
 </div>
 </div>
+
+<!-- Expense View Modal -->
+<div id="expense-view-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 550px; width: 100%; margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-receipt" style="color: var(--primary); margin-right: 0.5rem;"></i> Expense Details</h3>
+            <button onclick="closeExpenseViewModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;" id="exp-view-body">
+            <div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading expense details...</div>
+        </div>
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;" id="exp-view-footer">
+            <button onclick="closeExpenseViewModal()" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Edit Modal -->
+<div id="expense-edit-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 550px; width: 100%; margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-regular fa-pen-to-square" style="color: var(--primary); margin-right: 0.5rem;"></i> Edit Expense</h3>
+            <button onclick="closeExpenseEditModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <form id="expenseEditForm" onsubmit="submitExpenseEdit(event)">
+            <input type="hidden" id="edit-exp-id" value="">
+            <div class="card-body" style="padding: 1.25rem;">
+                <div id="exp-edit-error" class="message-item error" style="display: none; margin-bottom: 1rem;"></div>
+
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label class="form-label" style="font-weight: 600;">Vendor / Payee Name</label>
+                    <input type="text" id="edit-exp-vendor" class="form-control" placeholder="Vendor name...">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 600;">Taxable Amount (INR) *</label>
+                        <input type="number" step="0.01" id="edit-exp-amount" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 600;">GST Amount (INR)</label>
+                        <input type="number" step="0.01" id="edit-exp-gst" class="form-control">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 600;">Payment Method</label>
+                        <select id="edit-exp-method" class="form-control">
+                            <option value="CASH">Cash</option>
+                            <option value="BANK">Bank Transfer / NEFT</option>
+                            <option value="UPI">UPI</option>
+                            <option value="CARD">Card</option>
+                            <option value="CHEQUE">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight: 600;">Reference / Bill #</label>
+                        <input type="text" id="edit-exp-ref" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" style="font-weight: 600;">Notes / Description</label>
+                    <textarea id="edit-exp-notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" onclick="closeExpenseEditModal()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" id="btn-save-expense" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openExpenseViewModal(id) {
+        const modal = document.getElementById('expense-view-modal');
+        const body = document.getElementById('exp-view-body');
+        const footer = document.getElementById('exp-view-footer');
+
+        body.innerHTML = '<div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading expense details...</div>';
+        modal.style.display = 'flex';
+
+        fetch(`/api/company/expenses/${id}/detail/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const e = res.data;
+                    body.innerHTML = `
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; color: var(--foreground);">Expense #${e.id}</h3>
+                        <div style="font-size: 0.85rem; color: var(--muted-foreground); margin-bottom: 1rem;">Log Date: ${e.created_at}</div>
+                        <table class="custom-table" style="font-size: 0.85rem; width: 100%;">
+                            <tr><th style="width: 35%;">Category</th><td><strong>${e.category_name}</strong></td></tr>
+                            <tr><th>Vendor</th><td>${e.vendor}</td></tr>
+                            <tr><th>Taxable Amount</th><td>₹${e.amount}</td></tr>
+                            <tr><th>GST Amount</th><td>₹${e.gst_amount}</td></tr>
+                            <tr><th>Total Amount</th><td><strong style="color: var(--primary);">₹${e.total_amount}</strong></td></tr>
+                            <tr><th>Payment Method</th><td>${e.payment_method}</td></tr>
+                            <tr><th>Reference No</th><td>${e.reference_no}</td></tr>
+                            ${e.notes ? `<tr><th>Notes</th><td>${e.notes}</td></tr>` : ''}
+                        </table>
+                    `;
+                    footer.innerHTML = `
+                        <button onclick="closeExpenseViewModal(); openExpenseEditModal('${e.id}');" class="btn btn-primary"><i class="fa-regular fa-pen-to-square"></i> Edit Expense</button>
+                        <button onclick="closeExpenseViewModal()" class="btn btn-secondary">Close</button>
+                    `;
+                } else {
+                    body.innerHTML = `<div class="message-item error">${res.message || 'Unable to fetch expense details.'}</div>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = '<div class="message-item error">Error loading expense details.</div>';
+            });
+    }
+
+    function closeExpenseViewModal() {
+        document.getElementById('expense-view-modal').style.display = 'none';
+    }
+
+    function openExpenseEditModal(id) {
+        document.getElementById('edit-exp-id').value = id;
+        document.getElementById('exp-edit-error').style.display = 'none';
+        
+        fetch(`/api/company/expenses/${id}/detail/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const e = res.data;
+                    document.getElementById('edit-exp-vendor').value = e.vendor === '-' ? '' : e.vendor;
+                    document.getElementById('edit-exp-amount').value = e.amount;
+                    document.getElementById('edit-exp-gst').value = e.gst_amount;
+                    document.getElementById('edit-exp-method').value = e.payment_method;
+                    document.getElementById('edit-exp-ref').value = e.reference_no === '-' ? '' : e.reference_no;
+                    document.getElementById('edit-exp-notes').value = e.notes === '-' ? '' : e.notes;
+                    document.getElementById('expense-edit-modal').style.display = 'flex';
+                } else {
+                    alert(res.message || 'Failed to load expense data.');
+                }
+            })
+            .catch(err => alert('Failed to load expense data.'));
+    }
+
+    function closeExpenseEditModal() {
+        document.getElementById('expense-edit-modal').style.display = 'none';
+    }
+
+    function submitExpenseEdit(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit-exp-id').value;
+        const errDiv = document.getElementById('exp-edit-error');
+        errDiv.style.display = 'none';
+
+        const btn = document.getElementById('btn-save-expense');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        const payload = {
+            vendor: document.getElementById('edit-exp-vendor').value,
+            amount: document.getElementById('edit-exp-amount').value,
+            gst_amount: document.getElementById('edit-exp-gst').value || '0.00',
+            payment_method: document.getElementById('edit-exp-method').value,
+            reference_no: document.getElementById('edit-exp-ref').value,
+            notes: document.getElementById('edit-exp-notes').value
+        };
+
+        fetch(`/api/company/expenses/${id}/edit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Changes';
+            if (data.status === 'success') {
+                closeExpenseEditModal();
+                if (typeof window.showToast === 'function') window.showToast('success', 'Expense updated!');
+                if (typeof window.loadAjaxTable === 'function') {
+                    window.loadAjaxTable(window.location.href, 'table-container');
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                errDiv.innerText = data.message || 'Update failed.';
+                errDiv.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Changes';
+            errDiv.innerText = 'Network error occurred.';
+            errDiv.style.display = 'block';
+        });
+    }
+</script>
 {% endblock %}

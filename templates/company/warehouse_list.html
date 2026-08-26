@@ -6,8 +6,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Warehouses / Locations</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search warehouse, code..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Warehouses_List')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Warehouses_List')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'warehouse_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Add Warehouse
         </a>
@@ -43,14 +49,22 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <button type="button" onclick="triggerGlobalDelete('/api/delete/warehouse/{{ wh.id }}/', '{{ wh.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Warehouse">
-                                <i class="fa-regular fa-trash-can"></i>
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <button type="button" onclick="openWarehouseViewModal('{{ wh.id }}')" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </button>
+                                <a href="{% url 'warehouse_edit' wh.id %}" class="btn-action-edit" title="Edit Warehouse">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/warehouse/{{ wh.id }}/', '{{ wh.name }}')" class="btn-action-delete" title="Delete Warehouse">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No warehouses found.</td>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No warehouses found.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -60,4 +74,70 @@
     {% include 'common_pagination.html' %}
 </div>
 </div>
+
+<!-- Warehouse View Modal -->
+<div id="warehouse-view-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 550px; width: 100%; margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-warehouse" style="color: var(--primary); margin-right: 0.5rem;"></i> Warehouse Details</h3>
+            <button onclick="closeWarehouseViewModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;" id="wh-view-body">
+            <div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading warehouse details...</div>
+        </div>
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;" id="wh-view-footer">
+            <button onclick="closeWarehouseViewModal()" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openWarehouseViewModal(id) {
+        const modal = document.getElementById('warehouse-view-modal');
+        const body = document.getElementById('wh-view-body');
+        const footer = document.getElementById('wh-view-footer');
+
+        body.innerHTML = '<div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading warehouse details...</div>';
+        modal.style.display = 'flex';
+
+        fetch(`/api/company/warehouses/${id}/detail/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success' || res.success) {
+                    const w = res.data || res.warehouse;
+                    body.innerHTML = `
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; color: var(--foreground);">${w.name}</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <span class="badge ${w.is_active ? 'badge-success' : 'badge-danger'}">${w.is_active ? 'Active' : 'Inactive'}</span>
+                            <span class="badge badge-secondary">Code: ${w.code || '-'}</span>
+                        </div>
+                        <table class="custom-table" style="font-size: 0.85rem; width: 100%;">
+                            <tr><th style="width: 35%;">Address</th><td>${w.address || '-'}</td></tr>
+                            <tr><th>City</th><td>${w.city || '-'}</td></tr>
+                            <tr><th>State</th><td>${w.state || '-'}</td></tr>
+                            <tr><th>Pincode</th><td>${w.pincode || '-'}</td></tr>
+                            <tr><th>Manager Name</th><td>${w.manager || '-'}</td></tr>
+                            <tr><th>Contact / Phone</th><td>${w.contact || '-'}</td></tr>
+                        </table>
+                    `;
+                    footer.innerHTML = `
+                        <a href="/company/warehouses/${w.id}/edit/" class="btn btn-primary"><i class="fa-regular fa-pen-to-square"></i> Edit Warehouse</a>
+                        <button onclick="closeWarehouseViewModal()" class="btn btn-secondary">Close</button>
+                    `;
+                } else {
+                    body.innerHTML = `<div class="message-item error">${res.message || 'Unable to fetch warehouse details.'}</div>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = '<div class="message-item error">Error loading warehouse details.</div>';
+            });
+    }
+
+    function closeWarehouseViewModal() {
+        document.getElementById('warehouse-view-modal').style.display = 'none';
+    }
+</script>
 {% endblock %}

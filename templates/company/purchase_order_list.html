@@ -50,9 +50,15 @@
             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.3rem;">To Date</label>
             <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
         </div>
-        <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
                 <i class="fa-solid fa-filter"></i> Filter
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Purchase_Orders')" style="font-size: 0.85rem; padding: 0.5rem 0.75rem;" title="Download Excel">
+                <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Purchase_Orders')" style="font-size: 0.85rem; padding: 0.5rem 0.75rem;" title="Download CSV">
+                <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
             </button>
             <a href="{% url 'purchase_order_list' %}" class="btn btn-secondary" style="padding: 0.5rem 0.75rem;" title="Reset Filters">
                 <i class="fa-solid fa-rotate-left"></i>
@@ -73,7 +79,7 @@
                     <th>Expected Delivery</th>
                     <th style="text-align: center;">Items</th>
                     <th style="text-align: right;">Subtotal</th>
-                    <th style="text-align: right;">Tax</th>
+                    <th style="text-align: right;">Tax Total</th>
                     <th style="text-align: right;">Grand Total</th>
                     <th>Status</th>
                     <th>Created By</th>
@@ -84,9 +90,7 @@
                 {% for po in purchase_orders %}
                     <tr>
                         <td>
-                            <a href="{% url 'purchase_order_view' po.id %}" style="font-weight: 700; color: var(--primary); text-decoration: none;">
-                                {{ po.po_number }}
-                            </a>
+                            <strong><a href="{% url 'purchase_order_view' po.id %}" style="color: var(--primary);">{{ po.po_number }}</a></strong>
                         </td>
                         <td>{{ po.po_date|date:"d M Y" }}</td>
                         <td>
@@ -116,33 +120,33 @@
                         </td>
                         <td><small>{{ po.created_by.get_full_name|default:po.created_by.username|default:"System" }}</small></td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.4rem; justify-content: flex-end; align-items: center;">
-                                <a href="{% url 'purchase_order_view' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="View Details">
-                                    <i class="fa-regular fa-eye"></i>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'purchase_order_view' po.id %}" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
                                 </a>
-                                <a href="{% url 'purchase_order_edit' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Edit PO">
-                                    <i class="fa-regular fa-pen-to-square"></i>
+                                <a href="{% url 'purchase_order_edit' po.id %}" class="btn-action-edit" title="Edit PO">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
                                 </a>
-                                <a href="{% url 'purchase_order_pdf' po.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Print / PDF">
-                                    <i class="fa-solid fa-file-pdf"></i>
+                                <a href="{% url 'purchase_order_pdf' po.id %}" target="_blank" class="btn-action-pdf" title="Print / PDF">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
                                 </a>
                                 {% if not po.converted_to_purchase_bill %}
-                                    <a href="{% url 'purchase_order_convert_bill' po.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Convert to Purchase Bill">
+                                    <a href="{% url 'purchase_order_convert_bill' po.id %}" class="btn-action-convert" title="Convert to Purchase Bill">
                                         <i class="fa-solid fa-arrow-right-arrow-left"></i> Bill
                                     </a>
                                 {% else %}
-                                    <a href="{% url 'purchase_bill_view' po.converted_to_purchase_bill.id %}" class="btn btn-info" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="View Linked Purchase Bill">
+                                    <a href="{% url 'purchase_bill_view' po.converted_to_purchase_bill.id %}" class="btn-action-view" title="View Linked Purchase Bill">
                                         <i class="fa-solid fa-receipt"></i> Linked
                                     </a>
                                 {% endif %}
-                                <a href="{% url 'purchase_order_duplicate' po.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="Duplicate PO">
-                                    <i class="fa-regular fa-copy"></i>
+                                <a href="{% url 'purchase_order_duplicate' po.id %}" class="btn-action-duplicate" title="Duplicate PO">
+                                    <i class="fa-regular fa-copy"></i> Duplicate
                                 </a>
                                 {% if not po.converted_to_purchase_bill %}
                                     <form method="POST" action="{% url 'purchase_order_delete' po.id %}?confirm=true" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete Purchase Order {{ po.po_number }}?');">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger); font-size: 0.8rem;" title="Delete PO">
-                                            <i class="fa-regular fa-trash-can"></i>
+                                        <button type="submit" class="btn-action-delete" title="Delete PO">
+                                            <i class="fa-regular fa-trash-can"></i> Delete
                                         </button>
                                     </form>
                                 {% endif %}

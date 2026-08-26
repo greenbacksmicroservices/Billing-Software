@@ -161,9 +161,13 @@ urlpatterns = [
     path('company/payments/', views.PaymentListView.as_view(), name='payment_list'),
     path('company/payments/add-receipt/', views.PaymentReceiptCreateView.as_view(), name='payment_receipt_add'),
     path('company/payments/add-payment/', views.PaymentSupplierCreateView.as_view(), name='payment_supplier_add'),
+    path('api/company/payments/<int:pk>/detail/', views.api_payment_detail, name='payment_detail_api'),
 
     path('company/expenses/', views.ExpenseListView.as_view(), name='expense_list'),
     path('company/expenses/add/', views.ExpenseCreateView.as_view(), name='expense_add'),
+    path('api/company/expenses/<int:pk>/detail/', views.api_expense_detail, name='expense_detail_api'),
+    path('api/company/expenses/<int:pk>/edit/', views.api_expense_edit, name='expense_edit_api'),
+    path('api/company/products/<int:pk>/detail/', views.api_product_detail, name='product_detail_api'),
 
     # GST Compliance
     path('company/gst/dashboard/', views.GSTDashboardView.as_view(), name='gst_dashboard'),

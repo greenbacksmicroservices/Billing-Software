@@ -316,57 +316,65 @@
             <div style="font-weight: 700; font-style: italic;">E. & O.E</div>
         </div>
 
-        <!-- HSN/SAC Tax Summary Table -->
+        <!-- GST Calculation Summary Table -->
         <table class="hsn-table border-bottom">
             <thead>
                 <tr>
-                    <th style="width: 25%;" rowspan="2">HSN/SAC</th>
-                    {% if is_interstate %}
-                        <th colspan="2" class="text-center" style="width: 45%;">Integrated Tax</th>
-                    {% else %}
-                        <th colspan="2" class="text-center" style="width: 25%;">Central Tax</th>
-                        <th colspan="2" class="text-center" style="width: 25%;">State Tax</th>
-                    {% endif %}
-                    <th style="width: 30%; text-align: right;" rowspan="2">Total Tax Amount</th>
+                    <th style="width: 14%;" rowspan="2">HSN/SAC</th>
+                    <th style="width: 16%; text-align: right;" rowspan="2">Taxable Value</th>
+                    <th colspan="2" class="text-center" style="width: 22%;">Central Tax (CGST)</th>
+                    <th colspan="2" class="text-center" style="width: 22%;">State Tax (SGST)</th>
+                    <th colspan="2" class="text-center" style="width: 22%;">Integrated Tax (IGST)</th>
+                    <th style="width: 18%; text-align: right;" rowspan="2">Total Tax Amount</th>
                 </tr>
                 <tr>
-                    {% if is_interstate %}
-                        <th class="text-right">Rate</th>
-                        <th class="text-right">Amount</th>
-                    {% else %}
-                        <th class="text-right">Rate</th>
-                        <th class="text-right">Amount</th>
-                        <th class="text-right">Rate</th>
-                        <th class="text-right">Amount</th>
-                    {% endif %}
+                    <th class="text-center" style="width: 8%;">Rate</th>
+                    <th class="text-right" style="width: 14%;">Amount</th>
+                    <th class="text-center" style="width: 8%;">Rate</th>
+                    <th class="text-right" style="width: 14%;">Amount</th>
+                    <th class="text-center" style="width: 8%;">Rate</th>
+                    <th class="text-right" style="width: 14%;">Amount</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in hsn_summary %}
                     <tr>
                         <td>{{ row.hsn }}</td>
+                        <td class="text-right">₹{{ row.taxable_value }}</td>
                         {% if is_interstate %}
-                            <td class="text-right">{{ row.gst_rate }}%</td>
+                            <td class="text-center"></td>
+                            <td class="text-right"></td>
+                            <td class="text-center"></td>
+                            <td class="text-right"></td>
+                            <td class="text-center">{{ row.gst_rate }}%</td>
                             <td class="text-right">₹{{ row.igst_amount }}</td>
                         {% else %}
-                            <td class="text-right">{{ row.cgst_rate }}%</td>
+                            <td class="text-center">{{ row.cgst_rate }}%</td>
                             <td class="text-right">₹{{ row.cgst_amount }}</td>
-                            <td class="text-right">{{ row.sgst_rate }}%</td>
+                            <td class="text-center">{{ row.sgst_rate }}%</td>
                             <td class="text-right">₹{{ row.sgst_amount }}</td>
+                            <td class="text-center"></td>
+                            <td class="text-right"></td>
                         {% endif %}
                         <td class="text-right bold">₹{{ row.total_tax }}</td>
                     </tr>
                 {% endfor %}
-                <tr class="total-row total-row">
-                    <td>Total</td>
+                <tr class="total-row">
+                    <td colspan="2">Total</td>
                     {% if is_interstate %}
                         <td></td>
-                        <td class="text-right">₹{{ invoice.igst_total }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td class="text-right bold">₹{{ invoice.igst_total }}</td>
                     {% else %}
                         <td></td>
-                        <td class="text-right">₹{{ invoice.cgst_total }}</td>
+                        <td class="text-right bold">₹{{ invoice.cgst_total }}</td>
                         <td></td>
-                        <td class="text-right">₹{{ invoice.sgst_total }}</td>
+                        <td class="text-right bold">₹{{ invoice.sgst_total }}</td>
+                        <td></td>
+                        <td></td>
                     {% endif %}
                     <td class="text-right bold">
                         ₹{{ invoice.cgst_total|add:invoice.sgst_total|add:invoice.igst_total }}

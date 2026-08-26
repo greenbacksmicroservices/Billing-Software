@@ -55,8 +55,14 @@
 
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Payments & Receipts Logs</h1>
-    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search payment, party, ref..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Payments_Logs')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Payments_Logs')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <button type="button" onclick="openReceiptModal()" class="btn-customer-receipt">
             Customer Receipt
         </button>
@@ -113,9 +119,14 @@
                         <td>{{ pm.get_payment_method_display }}</td>
                         <td>{{ pm.reference_no|default:"-" }}</td>
                         <td style="text-align: right;">
-                            <button type="button" onclick="triggerGlobalDelete('/api/delete/payment/{{ pm.id }}/', 'Payment #{{ pm.id }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Payment">
-                                <i class="fa-regular fa-trash-can"></i>
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <button type="button" onclick="openPaymentViewModal('{{ pm.id }}')" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </button>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/payment/{{ pm.id }}/', 'Payment #{{ pm.id }}')" class="btn-action-delete" title="Delete Payment">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 {% empty %}
@@ -129,6 +140,22 @@
 
     {% include 'common_pagination.html' %}
 </div>
+</div>
+
+<!-- Payment View Modal -->
+<div id="payment-view-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 550px; width: 100%; margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-money-bill-transfer" style="color: var(--primary); margin-right: 0.5rem;"></i> Payment Transaction Details</h3>
+            <button onclick="closePaymentViewModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;" id="pm-view-body">
+            <div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading transaction details...</div>
+        </div>
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button onclick="closePaymentViewModal()" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
 </div>
 
 <!-- Customer Receipt Modal -->
@@ -543,6 +570,46 @@
                 window.showToast('error', 'Network error occurred. Please try again.');
             }
         });
+    }
+
+    function openPaymentViewModal(id) {
+        const modal = document.getElementById('payment-view-modal');
+        const body = document.getElementById('pm-view-body');
+
+        body.innerHTML = '<div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading transaction details...</div>';
+        modal.style.display = 'flex';
+
+        fetch(`/api/company/payments/${id}/detail/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const p = res.data;
+                    body.innerHTML = `
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; color: var(--foreground);">Payment #${p.id}</h3>
+                        <div style="font-size: 0.85rem; color: var(--muted-foreground); margin-bottom: 1rem;">Transaction Date: ${p.payment_date}</div>
+                        <table class="custom-table" style="font-size: 0.85rem; width: 100%;">
+                            <tr><th style="width: 35%;">Transaction Type</th><td><span class="badge ${p.payment_type === 'Customer Receipt' ? 'badge-success' : 'badge-danger'}">${p.payment_type}</span></td></tr>
+                            <tr><th>Party Name</th><td><strong>${p.party_name}</strong></td></tr>
+                            <tr><th>Reference Document</th><td>${p.reference_doc}</td></tr>
+                            <tr><th>Amount</th><td><strong style="color: var(--primary); font-size: 1.05rem;">₹${p.amount}</strong></td></tr>
+                            <tr><th>Payment Method</th><td>${p.payment_method}</td></tr>
+                            <tr><th>Ref Transaction #</th><td><code>${p.reference_no}</code></td></tr>
+                            ${p.notes ? `<tr><th>Notes</th><td>${p.notes}</td></tr>` : ''}
+                            <tr><th>Recorded At</th><td>${p.created_at}</td></tr>
+                        </table>
+                    `;
+                } else {
+                    body.innerHTML = `<div class="message-item error">${res.message || 'Unable to fetch payment details.'}</div>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = '<div class="message-item error">Error loading payment details.</div>';
+            });
+    }
+
+    function closePaymentViewModal() {
+        document.getElementById('payment-view-modal').style.display = 'none';
     }
 </script>
 {% endblock %}

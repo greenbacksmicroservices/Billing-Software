@@ -7,8 +7,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Purchase Bills</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search bill, supplier..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Purchase_Bills')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Purchase_Bills')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'purchase_bill_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Record Purchase Bill
         </a>
@@ -46,15 +52,15 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'purchase_bill_view' bill.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Details">
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'purchase_bill_view' bill.id %}" class="btn-action-view" title="View Details">
                                     <i class="fa-regular fa-eye"></i> View
                                 </a>
-                                <a href="{% url 'purchase_bill_pdf' bill.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Print / PDF">
-                                    <i class="fa-solid fa-file-pdf"></i>
+                                <a href="{% url 'purchase_bill_pdf' bill.id %}" target="_blank" class="btn-action-pdf" title="Print / PDF">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
                                 </a>
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/purchase-bill/{{ bill.id }}/', '{{ bill.supplier_bill_no }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Bill">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/purchase-bill/{{ bill.id }}/', '{{ bill.supplier_bill_no }}')" class="btn-action-delete" title="Delete Bill">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>

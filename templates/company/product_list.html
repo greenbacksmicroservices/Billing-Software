@@ -19,11 +19,19 @@
 <!-- Filters -->
 <div class="card-container" style="margin-bottom: 1.5rem;">
     <div class="card-body" style="padding: 1rem;">
-        <form method="GET" style="display: flex; gap: 1rem; align-items: center; justify-content: space-between;">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <div>
                 {% include 'common_table_search.html' with placeholder="Search product, SKU, HSN..." %}
             </div>
-            <a href="{% url 'product_list' %}" class="btn btn-secondary">Reset Filters</a>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Products_Master')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+                    <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Products_Master')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+                    <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+                </button>
+                <a href="{% url 'product_list' %}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">Reset Filters</a>
+            </div>
         </form>
     </div>
 </div>
@@ -38,6 +46,7 @@
                     <th>SKU / Barcode</th>
                     <th>Category</th>
                     <th>HSN/SAC</th>
+                    <th style="text-align: right;">MRP</th>
                     <th style="text-align: right;">Sale Price</th>
                     <th style="text-align: right;">Stock Level</th>
                     <th style="text-align: right;">Actions</th>
@@ -54,8 +63,9 @@
                             <div><small>SKU: {{ prod.sku|default:"-" }}</small></div>
                             <div><small>Barcode: {{ prod.barcode|default:"-" }}</small></div>
                         </td>
-                        <td>{{ prod.category.name|default:"-" }}</td>
+                        <td><span class="badge badge-secondary" style="font-weight: 500;">{{ prod.category.name|default:"General" }}</span></td>
                         <td><code>{{ prod.hsn_sac.code|default:"-" }}</code> ({{ prod.hsn_sac.gst_rate }}%)</td>
+                        <td style="text-align: right; font-weight: 500; color: var(--muted-foreground);">₹{{ prod.mrp }}</td>
                         <td style="text-align: right; font-weight: 500;">₹{{ prod.selling_price }}</td>
                         <td style="text-align: right;">
                             <span class="badge {% if prod.current_stock <= prod.min_stock and prod.track_inventory %}badge-danger{% else %}badge-success{% endif %}" style="font-weight: 700;">
@@ -63,25 +73,28 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <button onclick="openAdjustModal('{{ prod.id }}', '{{ prod.name }}', '{{ prod.current_stock }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Adjust Stock">
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <button onclick="openProductViewModal('{{ prod.id }}')" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </button>
+                                <button onclick="openAdjustModal('{{ prod.id }}', '{{ prod.name }}', '{{ prod.current_stock }}')" class="btn-action-convert" title="Adjust Stock">
                                     <i class="fa-solid fa-arrows-rotate"></i> Adjust
                                 </button>
-                                <a href="{% url 'product_duplicate' prod.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" title="Duplicate Product">
-                                    <i class="fa-regular fa-copy"></i>
+                                <a href="{% url 'product_duplicate' prod.id %}" class="btn-action-duplicate" title="Duplicate Product">
+                                    <i class="fa-regular fa-copy"></i> Duplicate
                                 </a>
-                                <a href="{% url 'product_edit' prod.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;">
-                                    <i class="fa-regular fa-pen-to-square"></i>
+                                <a href="{% url 'product_edit' prod.id %}" class="btn-action-edit" title="Edit Product">
+                                    <i class="fa-regular fa-pen-to-square"></i> Edit
                                 </a>
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/product/{{ prod.id }}/', '{{ prod.name }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Product">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/product/{{ prod.id }}/', '{{ prod.name }}')" class="btn-action-delete" title="Delete Product">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No products found. Click "Add New Product" to populate your inventory.</td>
+                        <td colspan="8" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No products found. Click "Add New Product" to populate your inventory.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -249,11 +262,92 @@
         </div>
     </div>
 </div>
+
+<!-- Product View Modal -->
+<div id="product-view-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 650px; width: 100%; margin: 0; max-height: 90vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);"><i class="fa-solid fa-box-archive" style="color: var(--primary); margin-right: 0.5rem;"></i> Product Details</h3>
+            <button onclick="closeProductViewModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); line-height: 1;">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;" id="product-view-body">
+            <div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading product details...</div>
+        </div>
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem;" id="product-view-footer">
+            <button onclick="closeProductViewModal()" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     let activeProductId = null;
+
+    function openProductViewModal(id) {
+        const modal = document.getElementById('product-view-modal');
+        const body = document.getElementById('product-view-body');
+        const footer = document.getElementById('product-view-footer');
+        
+        body.innerHTML = '<div style="text-align: center; color: var(--muted-foreground); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading product details...</div>';
+        modal.style.display = 'flex';
+
+        fetch(`/api/company/products/${id}/detail/`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const p = res.data;
+                    body.innerHTML = `
+                        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-start;">
+                            ${p.image_url ? `<img src="${p.image_url}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);" alt="${p.name}">` : ''}
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0 0 0.25rem 0; font-size: 1.25rem; color: var(--foreground);">${p.name}</h3>
+                                <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                                    <span class="badge badge-info">${p.product_type}</span>
+                                    <span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Active' : 'Inactive'}</span>
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--muted-foreground);">Created: ${p.created_at}</div>
+                            </div>
+                        </div>
+
+                        <table class="custom-table" style="font-size: 0.85rem; width: 100%;">
+                            <tr><th style="width: 35%;">Category</th><td>${p.category}</td></tr>
+                            <tr><th>Brand</th><td>${p.brand}</td></tr>
+                            <tr><th>SKU</th><td><code>${p.sku}</code></td></tr>
+                            <tr><th>Barcode</th><td><code>${p.barcode}</code></td></tr>
+                            <tr><th>HSN/SAC Code</th><td><code>${p.hsn_sac}</code> (GST ${p.gst_rate}%)</td></tr>
+                            <tr><th>Unit</th><td>${p.unit}</td></tr>
+                            <tr><th>Purchase Price</th><td>₹${p.purchase_price}</td></tr>
+                            <tr><th>Selling Price</th><td><strong style="color: var(--primary);">₹${p.selling_price}</strong></td></tr>
+                            <tr><th>MRP</th><td><strong>₹${p.mrp}</strong></td></tr>
+                            <tr><th>Wholesale Price</th><td>₹${p.wholesale_price}</td></tr>
+                            <tr><th>Retail Price</th><td>₹${p.retail_price}</td></tr>
+                            <tr><th>Min Selling Price</th><td>₹${p.min_selling_price}</td></tr>
+                            <tr><th>Tax Inclusive</th><td>${p.tax_inclusive ? 'Yes' : 'No'}</td></tr>
+                            <tr><th>Current Stock</th><td><strong style="color: var(--success);">${p.current_stock} ${p.unit}</strong></td></tr>
+                            <tr><th>Min Stock Alert</th><td>${p.min_stock} ${p.unit}</td></tr>
+                            <tr><th>Max Stock</th><td>${p.max_stock} ${p.unit}</td></tr>
+                            <tr><th>Track Inventory</th><td>${p.track_inventory ? 'Enabled' : 'Disabled'}</td></tr>
+                            ${p.description ? `<tr><th>Description</th><td>${p.description}</td></tr>` : ''}
+                        </table>
+                    `;
+                    footer.innerHTML = `
+                        <a href="/company/products/${p.id}/edit/" class="btn btn-primary"><i class="fa-regular fa-pen-to-square"></i> Edit Product</a>
+                        <button onclick="closeProductViewModal()" class="btn btn-secondary">Close</button>
+                    `;
+                } else {
+                    body.innerHTML = `<div class="message-item error">${res.message || 'Failed to load details.'}</div>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = '<div class="message-item error">Error loading product details.</div>';
+            });
+    }
+
+    function closeProductViewModal() {
+        document.getElementById('product-view-modal').style.display = 'none';
+    }
 
     function openAdjustModal(id, name, currentStock) {
         activeProductId = id;

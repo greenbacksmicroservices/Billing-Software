@@ -297,6 +297,76 @@
             </tbody>
         </table>
 
+        <!-- GST Calculation Summary Table -->
+        {% if hsn_summary %}
+            <div style="font-size: 8pt; font-weight: 700; color: #1e3a8a; text-transform: uppercase; padding: 6px 16px 2px 16px;">GST TAX CALCULATION SUMMARY</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 14%;" rowspan="2">HSN/SAC</th>
+                        <th style="width: 16%; text-align: right;" rowspan="2">Taxable Value</th>
+                        <th colspan="2" class="text-center" style="width: 22%;">Central Tax (CGST)</th>
+                        <th colspan="2" class="text-center" style="width: 22%;">State Tax (SGST)</th>
+                        <th colspan="2" class="text-center" style="width: 22%;">Integrated Tax (IGST)</th>
+                        <th style="width: 18%; text-align: right;" rowspan="2">Total Tax Amount</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Rate</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-center">Rate</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-center">Rate</th>
+                        <th class="text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hsn_summary %}
+                        <tr>
+                            <td>{{ row.hsn }}</td>
+                            <td class="text-right">₹{{ row.taxable_value }}</td>
+                            {% if is_interstate %}
+                                <td class="text-center"></td>
+                                <td class="text-right"></td>
+                                <td class="text-center"></td>
+                                <td class="text-right"></td>
+                                <td class="text-center">{{ row.gst_rate }}%</td>
+                                <td class="text-right">₹{{ row.igst_amount }}</td>
+                            {% else %}
+                                <td class="text-center">{{ row.cgst_rate }}%</td>
+                                <td class="text-right">₹{{ row.cgst_amount }}</td>
+                                <td class="text-center">{{ row.sgst_rate }}%</td>
+                                <td class="text-right">₹{{ row.sgst_amount }}</td>
+                                <td class="text-center"></td>
+                                <td class="text-right"></td>
+                            {% endif %}
+                            <td class="text-right bold">₹{{ row.total_tax }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr style="background: #fafafa; font-weight: 700;">
+                        <td colspan="2">Total</td>
+                        {% if is_interstate %}
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td class="text-right bold">₹{{ bill.igst_total }}</td>
+                        {% else %}
+                            <td></td>
+                            <td class="text-right bold">₹{{ bill.cgst_total }}</td>
+                            <td></td>
+                            <td class="text-right bold">₹{{ bill.sgst_total }}</td>
+                            <td></td>
+                            <td></td>
+                        {% endif %}
+                        <td class="text-right bold">
+                            ₹{{ bill.cgst_total|add:bill.sgst_total|add:bill.igst_total }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
         <!-- FINANCIAL SUMMARY -->
         <table class="summary-table">
             <tr>

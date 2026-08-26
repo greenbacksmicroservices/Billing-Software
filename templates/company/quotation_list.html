@@ -6,8 +6,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Sales Quotations</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search quotation, customer..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Sales_Quotations')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Sales_Quotations')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'quotation_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Create Quotation
         </a>
@@ -43,14 +49,14 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                <a href="{% url 'quotation_view' q.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i class="fa-regular fa-eye"></i> View</a>
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'quotation_view' q.id %}" class="btn-action-view" title="View Details"><i class="fa-regular fa-eye"></i> View</a>
                                 {% if q.status != 'CONVERTED' %}
-                                    <a href="{% url 'quotation_edit' q.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i class="fa-regular fa-pen-to-square"></i> Edit</a>
-                                    <a href="{% url 'quotation_convert' q.id %}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;"><i class="fa-solid fa-arrows-spin"></i> Convert to Invoice</a>
+                                    <a href="{% url 'quotation_edit' q.id %}" class="btn-action-edit" title="Edit Quotation"><i class="fa-regular fa-pen-to-square"></i> Edit</a>
+                                    <a href="{% url 'quotation_convert' q.id %}" class="btn-action-convert" title="Convert to Invoice"><i class="fa-solid fa-arrows-spin"></i> Convert to Invoice</a>
                                 {% endif %}
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/quotation/{{ q.id }}/', '{{ q.quotation_number }}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; color: var(--danger);" title="Delete Quotation">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/quotation/{{ q.id }}/', '{{ q.quotation_number }}')" class="btn-action-delete" title="Delete Quotation">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
                                 </button>
                             </div>
                         </td>

@@ -6,8 +6,14 @@
 {% block content %}
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <h1 class="page-title" style="margin: 0;">Debit Notes (Purchase Returns)</h1>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% include 'common_table_search.html' with placeholder="Search debit note, bill..." %}
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('excel', 'Debit_Notes')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download Excel">
+            <i class="fa-regular fa-file-excel" style="color: #10b981;"></i> Download Excel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="exportTableData('csv', 'Debit_Notes')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;" title="Download CSV">
+            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i> Download CSV
+        </button>
         <a href="{% url 'debit_note_add' %}" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> Issue Debit Note
         </a>
@@ -26,6 +32,7 @@
                     <th>Reason</th>
                     <th>Total Adjustment</th>
                     <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,10 +48,20 @@
                                 {{ note.status }}
                             </span>
                         </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end;">
+                                <a href="{% url 'debit_note_view' note.id %}" class="btn-action-view" title="View Details">
+                                    <i class="fa-regular fa-eye"></i> View
+                                </a>
+                                <button type="button" onclick="triggerGlobalDelete('/api/delete/debit-note/{{ note.id }}/', '{{ note.note_number }}')" class="btn-action-delete" title="Delete Debit Note">
+                                    <i class="fa-regular fa-trash-can"></i> Delete
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No debit notes recorded.</td>
+                        <td colspan="7" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No debit notes recorded.</td>
                     </tr>
                 {% endfor %}
             </tbody>
