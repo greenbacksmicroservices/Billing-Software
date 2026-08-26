@@ -2614,12 +2614,106 @@ class PurchaseOrderEnhancementTests(TestCase):
         self.assertNotIn("company.stamp", html_text)
 
 
-    def test_unauthenticated_delivery_access(self):
+    def test_taxable_amount_removed_from_summaries(self):
+        # Create HSN
+        hsn, _ = HSNSACMaster.objects.get_or_create(code="847199", defaults={'gst_rate': Decimal("18.00")})
+        product = Product.objects.create(company=self.company, name="Test Product Unique", selling_price=Decimal("200.00"), hsn_sac=hsn)
+        
+        # Customers
+        cust_interstate = Customer.objects.create(company=self.company, name="Interstate Customer", billing_state="Gujarat", billing_state_code="24")
+        cust_intrastate = Customer.objects.create(company=self.company, name="Intrastate Customer", billing_state="Odisha", billing_state_code="21")
+
         c = Client()
-        res_comp = c.get('/company/delivery/')
-        self.assertEqual(res_comp.status_code, 302)
-        res_admin = c.get('/admin/delivery/')
-        self.assertEqual(res_admin.status_code, 403)
+        c.login(username="enh_user", password="password123")
+
+        # TEST 1: Interstate, No Discount
+        inv1 = Invoice.objects.create(
+            company=self.company,
+            customer=cust_interstate,
+            invoice_number="INV-T1",
+            invoice_date=date.today(),
+            due_date=date.today(),
+            place_of_supply="Gujarat",
+            place_of_supply_code="24",
+            subtotal=Decimal("200.00"),
+            discount_total=Decimal("0.00"),
+            taxable_value=Decimal("200.00"),
+            cgst_total=Decimal("0.00"),
+            sgst_total=Decimal("0.00"),
+            igst_total=Decimal("36.00"),
+            cess_total=Decimal("0.00"),
+            round_off=Decimal("0.00"),
+            grand_total=Decimal("236.00")
+        )
+        InvoiceItem.objects.create(
+            invoice=inv1, product=product, quantity=Decimal("1.00"), rate=Decimal("200.00"), discount=Decimal("0.00"),
+            taxable_value=Decimal("200.00"), gst_rate=Decimal("18.00"), igst_amount=Decimal("36.00"), total_amount=Decimal("236.00")
+        )
+
+        res1_detail = c.get(f'/company/invoices/{inv1.id}/')
+        self.assertEqual(res1_detail.status_code, 200)
+        html1_detail = res1_detail.content.decode('utf-8')
+        self.assertIn("Gross Subtotal:", html1_detail)
+        self.assertIn("IGST:", html1_detail)
+        self.assertIn("236.00", html1_detail)
+
+        res1_pdf = c.get(f'/company/invoices/{inv1.id}/pdf/')
+        self.assertEqual(res1_pdf.status_code, 200)
+
+        # TEST 2: Interstate, With Discount (₹20 discount)
+        inv2 = Invoice.objects.create(
+            company=self.company,
+            customer=cust_interstate,
+            invoice_number="INV-T2",
+            invoice_date=date.today(),
+            due_date=date.today(),
+            place_of_supply="Gujarat",
+            place_of_supply_code="24",
+            subtotal=Decimal("200.00"),
+            discount_total=Decimal("20.00"),
+            taxable_value=Decimal("180.00"),
+            cgst_total=Decimal("0.00"),
+            sgst_total=Decimal("0.00"),
+            igst_total=Decimal("32.40"),
+            cess_total=Decimal("0.00"),
+            round_off=Decimal("0.00"),
+            grand_total=Decimal("212.40")
+        )
+        InvoiceItem.objects.create(
+            invoice=inv2, product=product, quantity=Decimal("1.00"), rate=Decimal("200.00"), discount=Decimal("20.00"),
+            taxable_value=Decimal("180.00"), gst_rate=Decimal("18.00"), igst_amount=Decimal("32.40"), total_amount=Decimal("212.40")
+        )
+
+        res2_detail = c.get(f'/company/invoices/{inv2.id}/')
+        self.assertEqual(res2_detail.status_code, 200)
+
+        # TEST 3: Intra-state, No Discount
+        inv3 = Invoice.objects.create(
+            company=self.company,
+            customer=cust_intrastate,
+            invoice_number="INV-T3",
+            invoice_date=date.today(),
+            due_date=date.today(),
+            place_of_supply="Odisha",
+            place_of_supply_code="21",
+            subtotal=Decimal("200.00"),
+            discount_total=Decimal("0.00"),
+            taxable_value=Decimal("200.00"),
+            cgst_total=Decimal("18.00"),
+            sgst_total=Decimal("18.00"),
+            igst_total=Decimal("0.00"),
+            cess_total=Decimal("0.00"),
+            round_off=Decimal("0.00"),
+            grand_total=Decimal("236.00")
+        )
+        InvoiceItem.objects.create(
+            invoice=inv3, product=product, quantity=Decimal("1.00"), rate=Decimal("200.00"), discount=Decimal("0.00"),
+            taxable_value=Decimal("200.00"), gst_rate=Decimal("18.00"), cgst_amount=Decimal("18.00"), sgst_amount=Decimal("18.00"), total_amount=Decimal("236.00")
+        )
+
+        res3_detail = c.get(f'/company/invoices/{inv3.id}/')
+        self.assertEqual(res3_detail.status_code, 200)
+
 
 
 

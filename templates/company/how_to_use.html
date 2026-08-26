@@ -1,0 +1,1039 @@
+{% extends 'base_company.html' %}
+
+{% block title %}How to Use - Complete Billing Software User Guide{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <!-- Page Header & Language Selector Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; background: var(--card-bg, #ffffff); border: 1px solid var(--border, #e2e8f0); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <h1 class="page-title" id="guide-header-title" style="margin: 0; font-size: 1.75rem;">How to Use</h1>
+                <span class="badge badge-info" style="font-size: 0.75rem; padding: 0.25rem 0.6rem;">v2.0 Official Guide</span>
+            </div>
+            <p id="guide-header-sub" style="color: var(--muted-foreground, #64748b); font-size: 0.95rem; margin-top: 0.4rem; max-width: 750px;">
+                Learn how to create quotations, invoices, purchase bills, manage products, customers, suppliers, GST, payments, reports and more.
+            </p>
+        </div>
+
+        <!-- Language Selector Dropdown & Quick Buttons -->
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; min-width: 220px;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: var(--foreground); display: flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-language" style="color: var(--primary);"></i> Language / भाषा / ଭାଷା:
+            </label>
+            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary lang-btn active" data-lang="en" style="padding: 0.35rem 0.75rem; font-size: 0.825rem; font-weight: 600;">
+                    English
+                </button>
+                <button type="button" class="btn btn-secondary lang-btn" data-lang="hi" style="padding: 0.35rem 0.75rem; font-size: 0.825rem; font-weight: 600;">
+                    हिन्दी
+                </button>
+                <button type="button" class="btn btn-secondary lang-btn" data-lang="or" style="padding: 0.35rem 0.75rem; font-size: 0.825rem; font-weight: 600;">
+                    ଓଡ଼ିଆ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar & Progress Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+        <div style="flex: 1; max-width: 480px; position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); font-size: 0.9rem;"></i>
+            <input type="text" id="guide-search" class="form-control" placeholder="Search guide (e.g. quotation, GST, invoice)..." style="padding-left: 2.5rem; border-radius: 20px; font-size: 0.9rem;">
+        </div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--muted-foreground);">
+            Progress: <span id="progress-text" style="color: var(--primary);">1 / 26 Sections Read</span>
+        </div>
+    </div>
+
+    <!-- Main Guide 2-Column Grid Layout -->
+    <div class="guide-layout">
+        <!-- Left Sidebar - 26 Sections List -->
+        <div class="guide-nav-card" id="guide-sidebar-list">
+            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted-foreground); margin-bottom: 0.75rem; padding: 0 0.5rem;">
+                GUIDE INDEX (26 SECTIONS)
+            </div>
+            <!-- Nav Items dynamically populated by JS -->
+        </div>
+
+        <!-- Right Content Body -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Current Section Card -->
+            <div class="card-container" style="margin-bottom: 0;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <span id="section-badge" class="badge badge-info" style="font-size: 0.75rem; margin-bottom: 0.35rem;">SECTION 01</span>
+                        <h2 class="card-title" id="section-title" style="margin: 0; font-size: 1.35rem; color: var(--foreground);">Getting Started</h2>
+                    </div>
+                    <button type="button" id="mark-complete-btn" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+                        <i class="fa-regular fa-circle-check"></i> <span id="mark-btn-text">Mark Completed</span>
+                    </button>
+                </div>
+                <div class="card-body" id="section-content-body" style="padding: 1.5rem;">
+                    <!-- Rendered step by step tutorial content -->
+                </div>
+            </div>
+
+            <!-- Bottom Prev / Next Controls -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                <button type="button" id="btn-prev-section" class="btn btn-secondary" style="padding: 0.6rem 1.25rem;">
+                    <i class="fa-solid fa-arrow-left"></i> <span id="prev-btn-label">Previous Section</span>
+                </button>
+                <button type="button" id="btn-next-section" class="btn btn-primary" style="padding: 0.6rem 1.25rem;">
+                    <span id="next-btn-label">Next Section</span> <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Visual Guide Screen Lightbox Modal -->
+<div id="guide-visual-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="background: var(--card-bg, #ffffff); border: 1px solid var(--border); border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3); animation: modalPop 0.2s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--muted-bg, #f8fafc);">
+            <div>
+                <span id="modal-sec-badge" class="badge badge-info" style="font-size: 0.75rem; margin-bottom: 0.2rem;">SECTION 01</span>
+                <h3 id="modal-sec-title" style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--foreground);">Interactive Screen Preview</h3>
+            </div>
+            <button type="button" id="close-guide-modal-btn" class="btn btn-secondary" style="border-radius: 50%; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div id="modal-sec-body" style="padding: 1.5rem; overflow-y: auto; text-align: center; flex: 1;">
+            <!-- Rendered image preview or interactive mockup -->
+        </div>
+
+        <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); background: var(--card-bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <span style="font-size: 0.825rem; color: var(--muted-foreground);">
+                <i class="fa-solid fa-circle-info"></i> Click button on right to navigate to live application screen.
+            </span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="button" id="close-guide-modal-btn2" class="btn btn-secondary">Close</button>
+                <a id="modal-live-link" href="#" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <span>Open Live Screen</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+.visual-card-clickable {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.visual-card-clickable:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary, #2563eb) !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15) !important;
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 26 Complete Sections Data with URL mappings
+    const guideSections = [
+        {
+            id: '01',
+            key: 'getting_started',
+            title: { en: '01. Getting Started', hi: '01. शुरुआत कैसे करें (Getting Started)', or: '01. ଆରମ୍ଭ କିପରି କରିବେ (Getting Started)' },
+            image: '/static/images/guide/getting_started.png',
+            url: "{% url 'company_dashboard' %}",
+            desc: {
+                en: 'Master the basic flow of GBL Billing Software from login to tax invoice generation.',
+                hi: 'जीबीएल बिलिंग सॉफ्टवेयर के बेसिक फ्लो को लॉगिन से लेकर टैक्स इनवॉइस बनाने तक समझें।',
+                or: 'GBL ବିଲିଂ ସଫ୍ଟୱେରର ମୌଳିକ ପ୍ରକ୍ରିୟାକୁ ଲଗଇନ୍ ରୁ ଟ୍ୟାକ୍ସ ଇନଭଏସ୍ ପର୍ଯ୍ୟନ୍ତ ବୁଝନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Login & Access Panel', hi: 'लॉगिन करें और पैनल खोलें', or: 'ଲଗଇନ୍ କରନ୍ତୁ ଏବଂ ପ୍ୟାନେଲ୍ ଖୋଲନ୍ତୁ' },
+                    what: { en: 'Enter registered credentials on Login screen.', hi: 'लॉगिन स्क्रीन पर अपना रजिस्टर्ड ईमेल और पासवर्ड दर्ज करें।', or: 'ଲଗଇନ୍ ସ୍କ୍ରିନରେ ଆପଣଙ୍କର ପଞ୍ଜିକୃତ ଇମେଲ୍ ଏବଂ ପାସୱାର୍ଡ ପ୍ରବେଶ କରନ୍ତୁ।' },
+                    why: { en: 'Authenticates user and assigns proper company permissions.', hi: 'यूज़र को प्रमाणित करता है और आवश्यक कंपनी अनुमतियां देता है।', or: 'ବ୍ୟବହାରକାରୀଙ୍କୁ ପ୍ରମାଣିତ କରେ ଏବଂ ସଠିକ୍ ଅନୁମତି ପ୍ରଦାନ କରେ।' },
+                    enter: { en: 'Email/Username and Password.', hi: 'ईमेल/यूज़रनेम और पासवर्ड।', or: 'ଇମେଲ୍ / ୟୁଜରନେମ୍ ଏବଂ ପାସୱାର୍ଡ।' },
+                    result: { en: 'Navigates directly to Company Dashboard.', hi: 'सीधे कंपनी डैशबोर्ड पर ले जाता है।', or: 'ସିଧାସଳଖ କମ୍ପାନୀ ଡ୍ୟାସବୋର୍ଡକୁ ନେଇଯାଏ।' }
+                },
+                {
+                    step: '2',
+                    title: { en: 'Configure Business Settings', hi: 'बिजनेस सेटिंग्स सेट करें', or: 'ବ୍ୟବସାୟ ସେଟିଂସ ସେଟ୍ କରନ୍ତୁ' },
+                    what: { en: 'Click Business Settings from sidebar.', hi: 'साइडबार से बिजनेस सेटिंग्स (Business Settings) पर क्लिक करें।', or: 'ସାଇଡବାରରୁ Business Settings ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Ensures invoice prints display valid GSTIN, address, bank, and stamp details.', hi: 'इनवॉइस प्रिंट पर सही जीएसटी नंबर, पता, बैंक और स्टाम्प प्रदर्शित करता है।', or: 'ଇନଭଏସ୍ ପ୍ରିଣ୍ଟରେ ଜିଏସଟି, ଠିକଣା, ବ୍ୟାଙ୍କ ଏବଂ ଷ୍ଟାମ୍ପ ବିବରଣୀ ପ୍ରଦର୍ଶନ କରେ।' },
+                    enter: { en: 'Business Name, Address, GSTIN, Bank A/C, Signature/Stamp.', hi: 'बिजनेस नाम, पता, जीएसटी नंबर, बैंक खाता, हस्ताक्षर व स्टाम्प।', or: 'ବ୍ୟବସାୟ ନାମ, ଠିକଣା, ଜିଏସଟି, ବ୍ୟାଙ୍କ ଆକାଉଣ୍ଟ, ସାଇନ୍।' },
+                    result: { en: 'Company profile configured.', hi: 'कंपनी प्रोफ़ाइल सफलतापूर्वक सेट हो जाती है।', or: 'କମ୍ପାନୀ ପ୍ରୋଫାଇଲ୍ ସେଟ୍ ହୋଇଯାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '02',
+            key: 'company_setup',
+            title: { en: '02. Company Setup', hi: '02. कंपनी सेटअप (Company Setup)', or: '02. କମ୍ପାନୀ ସେଟଅପ୍ (Company Setup)' },
+            url: "{% url 'company_settings' %}",
+            desc: {
+                en: 'Set up your company profile, branding logo, bank details, and GSTIN numbers.',
+                hi: 'अपनी कंपनी की प्रोफ़ाइल, लोगो, बैंक विवरण और जीएसटी नंबर सेट करें।',
+                or: 'ଆପଣଙ୍କ କମ୍ପାନୀ ପ୍ରୋଫାଇଲ୍, ଲୋଗୋ, ବ୍ୟାଙ୍କ ବିବରଣୀ ଏବଂ ଜିଏସଟି ନମ୍ବର ସେଟ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Update Company Details', hi: 'कंपनी विवरण अपडेट करें', or: 'କମ୍ପାନୀ ବିବରଣୀ ଅପଡେଟ୍ କରନ୍ତୁ' },
+                    what: { en: 'Click Business Settings in main menu.', hi: 'मुख्य मेनू में बिजनेस सेटिंग्स पर क्लिक करें।', or: 'ମୁଖ୍ୟ ମେନୁରେ Business Settings ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Displays official business details on invoice header.', hi: 'इनवॉइस हेडर पर आधिकारिक व्यावसायिक विवरण प्रदर्शित करता है।', or: 'ଇନଭଏସ୍ ହେଡରରେ ସରକାରୀ ବ୍ୟବସାୟ ବିବରଣୀ ଦେଖାଏ।' },
+                    enter: { en: 'Legal Name, Trade Name, Full Address, Pincode, State & Code.', hi: 'लीगल नाम, ट्रेड नाम, पूरा पता, पिनकोड, राज्य व स्टेट कोड।', or: 'ଆଇନଗତ ନାମ, ଟ୍ରେଡ୍ ନାମ, ସମ୍ପୂର୍ଣ୍ଣ ଠିକଣା, ପିନ୍‌କୋଡ୍, ରାଜ୍ୟ କୋଡ୍।' },
+                    result: { en: 'Updates invoice header information.', hi: 'इनवॉइस हेडर जानकारी अपडेट हो जाती है।', or: 'ଇନଭଏସ୍ ହେଡର ସୂଚନା ଅପଡେଟ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '03',
+            key: 'dashboard',
+            title: { en: '03. Dashboard', hi: '03. डैशबोर्ड (Dashboard Overview)', or: '03. ଡ୍ୟାସବୋର୍ଡ (Dashboard Overview)' },
+            url: "{% url 'company_dashboard' %}",
+            desc: {
+                en: 'Realtime view of sales, purchases, collections, stock alerts, and financial graphs.',
+                hi: 'सेल्स, परचेज, कलेक्शन, स्टॉक अलर्ट और फाइनेंशियल ग्राफ का रियलटाइम दृश्य।',
+                or: 'ବିକ୍ରୟ, କ୍ରୟ, ସଂଗ୍ରହ, ଷ୍ଟକ୍ ସତର୍କତା ଏବଂ ଗ୍ରାଫର ରିଅଲଟାଇମ୍ ଦୃଶ୍ୟ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Monitor KPI Cards', hi: 'KPI कार्ड्स मॉनिटर करें', or: 'KPI କାର୍ଡଗୁଡ଼ିକ ମନିଟର୍ କରନ୍ତୁ' },
+                    what: { en: 'Review Today Sales, Purchases, Receivables, Payables, and MTD Profit.', hi: 'आज की बिक्री, खरीदारी, प्राप्य (Receivables), देय (Payables) और लाभ की समीक्षा करें।', or: 'ଆଜିର ବିକ୍ରୟ, କ୍ରୟ, ବାକି ଆଦାୟ ଏବଂ ଲାଭର ସମୀକ୍ଷା କରନ୍ତୁ।' },
+                    why: { en: 'Provides instant operational snapshot.', hi: 'व्यवसाय का त्वरित वित्तीय विवरण प्रदान करता है।', or: 'ବ୍ୟବସାୟର ତୁରନ୍ତ ଆର୍ଥିକ ବିବରଣୀ ପ୍ରଦାନ କରେ।' },
+                    enter: { en: 'None (Read-only cards).', hi: 'कोई नहीं (केवल पढ़ने योग्य कार्ड)।', or: 'କିଛି ନାହିଁ (କେବଳ ଦେଖିବା ପାଇଁ)।' },
+                    result: { en: 'Live metric auto-refreshes every 30 seconds.', hi: 'लाइव मेट्रिक्स हर 30 सेकंड में ऑटो-रिफ्रेश होते हैं।', or: 'ଲାଇଭ୍ ମେଟ୍ରିକ୍ସ ପ୍ରତି ୩୦ ସେକେଣ୍ଡରେ ଆପେ ଆପେ ରିଫ୍ରେସ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '04',
+            key: 'my_account',
+            title: { en: '04. My Account', hi: '04. माई अकाउंट (My Account & Security)', or: '04. ମାଇଁ ଆକାଉଣ୍ଟ (My Account & Security)' },
+            url: "{% url 'company_my_account' %}",
+            desc: {
+                en: 'Manage personal user profile, security password, and avatar photo.',
+                hi: 'पर्सनल यूजर प्रोफाइल, पासवर्ड और अवतार फोटो मैनेज करें।',
+                or: 'ବ୍ୟକ୍ତିଗତ ପ୍ରୋଫାଇଲ୍, ପାସୱାର୍ଡ ଏବଂ ଫଟୋ ପରିଚାଳନା କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Profile & Password Update', hi: 'प्रोफाइल व पासवर्ड अपडेट', or: 'ପ୍ରୋଫାଇଲ୍ ଏବଂ ପାସୱାର୍ଡ ଅପଡେଟ୍' },
+                    what: { en: 'Click Profile from top dropdown -> Profile or Change Password.', hi: 'शीर्ष ड्रॉपडाउन से प्रोफ़ाइल -> प्रोफ़ाइल या पासवर्ड बदलें पर क्लिक करें।', or: 'ଉପର ଡ୍ରପଡାଉନରୁ Profile -> Profile କିମ୍ବା Change Password ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Keeps credentials secure.', hi: 'आपके खाते और क्रेडेंशियल्स को सुरक्षित रखता है।', or: 'ଆପଣଙ୍କ ଆକାଉଣ୍ଟ ଏବଂ ପାସୱାର୍ଡକୁ ସୁରକ୍ଷିତ ରଖେ।' },
+                    enter: { en: 'First Name, Email, Mobile, Current & New Password.', hi: 'प्रथम नाम, ईमेल, मोबाइल, वर्तमान व नया पासवर्ड।', or: 'ନାମ, ଇମେଲ୍, ମୋବାଇଲ୍, ବର୍ତ୍ତମାନ ଏବଂ ନୂଆ ପାସୱାର୍ଡ।' },
+                    result: { en: 'Account details updated securely.', hi: 'खाता विवरण सुरक्षित रूप से अपडेट हो जाता है।', or: 'ଆକାଉଣ୍ଟ ବିବରଣୀ ସୁରକ୍ଷିତ ଭାବରେ ଅପଡେଟ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '05',
+            key: 'products',
+            title: { en: '05. Products Master', hi: '05. प्रोडक्ट्स मास्टर (Products Master)', or: '05. ପ୍ରୋଡକ୍ଟସ ମାଷ୍ଟର (Products Master)' },
+            url: "{% url 'product_list' %}",
+            desc: {
+                en: 'Manage inventory items, HSN/SAC codes, GST tax rates, and prices.',
+                hi: 'इन्वेंट्री प्रोडक्ट्स, HSN/SAC कोड, जीएसटी टैक्स दरें और कीमतें प्रबंधित करें।',
+                or: 'ଇନଭେଣ୍ଟରୀ ପ୍ରୋଡକ୍ଟସ, HSN/SAC କୋଡ୍, ଜିଏସଟି ଟ୍ୟାକ୍ସ ଦର ଏବଂ ମୂଲ୍ୟ ପରିଚାଳନା କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Add Product Item', hi: 'नया प्रोडक्ट जोड़ें', or: 'ନୂଆ ପ୍ରୋଡକ୍ଟ ଯୋଡନ୍ତୁ' },
+                    what: { en: 'Navigate to Inventory -> Products Master -> Add Product.', hi: 'इन्वेंट्री -> प्रोडक्ट्स मास्टर -> नया प्रोडक्ट जोड़ें पर जाएँ।', or: 'Inventory -> Products Master -> Add Product କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Establishes catalog for fast billing and stock tracking.', hi: 'तेज़ बिलिंग और स्टॉक ट्रैकिंग के लिए कैटलॉग तैयार करता है।', or: 'ଦ୍ରୁତ ବିଲିଂ ଏବଂ ଷ୍ଟକ୍ ଟ୍ରାକିଂ ପାଇଁ ପ୍ରୋଡକ୍ଟ କ୍ୟାଟାଲଗ୍ ତିଆରି କରେ।' },
+                    enter: { en: 'Product Name, SKU, HSN Code, GST Rate (e.g. 18%), Selling Price, Opening Stock.', hi: 'प्रोडक्ट नाम, SKU, HSN कोड, जीएसटी दर (जैसे 18%), बिक्री मूल्य, शुरुआती स्टॉक।', or: 'ପ୍ରୋଡକ୍ଟ ନାମ, HSN କୋଡ୍, ଜିଏସଟି ଦର (ଯେପରି ୧୮%), ବିକ୍ରୟ ମୂଲ୍ୟ, ଷ୍ଟକ୍।' },
+                    result: { en: 'Product saved and ready for billing.', hi: 'प्रोडक्ट सेव हो जाता है और बिलिंग के लिए तैयार है।', or: 'ପ୍ରୋଡକ୍ଟ ସେଭ୍ ହୁଏ ଏବଂ ବିଲିଂ ପାଇଁ ପ୍ରସ୍ତୁତ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '06',
+            key: 'customers',
+            title: { en: '06. Customers', hi: '06. ग्राहक (Customers Management)', or: '06. ଗ୍ରାହକ (Customers Management)' },
+            url: "{% url 'customer_list' %}",
+            desc: {
+                en: 'Add client address, GSTIN registration, and manage outstanding balances.',
+                hi: 'ग्राहक का पता, जीएसटीआईएन नंबर जोड़ें और बकाया बैलेंस प्रबंधित करें।',
+                or: 'ଗ୍ରାହକଙ୍କ ଠିକଣା, ଜିଏସଟିଆଇଏନ୍ ଯୋଡନ୍ତୁ ଏବଂ ବାକି ବାଲାନ୍ସ ପରିଚାଳନା କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Register Customer', hi: 'ग्राहक रजिस्टर्ड करें', or: 'ଗ୍ରାହକ ପଞ୍ଜିକୃତ କରନ୍ତୁ' },
+                    what: { en: 'Click Contacts -> Customers -> Add Customer.', hi: 'कॉन्टैक्ट्स -> कस्टमर्स -> नया कस्टमर जोड़ें पर क्लिक करें।', or: 'Contacts -> Customers -> Add Customer ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Determines Intra-State (CGST+SGST) vs Inter-State (IGST) billing based on State Code.', hi: 'स्टेट कोड के आधार पर इंट्रा-स्टेट (CGST+SGST) बनाम इंटर-स्टेट (IGST) बिलिंग तय करता है।', or: 'ରାଜ୍ୟ କୋଡ୍ ଆଧାରରେ CGST+SGST କିମ୍ବା IGST ବିଲିଂ ସ୍ଥିର କରେ।' },
+                    enter: { en: 'Name, Business Name, Mobile, GSTIN, Billing Address, State Code.', hi: 'नाम, बिजनेस नाम, मोबाइल, जीएसटी नंबर, बिलिंग पता, स्टेट कोड।', or: 'ନାମ, ବ୍ୟବସାୟ ନାମ, ମୋବାଇଲ୍, ଜିଏସଟି, ଠିକଣା, ରାଜ୍ୟ କୋଡ୍।' },
+                    result: { en: 'Customer profile saved.', hi: 'ग्राहक प्रोफ़ाइल सहेजी गई।', or: 'ଗ୍ରାହକ ପ୍ରୋଫାଇଲ୍ ସେଭ୍ ହୋଇଯାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '07',
+            key: 'suppliers',
+            title: { en: '07. Suppliers', hi: '07. सप्लायर्स (Suppliers / Vendors)', or: '07. ସପ୍ଲାୟର୍ସ (Suppliers / Vendors)' },
+            url: "{% url 'supplier_list' %}",
+            desc: {
+                en: 'Maintain vendor ledger, GSTIN details, and purchase bill accounts.',
+                hi: 'सप्लायर लेजर, जीएसटी विवरण और परचेज बिल अकाउंट प्रबंधित करें।',
+                or: 'ସପ୍ଲାୟର ଲେଜର, ଜିଏସଟି ବିବରଣୀ ଏବଂ କ୍ରୟ ବିଲ୍ ପରିଚାଳନା କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Add Supplier Profile', hi: 'सप्लायर जोड़ें', or: 'ସପ୍ଲାୟର ଯୋଡନ୍ତୁ' },
+                    what: { en: 'Click Contacts -> Suppliers -> Add Supplier.', hi: 'कॉन्टैक्ट्स -> सप्लायर्स -> नया सप्लायर जोड़ें पर क्लिक करें।', or: 'Contacts -> Suppliers -> Add Supplier ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Auto-populates vendor info in Purchase Orders and Bills.', hi: 'परचेज ऑर्डर और बिल में सप्लायर जानकारी स्वतः भरता है।', or: 'କ୍ରୟ ଅର୍ଡର ଏବଂ ବିଲ୍‌ରେ ସପ୍ଲାୟର ବିବରଣୀ ସ୍ବୟଂଚାଳିତ ଭାବରେ ପୂରଣ କରେ।' },
+                    enter: { en: 'Vendor Name, Phone, Email, GSTIN, Address, State.', hi: 'सप्लायर का नाम, फोन, ईमेल, जीएसटी नंबर, पता, राज्य।', or: 'ସପ୍ଲାୟର ନାମ, ଫୋନ୍, ଇମେଲ୍, ଜିଏସଟି, ଠିକଣା, ରାଜ୍ୟ।' },
+                    result: { en: 'Supplier added successfully.', hi: 'सप्लायर सफलतापूर्वक जोड़ा गया।', or: 'ସପ୍ଲାୟର ସଫଳତାର ସହିତ ଯୋଡାଗଲା।' }
+                }
+            ]
+        },
+        {
+            id: '08',
+            key: 'quotations',
+            title: { en: '08. Quotations', hi: '08. सेल्स कोटेशन (Sales Quotations)', or: '08. ସେଲ୍ସ କୋଟେସନ୍ (Sales Quotations)' },
+            url: "{% url 'quotation_list' %}",
+            desc: {
+                en: 'Create, print, email, and convert price quotes into Sales Orders or Invoices.',
+                hi: 'प्राइस कोटेशन बनाएं, प्रिंट करें, ईमेल करें और सेल्स ऑर्डर/इनवॉइस में कन्वर्ट करें।',
+                or: 'ପ୍ରାଇସ୍ କୋଟେସନ୍ ତିଆରି କରନ୍ତୁ, ପ୍ରିଣ୍ଟ, ଇମେଲ୍ ଏବଂ କନଭର୍ଟ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Create Quotation', hi: 'कोटेशन तैयार करें', or: 'କୋଟେସନ୍ ତିଆରି କରନ୍ତୁ' },
+                    what: { en: 'Sales & Invoicing -> Quotations -> New Quotation.', hi: 'सेल्स & इनवॉइसिंग -> कोटेशन -> नया कोटेशन पर जाएँ।', or: 'Sales & Invoicing -> Quotations -> New Quotation କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Sends price estimation to prospective client.', hi: 'संभावित ग्राहक को मूल्य अनुमान (Estimate) भेजता है।', or: 'ଗ୍ରାହକଙ୍କୁ ମୂଲ୍ୟ ଆକଳନ (Estimate) ପଠାଏ।' },
+                    enter: { en: 'Customer, Date, Products, Quantity, Discount, Terms & Conditions.', hi: 'कस्टमर, तारीख, प्रोडक्ट्स, मात्रा, छूट, नियम और शर्तें।', or: 'ଗ୍ରାହକ, ତାରିଖ, ପ୍ରୋଡକ୍ଟ, ପରିମାଣ, ରିହାତି, ନିୟମ ଏବଂ ସର୍ତ୍ତ।' },
+                    result: { en: 'Generates formal quotation document with PDF preview.', hi: 'पीडीएफ पूर्वावलोकन के साथ औपचारिक कोटेशन दस्तावेज़ जनरेट करता है।', or: 'PDF ପ୍ରିଭ୍ୟୁ ସହିତ ଆନୁଷ୍ଠାନିକ କୋଟେସନ୍ ଦଲିଲ ତିଆରି କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '09',
+            key: 'sales_orders',
+            title: { en: '09. Sales Orders', hi: '09. सेल्स ऑर्डर (Sales Orders)', or: '09. ସେଲ୍ସ ଅର୍ଡର (Sales Orders)' },
+            url: "{% url 'sales_order_list' %}",
+            desc: {
+                en: 'Record confirmed customer orders and track fulfillment status.',
+                hi: 'कस्टमर से प्राप्त कन्फर्म ऑर्डर दर्ज करें और डिलीवरी स्टेटस ट्रैक करें।',
+                or: 'ଗ୍ରାହକଙ୍କ ନିଶ୍ଚିତ ଅର୍ଡର ରୁଜୁ କରନ୍ତୁ ଏବଂ ଟ୍ରାକ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Log Sales Order', hi: 'सेल्स ऑर्डर दर्ज करें', or: 'ସେଲ୍ସ ଅର୍ଡର ଲଗ୍ କରନ୍ତୁ' },
+                    what: { en: 'Sales & Invoicing -> Sales Orders -> New Sales Order.', hi: 'सेल्स & इनवॉइसिंग -> सेल्स ऑर्डर -> नया सेल्स ऑर्डर पर जाएँ।', or: 'Sales & Invoicing -> Sales Orders -> New Sales Order କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Locks order commitment prior to dispatch.', hi: 'डिलीवरी से पहले ग्राहक के ऑर्डर को लॉक करता है।', or: 'ଡେଲିଭରୀ ପୂର୍ବରୁ ଗ୍ରାହକଙ୍କ ଅର୍ଡରକୁ ଲକ୍ କରେ।' },
+                    enter: { en: 'Customer, Order Date, Items, Quantities, Target Delivery Date.', hi: 'कस्टमर, ऑर्डर तिथि, आइटम, मात्रा, लक्षित डिलीवरी तिथि।', or: 'ଗ୍ରାହକ, ଅର୍ଡର ତାରିଖ, ଆଇଟମ୍, ପରିମାଣ, ଡେଲିଭରୀ ତାରିଖ।' },
+                    result: { en: 'Saves order voucher with PDF print option.', hi: 'पीडीएफ प्रिंट विकल्प के साथ ऑर्डर वाउचर सहेजता है।', or: 'PDF ପ୍ରିଣ୍ଟ ବିକଳ୍ପ ସହିତ ଅର୍ଡର ଭାଉଚର ସେଭ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '10',
+            key: 'tax_invoices',
+            title: { en: '10. Tax Invoices', hi: '10. टैक्स इनवॉइस (GST Tax Invoices)', or: '10. ଟ୍ୟାକ୍ସ ଇନଭଏସ୍ (GST Tax Invoices)' },
+            url: "{% url 'invoice_list' %}",
+            desc: {
+                en: 'Generate GST compliant Tax Invoices, calculate taxes, and issue bills.',
+                hi: 'जीएसटी टैक्स इनवॉइस बनाएं, टैक्स कैलकुलेट करें और बिल जारी करें।',
+                or: 'ଜିଏସଟି ଟ୍ୟାକ୍ସ ଇନଭଏସ୍ ତିଆରି କରନ୍ତୁ ଏବଂ ବିଲ୍ ପ୍ରଦାନ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Issue GST Invoice', hi: 'जीएसटी इनवॉइस जारी करें', or: 'ଜିଏସଟି ଇନଭଏସ୍ ପ୍ରଦାନ କରନ୍ତୁ' },
+                    what: { en: 'Sales & Invoicing -> Tax Invoices -> New Tax Invoice.', hi: 'सेल्स & इनवॉइसिंग -> टैक्स इनवॉइस -> नया टैक्स इनवॉइस पर जाएँ।', or: 'Sales & Invoicing -> Tax Invoices -> New Tax Invoice କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Creates legally valid GST sales tax invoice.', hi: 'कानूनी रूप से वैध जीएसटी बिक्री टैक्स इनवॉइस बनाता है।', or: 'ଆଇନଗତ ଜିଏସଟି ବିକ୍ରୟ ଟ୍ୟାକ୍ସ ଇନଭଏସ୍ ତିଆରି କରେ।' },
+                    enter: { en: 'Select Customer, Invoice Date, Items, Quantity, Payment/Advance details.', hi: 'कस्टमर चुनें, इनवॉइस तिथि, आइटम, मात्रा, भुगतान विवरण दर्ज करें।', or: 'ଗ୍ରାହକ, ଇନଭଏସ୍ ତାରିଖ, ଆଇଟମ୍, ପରିମାଣ, ପେମେଣ୍ଟ ବିବରଣୀ।' },
+                    result: { en: 'Calculates tax (CGST+SGST or IGST) and updates stock & ledgers.', hi: 'टैक्स (CGST+SGST या IGST) की गणना करता है और स्टॉक व लेजर अपडेट करता है।', or: 'ଟ୍ୟାକ୍ସ ହିସାବ କରେ ଏବଂ ଷ୍ଟକ୍ ଓ ଲେଜର ଅପଡେଟ୍ କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '11',
+            key: 'credit_notes',
+            title: { en: '11. Credit Notes', hi: '11. क्रेडिट नोट (Credit Notes / Sales Return)', or: '11. କ୍ରେଡିଟ୍ ନୋଟ୍ (Credit Notes / Sales Return)' },
+            url: "{% url 'credit_note_list' %}",
+            desc: {
+                en: 'Issue credit notes for sales returns, rate adjustments, or invoice corrections.',
+                hi: 'सेल्स रिटर्न या प्राइस एडजस्टमेंट के लिए क्रेडिट नोट जारी करें।',
+                or: 'ବିକ୍ରୟ ଫେରସ୍ତ କିମ୍ବା ମୂଲ୍ୟ ସମାୟୋଜନ ପାଇଁ କ୍ରେଡିଟ୍ ନୋଟ୍ ପ୍ରଦାନ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Create Credit Note', hi: 'क्रेडिट नोट बनाएं', or: 'କ୍ରେଡିଟ୍ ନୋଟ୍ ତିଆରି କରନ୍ତୁ' },
+                    what: { en: 'Sales & Invoicing -> Credit Notes -> New Credit Note.', hi: 'सेल्स & इनवॉइसिंग -> क्रेडिट नोट -> नया क्रेडिट नोट पर जाएँ।', or: 'Sales & Invoicing -> Credit Notes -> New Credit Note କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Adjusts customer balance and restores returned inventory stock.', hi: 'कस्टमर बैलेंस को एडजस्ट करता है और लौटाए गए स्टॉक को इन्वेंट्री में जोड़ता है।', or: 'ଗ୍ରାହକ ବାଲାନ୍ସ ସମାୟୋଜିତ କରେ ଏବଂ ଫେରସ୍ତ ଷ୍ଟକ୍ ଇନଭେଣ୍ଟରୀରେ ଯୋଡିଥାଏ।' },
+                    enter: { en: 'Select Original Invoice, Returned Items, Quantity, Reason.', hi: 'मूल इनवॉइस चुनें, लौटाए गए आइटम, मात्रा, कारण दर्ज करें।', or: 'ମୂଳ ଇନଭଏସ୍, ଫେରସ୍ତ ଆଇଟମ୍, ପରିମାଣ, କାରଣ ବାଛନ୍ତୁ।' },
+                    result: { en: 'Updates customer ledger and stock.', hi: 'ग्राहक लेजर और स्टॉक को अपडेट करता है।', or: 'ଗ୍ରାହକ ଲେଜର ଏବଂ ଷ୍ଟକ୍ ଅପଡେଟ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '12',
+            key: 'purchase_orders',
+            title: { en: '12. Purchase Orders', hi: '12. परचेज ऑर्डर (Purchase Orders)', or: '12. ପର୍ଚେଜ୍ ଅର୍ଡର (Purchase Orders)' },
+            url: "{% url 'purchase_order_list' %}",
+            desc: {
+                en: 'Issue official purchase orders to suppliers with delivery and payment terms.',
+                hi: 'सप्लायर्स को डिलीवरी और पेमेंट शर्तो के साथ परचेज ऑर्डर जारी करें।',
+                or: 'ସପ୍ଲାୟରମାନଙ୍କୁ କ୍ରୟ ଅର୍ଡର ପ୍ରଦାନ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Issue Purchase Order', hi: 'परचेज ऑर्डर जारी करें', or: 'ପର୍ଚେଜ୍ ଅର୍ଡର ପ୍ରଦାନ କରନ୍ତୁ' },
+                    what: { en: 'Purchases -> Purchase Orders -> New Purchase Order.', hi: 'परचेज -> परचेज ऑर्डर -> नया परचेज ऑर्डर पर जाएँ।', or: 'Purchases -> Purchase Orders -> New Purchase Order କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Official requisition document sent to vendor.', hi: 'सप्लायर को भेजा जाने वाला आधिकारिक मांग पत्र।', or: 'ସପ୍ଲାୟରଙ୍କୁ ପଠାଯାଉଥିବା ସରକାରୀ ଦାବିପତ୍ର।' },
+                    enter: { en: 'Supplier, Destination Warehouse, Items, Cost Rates, Terms.', hi: 'सप्लायर, गंतव्य वेयरहाउस, आइटम, लागत मूल्य, शर्तें।', or: 'ସପ୍ଲାୟର, ୱେୟାରହାଉସ, ଆଇଟମ୍, ମୂଲ୍ୟ, ସର୍ତ୍ତାବଳୀ।' },
+                    result: { en: 'Generates clean PO document without auto digital signature.', hi: 'स्वचालित डिजिटल हस्ताक्षर के बिना साफ पीओ दस्तावेज़ जनरेट करता है।', or: 'ଡିଜିଟାଲ୍ ସାଇନ୍ ବିନା କ୍ରୟ ଅର୍ଡର ଦଲିଲ ତିଆରି କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '13',
+            key: 'purchase_bills',
+            title: { en: '13. Purchase Bills', hi: '13. परचेज बिल (Purchase Bills / Inward Vouchers)', or: '13. ପର୍ଚେଜ୍ ବିଲ୍ (Purchase Bills / Inward Vouchers)' },
+            url: "{% url 'purchase_bill_list' %}",
+            desc: {
+                en: 'Record inward vendor bills, claim Input Tax Credit (ITC), and update inventory.',
+                hi: 'सप्लायर के परचेज बिल दर्ज करें, आईटीसी (ITC) क्लेम करें और स्टॉक बढ़ाएं।',
+                or: 'ସପ୍ଲାୟରଙ୍କ ବିଲ୍ ରୁଜୁ କରନ୍ତୁ, ITC କ୍ଲେମ୍ କରନ୍ତୁ ଏବଂ ଷ୍ଟକ୍ ବୃଦ୍ଧି କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Record Purchase Bill', hi: 'परचेज बिल एंट्री करें', or: 'ପର୍ଚେଜ୍ ବିଲ୍ ଏଣ୍ଟ୍ରି କରନ୍ତୁ' },
+                    what: { en: 'Purchases -> Purchase Bills -> Record Purchase Bill.', hi: 'परचेज -> परचेज बिल -> रिकॉर्ड परचेज बिल पर जाएँ।', or: 'Purchases -> Purchase Bills -> Record Purchase Bill କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Logs inventory inward and records supplier payable amount.', hi: 'इन्वेंट्री आवक दर्ज करता है और सप्लायर की देय राशि रिकॉर्ड करता है।', or: 'ଇନଭେଣ୍ଟରୀ ଆଗମନ ରେକର୍ଡ କରେ ଏବଂ ସପ୍ଲାୟର ଦେୟ ଲଗ୍ କରେ।' },
+                    enter: { en: 'Supplier, Supplier Invoice No, Date, Items, Quantities, Rates.', hi: 'सप्लायर, सप्लायर इनवॉइस नंबर, तिथि, आइटम, मात्रा, दरें।', or: 'ସପ୍ଲାୟର, ବିଲ୍ ନମ୍ବର, ତାରିଖ, ଆଇଟମ୍, ପରିମାଣ, ଦର।' },
+                    result: { en: 'Increments inventory stock and logs ITC.', hi: 'इन्वेंट्री स्टॉक बढ़ाता है और आईटीसी (ITC) दर्ज करता है।', or: 'ଇନଭେଣ୍ଟରୀ ଷ୍ଟକ୍ ବୃଦ୍ଧି କରେ ଏବଂ ITC ରେକର୍ଡ କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '14',
+            key: 'payments',
+            title: { en: '14. Payments & Receipts', hi: '14. पेमेंट्स व रिसीप्ट्स (Payments & Receipts)', or: '14. ପେମେଣ୍ଟସ ଓ ରିସିପ୍ଟସ (Payments & Receipts)' },
+            url: "{% url 'payment_list' %}",
+            desc: {
+                en: 'Log customer payment receipts and supplier payment vouchers.',
+                hi: 'कस्टमर से प्राप्त भुगतान (Receipts) और सप्लायर को दिए पेमेंट्स दर्ज करें।',
+                or: 'ଗ୍ରାହକ ସଂଗ୍ରହ ଏବଂ ସପ୍ଲାୟର ପେମେଣ୍ଟ ଲଗ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Record Payment Voucher', hi: 'पेमेंट/रिसीप्ट वाउचर बनाएं', or: 'ପେମେଣ୍ଟ / ରିସିପ୍ଟ ତିଆରି କରନ୍ତୁ' },
+                    what: { en: 'Accounting -> Payment Logs -> Add Payment.', hi: 'अकाउंटिंग -> पेमेंट लॉग्स -> नया पेमेंट जोड़ें पर जाएँ।', or: 'Accounting -> Payment Logs -> Add Payment କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Settles outstanding receivables or payables.', hi: 'बकाया प्राप्य (Receivables) या देय (Payables) राशि का निपटान करता है।', or: 'ବାକି ଟଙ୍କାର ହିସାବ ସମାଧାନ କରେ।' },
+                    enter: { en: 'Type (Receipt/Payment), Party Name, Amount, Mode (UPI/Bank/Cash), Ref No.', hi: 'प्रकार (रिसीप्ट/पेमेंट), पार्टी का नाम, राशि, भुगतान का माध्यम, संदर्भ संख्या।', or: 'ପ୍ରକାର, ପାର୍ଟି ନାମ, ଟଙ୍କା, ମାଧ୍ୟମ (UPI/Bank/Cash), ରେଫରେନ୍ସ।' },
+                    result: { en: 'Updates party balance and financial ledgers.', hi: 'पार्टी बैलेंस और वित्तीय लेजर को अपडेट करता है।', or: 'ପାର୍ଟି ବାଲାନ୍ସ ଏବଂ ଲେଜର ଅପଡେଟ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '15',
+            key: 'expenses',
+            title: { en: '15. Expenses', hi: '15. खर्चे (Business Expenses)', or: '15. ଖର୍ଚ୍ଚ (Business Expenses)' },
+            url: "{% url 'expense_list' %}",
+            desc: {
+                en: 'Track operational expenses, rent, utilities, staff salary, and travel costs.',
+                hi: 'बिजनेस के रोजमर्रा के खर्चे जैसे किराया, बिजली, सैलरी और ट्रैवल रिकॉर्ड करें।',
+                or: 'ବ୍ୟବସାୟର ଦୈନନ୍ଦିନ ଖର୍ଚ୍ଚ ରେକର୍ଡ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Log Expense Entry', hi: 'खर्चा दर्ज करें', or: 'ଖର୍ଚ୍ଚ ଲଗ୍ କରନ୍ତୁ' },
+                    what: { en: 'Accounting -> Expenses -> Log New Expense.', hi: 'अकाउंटिंग -> खर्चे -> नया खर्चा दर्ज करें पर जाएँ।', or: 'Accounting -> Expenses -> Log New Expense କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Calculates accurate Net Profit in Profit & Loss report.', hi: 'लाभ-हानि रिपोर्ट में सटीक शुद्ध लाभ (Net Profit) की गणना करता है।', or: 'ଲାଭ-କ୍ଷତି ରିପୋର୍ଟରେ ସଠିକ୍ ନେଟ୍ ଲାଭ ହିସାବ କରେ।' },
+                    enter: { en: 'Category, Amount, Date, Payment Mode, Description.', hi: 'श्रेणी, राशि, तिथि, भुगतान माध्यम, विवरण।', or: 'ଶ୍ରେଣୀ, ଟଙ୍କା, ତାରିଖ, ପେମେଣ୍ଟ ମାଧ୍ୟମ, ବିବରଣୀ।' },
+                    result: { en: 'Reduces net profit and logs expense audit.', hi: 'शुद्ध लाभ को समायोजित करता है और व्यय ऑडिट लॉग करता है।', or: 'ନେଟ୍ ଲାଭ ସମାୟୋଜିତ କରେ ଏବଂ ଖର୍ଚ୍ଚ ରେକର୍ଡ କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '16',
+            key: 'inventory',
+            title: { en: '16. Inventory & Stock', hi: '16. इन्वेंट्री व स्टॉक लेजर (Stock Ledger)', or: '16. ଇନଭେଣ୍ଟରୀ ଓ ଷ୍ଟକ୍ ଲେଜର (Stock Ledger)' },
+            url: "{% url 'stock_ledger' %}",
+            desc: {
+                en: 'Track stock movements, inward purchases, sales deductions, and low stock alerts.',
+                hi: 'स्टॉक मूवमेंट, परचेज आवक, सेल्स कटौती और लो-स्टॉक अलर्ट ट्रैक करें।',
+                or: 'ଷ୍ଟକ୍ ଗତିବିଧି, କ୍ରୟ ଏବଂ ବିକ୍ରୟ ଷ୍ଟକ୍ ଟ୍ରାକ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Check Stock Movements', hi: 'स्टॉक मूवमेंट देखें', or: 'ଷ୍ଟକ୍ ମୁଭମେଣ୍ଟ ଦେଖନ୍ତୁ' },
+                    what: { en: 'Inventory -> Stock Movements.', hi: 'इन्वेंट्री -> स्टॉक मूवमेंट पर जाएँ।', or: 'Inventory -> Stock Movements କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Verifies exact audit history of how items entered or left warehouse.', hi: 'वेयरहाउस में आइटम के आने व जाने के सटीक इतिहास की जांच करता है।', or: 'ଗୋଦାମରେ ପ୍ରୋଡକ୍ଟ ଆଗମନ ଏବଂ ପ୍ରସ୍ଥାନର ହିସାବ ଯାଞ୍ଚ କରେ।' },
+                    enter: { en: 'Filter by Product or Date Range.', hi: 'प्रोडक्ट या तिथि सीमा के आधार पर फ़िल्टर करें।', or: 'ପ୍ରୋଡକ୍ଟ କିମ୍ବା ତାରିଖ ଅନୁସାରେ ଫିଲ୍ଟର୍ କରନ୍ତୁ।' },
+                    result: { en: 'Displays detailed inward/outward ledger rows.', hi: 'विस्तृत आवक/जावक लेजर पंक्तियां प्रदर्शित करता है।', or: 'ସମ୍ପୂର୍ଣ୍ଣ ଆଗମନ ଏବଂ ପ୍ରସ୍ଥାନ ଲେଜର ଦେଖାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '17',
+            key: 'warehouses',
+            title: { en: '17. Warehouses', hi: '17. वेयरहाउस (Warehouses Management)', or: '17. ୱେୟାରହାଉସ (Warehouses Management)' },
+            url: "{% url 'warehouse_list' %}",
+            desc: {
+                en: 'Manage multiple storage locations, godowns, and warehouse managers.',
+                hi: 'विभिन्न वेयरहाउस, गोडाउन और उनके मैनेजर्स को प्रबंधित करें।',
+                or: 'ଏକାଧିକ ଗୋଦାମ ଏବଂ ୱେୟାରହାଉସ ପରିଚାଳନା କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Add Warehouse Location', hi: 'नया वेयरहाउस जोड़ें', or: 'ନୂଆ ୱେୟାରହାଉସ ଯୋଡନ୍ତୁ' },
+                    what: { en: 'Inventory -> Warehouses -> Add Warehouse.', hi: 'इन्वेंट्री -> वेयरहाउस -> नया वेयरहाउस जोड़ें पर जाएँ।', or: 'Inventory -> Warehouses -> Add Warehouse କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Assigns stock to specific physical locations.', hi: 'विशिष्ट भौतिक स्थानों पर स्टॉक असाइन करता है।', or: 'ନିର୍ଦ୍ଦିଷ୍ଟ ସ୍ଥାନରେ ଷ୍ଟକ୍ ସେଟ୍ କରେ।' },
+                    enter: { en: 'Warehouse Name, Code, Manager Name, Address, Contact.', hi: 'वेयरहाउस का नाम, कोड, मैनेजर का नाम, पता, संपर्क।', or: 'ୱେୟାରହାଉସ ନାମ, କୋଡ୍, ମ୍ୟାନେଜର ନାମ, ଠିକଣା, ଫୋନ୍।' },
+                    result: { en: 'Warehouse location created.', hi: 'वेयरहाउस स्थान सफलतापूर्वक बनाया गया।', or: 'ୱେୟାରହାଉସ ସ୍ଥାନ ସୃଷ୍ଟି ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '18',
+            key: 'gst_setup',
+            title: { en: '18. GST Setup', hi: '18. जीएसटी सेटअप (GST Configuration)', or: '18. ଜିଏସଟି ସେଟଅପ୍ (GST Configuration)' },
+            url: "{% url 'company_settings' %}",
+            desc: {
+                en: 'Configure GSTIN, State Codes, HSN/SAC master list, and Tax Rules.',
+                hi: 'जीएसटी नंबर, स्टेट कोड, HSN/SAC मास्टर लिस्ट और टैक्स रूल्स सेट करें।',
+                or: 'ଜିଏସଟିଆଇଏନ୍, ଷ୍ଟେଟ୍ କୋଡ୍ ଏବଂ HSN/SAC ମାଷ୍ଟର ସେଟ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Verify GST Parameters', hi: 'जीएसटी पैरामीटर्स जांचें', or: 'ଜିଏସଟି ପାରାମିଟର ଯାଞ୍ଚ କରନ୍ତୁ' },
+                    what: { en: 'Verify Company GSTIN & State Code in Business Settings.', hi: 'बिजनेस सेटिंग्स में अपनी कंपनी का GSTIN और स्टेट कोड सत्यापित करें।', or: 'Business Settings ରେ କମ୍ପାନୀ GSTIN ଏବଂ ରାଜ୍ୟ କୋଡ୍ ଯାଞ୍ଚ କରନ୍ତୁ।' },
+                    why: { en: 'Ensures correct CGST+SGST (Same State) or IGST (Other State) tax calculation.', hi: 'सटीक CGST+SGST (समान राज्य) या IGST (अन्य राज्य) टैक्स गणना सुनिश्चित करता है।', or: 'ସଠିକ୍ CGST+SGST କିମ୍ବା IGST ଟ୍ୟାକ୍ସ ହିସାବ ସୁନିଶ୍ଚିତ କରେ।' },
+                    enter: { en: 'GSTIN (15 digits), State Name & State Code (e.g. 27 for Maharashtra).', hi: 'GSTIN (15 अंक), राज्य का नाम और स्टेट कोड (जैसे महाराष्ट्र के लिए 27)।', or: 'GSTIN (୧୫ ଅଙ୍କ), ରାଜ୍ୟ ନାମ ଏବଂ ରାଜ୍ୟ କୋଡ୍।' },
+                    result: { en: 'Automates tax split on all billing documents.', hi: 'सभी बिलिंग दस्तावेज़ों पर स्वचालित रूप से टैक्स विभाजन लागू करता है।', or: 'ସମସ୍ତ ଇନଭଏସରେ ସ୍ବୟଂଚାଳିତ ଟ୍ୟାକ୍ସ ହିସାବ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '19',
+            key: 'gst_dashboard',
+            title: { en: '19. GST Dashboard', hi: '19. जीएसटी डैशबोर्ड (GST Compliance Dashboard)', or: '19. ଜିଏସଟି ଡ୍ୟାସବୋର୍ଡ (GST Compliance Dashboard)' },
+            url: "{% url 'gst_dashboard' %}",
+            desc: {
+                en: 'Monitor Output Tax Liability, Input Tax Credit (ITC), and Net GST Payable.',
+                hi: 'आउटपुट टैक्स, इनपुट टैक्स क्रेडिट (ITC) और नेट जीएसटी देयता मॉनिटर करें।',
+                or: 'ଆଉଟପୁଟ୍ ଟ୍ୟାକ୍ସ, ଇନପୁଟ୍ ଟ୍ୟାକ୍ସ କ୍ରେଡିଟ୍ (ITC) ଏବଂ ନେଟ୍ ଟ୍ୟାକ୍ସ ଦେଖନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Review Tax Summary', hi: 'टैक्स समरी देखें', or: 'ଟ୍ୟାକ୍ସ ସମରୀ ଦେଖନ୍ତୁ' },
+                    what: { en: 'Click GST Compliance -> GST Dashboard.', hi: 'जीएसटी अनुपालन -> जीएसटी डैशबोर्ड पर क्लिक करें।', or: 'GST Compliance -> GST Dashboard ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Provides instant calculation of Net GST Payable = Output Tax - Input Tax Credit.', hi: 'देय शुद्ध जीएसटी = आउटपुट टैक्स - इनपुट टैक्स क्रेडिट की त्वरित गणना प्रदान करता है।', or: 'ନେଟ୍ ଟ୍ୟାକ୍ସ = ଆଉଟପୁଟ୍ ଟ୍ୟାକ୍ସ - ITC ର ତୁରନ୍ତ ହିସାବ ଦେଖାଏ।' },
+                    enter: { en: 'None (Realtime calculation).', hi: 'कोई नहीं (रियलटाइम गणना)।', or: 'କିଛି ନାହିଁ (ରିଅଲଟାଇମ୍ ହିସାବ)।' },
+                    result: { en: 'Shows clear breakup of CGST, SGST, IGST liability.', hi: 'CGST, SGST, IGST देयता का स्पष्ट ब्रेकअप दिखाता है।', or: 'CGST, SGST, IGST ର ସ୍ପଷ୍ଟ ବିବରଣୀ ଦେଖାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '20',
+            key: 'gstr1',
+            title: { en: '20. GSTR-1 Report', hi: '20. GSTR-1 रिपोर्ट (Sales Tax Return)', or: '20. GSTR-1 ରିପୋର୍ଟ (Sales Tax Return)' },
+            url: "{% url 'gst_report_gstr1' %}",
+            desc: {
+                en: 'Prepare and export B2B, B2C, Credit Note, and HSN-wise sales return data.',
+                hi: 'B2B, B2C, क्रेडिट नोट और HSN-वार सेल्स रिटर्न डेटा तैयार व एक्सपोर्ट करें।',
+                or: 'B2B, B2C ଏବଂ HSN ବିକ୍ରୟ ରିପୋର୍ଟ ପ୍ରସ୍ତୁତ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Generate GSTR-1 Data', hi: 'GSTR-1 डेटा जनरेट करें', or: 'GSTR-1 ଡାଟା ତିଆରି କରନ୍ତୁ' },
+                    what: { en: 'GST Compliance -> GSTR-1 (Sales).', hi: 'जीएसटी अनुपालन -> GSTR-1 (सेल्स) पर जाएँ।', or: 'GST Compliance -> GSTR-1 (Sales) କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Required for monthly outward tax filing on GST Portal.', hi: 'जीएसटी पोर्टल पर मासिक बिक्री टैक्स रिटर्न दाखिल करने के लिए आवश्यक है।', or: 'ମାସିକ ଜିଏସଟି ରିଟର୍ନ ଫାଇଲିଂ ପାଇଁ ଆବଶ୍ୟକ।' },
+                    enter: { en: 'Select Month / Date Range.', hi: 'महीना / तिथि सीमा चुनें।', or: 'ମାସ / ତାରିଖ ବାଛନ୍ତୁ।' },
+                    result: { en: 'Generates structured B2B, B2C, and HSN summary tables.', hi: 'संरचित B2B, B2C और HSN समरी टेबल जनरेट करता है।', or: 'B2B, B2C ଏବଂ HSN ସାରାଂଶ ଟେବୁଲ୍ ତିଆରି କରେ।' }
+                }
+            ]
+        },
+        {
+            id: '21',
+            key: 'gstr3b',
+            title: { en: '21. GSTR-3B Report', hi: '21. GSTR-3B रिपोर्ट (Summary Return)', or: '21. GSTR-3B ରିପୋର୍ଟ (Summary Return)' },
+            url: "{% url 'gst_report_gstr3b' %}",
+            desc: {
+                en: 'Summary return view for outward supplies, ITC eligible, and net tax liability.',
+                hi: 'आउटवर्ड सप्लाई, आईटीसी क्लेम और नेट टैक्स लायबिलिटी की समरी रिपोर्ट।',
+                or: 'ସମସ୍ତ ବିକ୍ରୟ, କ୍ରୟ ଏବଂ ନେଟ୍ ଟ୍ୟାକ୍ସ ସାରାଂଶ ରିପୋର୍ଟ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'View GSTR-3B Summary', hi: 'GSTR-3B समरी देखें', or: 'GSTR-3B ସାରାଂଶ ଦେଖନ୍ତୁ' },
+                    what: { en: 'GST Compliance -> GSTR-3B Summary.', hi: 'जीएसटी अनुपालन -> GSTR-3B समरी पर जाएँ।', or: 'GST Compliance -> GSTR-3B Summary କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Provides exact figures for monthly GSTR-3B filing.', hi: 'मासिक GSTR-3B दाखिल करने के लिए सटीक आंकड़े प्रदान करता है।', or: 'ମାସିକ GSTR-3B ଫାଇଲିଂ ପାଇଁ ସଠିକ୍ ହିସାବ ଦେଖାଏ।' },
+                    enter: { en: 'Select Taxable Period.', hi: 'कर योग्य अवधि (Tax Period) चुनें।', or: 'ମାସ ବାଛନ୍ତୁ।' },
+                    result: { en: 'Shows Table 3.1 (Tax on Outward) and Table 4 (Eligible ITC).', hi: 'तालिका 3.1 (आउटवर्ड टैक्स) और तालिका 4 (पात्र आईटीसी) दिखाता है।', or: 'ଟେବୁଲ୍ ୩.୧ (ଆଉଟପୁଟ୍ ଟ୍ୟାକ୍ସ) ଏବଂ ଟେବୁଲ୍ ୪ (ITC) ଦେଖାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '22',
+            key: 'reports',
+            title: { en: '22. Reports Hub', hi: '22. रिपोर्ट्स हब (Reports Hub)', or: '22. ରିପୋର୍ଟସ ହବ୍ (Reports Hub)' },
+            url: "{% url 'reports_hub' %}",
+            desc: {
+                en: 'Centralized hub for Sales, Purchases, Profit & Loss, Party Ledgers, and Excel export.',
+                hi: 'सेल्स, परचेज, प्रॉफिट-लॉस, पार्टी लेजर और एक्सेल एक्सपोर्ट का केंद्र।',
+                or: 'ବିକ୍ରୟ, କ୍ରୟ, ଲାଭ-କ୍ଷତି ଏବଂ ଏକ୍ସେଲ୍ ରପ୍ତାନିର ସେଣ୍ଟର।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Filter & Export Reports', hi: 'रिपोर्ट्स फ़िल्टर व एक्सपोर्ट करें', or: 'ରିପୋର୍ଟ ଫିଲ୍ଟର୍ ଏବଂ ରପ୍ତାନି କରନ୍ତୁ' },
+                    what: { en: 'Management -> Reports Hub.', hi: 'मैनेजमेंट -> रिपोर्ट्स हब पर जाएँ।', or: 'Management -> Reports Hub କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Analyzes business performance and downloads Excel/CSV data.', hi: 'व्यावसायिक प्रदर्शन का विश्लेषण करता है और एक्सेल/सीएसवी डेटा डाउनलोड करता है।', or: 'ବ୍ୟବସାୟର ଆନାଲିସିସ୍ କରେ ଏବଂ ଏକ୍ସେଲ୍ ଫାଇଲ୍ ଡାଉନଲୋଡ୍ କରେ।' },
+                    enter: { en: 'View Mode (Detailed / Day-wise / Month-wise), Date Range, Status.', hi: 'व्यू मोड (विस्तृत / दिन-वार / माह-वार), तिथि सीमा, स्थिति।', or: 'ଦୃଶ୍ୟ (ସମ୍ପୂର୍ଣ୍ଣ / ଦିନ ଅନୁସାରେ / ମାସ ଅନୁସାରେ), ତାରିଖ, ଷ୍ଟାଟସ୍।' },
+                    result: { en: 'Renders custom reports with Export Excel / CSV buttons.', hi: 'एक्सपोर्ट एक्सेल / सीएसवी बटन के साथ कस्टम रिपोर्ट प्रदर्शित करता है।', or: 'ଏକ୍ସେଲ୍ / CSV ଡାଉନଲୋଡ୍ ବିକଳ୍ପ ସହିତ ରିପୋର୍ଟ ଦେଖାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '23',
+            key: 'business_settings',
+            title: { en: '23. Business Settings', hi: '23. बिजनेस सेटिंग्स (Business Settings)', or: '23. ବ୍ୟବସାୟ ସେଟିଂସ (Business Settings)' },
+            url: "{% url 'company_settings' %}",
+            desc: {
+                en: 'Configure business profile, audit logs, team users, and default print terms.',
+                hi: 'बिजनेस प्रोफाइल, ऑडिट लॉग्स, टीम यूजर्स और डिफॉल्ट प्रिंट शर्ते सेट करें।',
+                or: 'ବ୍ୟବସାୟ ପ୍ରୋଫାଇଲ୍, ଅଡିଟ୍ ଲଗ୍ ଏବଂ ଟିମ୍ ବ୍ୟବହାରକାରୀ ସେଟ୍ କରନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Configure Settings', hi: 'सेटिंग्स सेट करें', or: 'ସେଟିଂସ ସେଟ୍ କରନ୍ତୁ' },
+                    what: { en: 'Click Business Settings (Top menu item #2).', hi: 'बिजनेस सेटिंग्स (शीर्ष मेनू आइटम #2) पर क्लिक करें।', or: 'Business Settings ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Controls core company parameters and user access permissions.', hi: 'कंपनी के मुख्य मापदंडों और यूज़र एक्सेस अनुमतियों को नियंत्रित करता है।', or: 'କମ୍ପାନୀର ମୁଖ୍ୟ ସେଟିଂସ ଏବଂ ଅନୁମତି ନିୟନ୍ତ୍ରଣ କରେ।' },
+                    enter: { en: 'Company Name, Contact Info, Bank Details, Terms & Conditions.', hi: 'कंपनी का नाम, संपर्क जानकारी, बैंक विवरण, नियम और शर्तें।', or: 'କମ୍ପାନୀ ନାମ, ଫୋନ୍, ବ୍ୟାଙ୍କ ବିବରଣୀ, ନିୟମ ଏବଂ ସର୍ତ୍ତାବଳୀ।' },
+                    result: { en: 'Saves master business configuration.', hi: 'मुख्य व्यावसायिक कॉन्फ़िगरेशन को सहेजता है।', or: 'ବ୍ୟବସାୟ ସେଟିଂସ ସେଭ୍ ହୁଏ।' }
+                }
+            ]
+        },
+        {
+            id: '24',
+            key: 'email_pdf',
+            title: { en: '24. Email / PDF Dispatch', hi: '24. ईमेल व पीडीएफ (Email & PDF Dispatch)', or: '24. ଇମେଲ୍ ଓ ପିଡିଏଫ୍ (Email & PDF Dispatch)' },
+            url: "{% url 'invoice_list' %}",
+            desc: {
+                en: 'Generate clean PDF documents and email quotations, invoices, or POs to clients.',
+                hi: 'क्लीन पीडीएफ बनाएं और कोटेशन, इनवॉइस या पीओ क्लाइंट्स को ईमेल करें।',
+                or: 'ପିଡିଏଫ୍ ତିଆରି କରନ୍ତୁ ଏବଂ କ୍ଲାଏଣ୍ଟଙ୍କୁ ଇମେଲ୍ ପଠାନ୍ତୁ।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Email Document PDF', hi: 'पीडीएफ ईमेल भेजें', or: 'ପିଡିଏଫ୍ ଇମେଲ୍ ପଠାନ୍ତୁ' },
+                    what: { en: 'Click "Send Email" or "Preview PDF" on Quotation / Invoice / PO view screen.', hi: 'कोटेशन / इनवॉइस / पीओ व्यू स्क्रीन पर "Send Email" या "Preview PDF" पर क्लिक करें।', or: 'କୋଟେସନ୍ / ଇନଭଏସ୍ ସ୍କ୍ରିନରେ "Send Email" କିମ୍ବା "Preview PDF" ରେ କ୍ଲିକ୍ କରନ୍ତୁ।' },
+                    why: { en: 'Delivers instant digital copy directly to customer or vendor inbox.', hi: 'ग्राहक या विक्रेता के इनबॉक्स में तुरंत डिजिटल कॉपी पहुंचाता है।', or: 'ଗ୍ରାହକ କିମ୍ବା ସପ୍ଲାୟରଙ୍କ ଇମେଲ୍‌କୁ ତୁରନ୍ତ ପିଡିଏଫ୍ ପଠାଏ।' },
+                    enter: { en: 'Recipient Email Address and Optional Message.', hi: 'प्राप्तकर्ता का ईमेल पता और वैकल्पिक संदेश।', or: 'ଇମେଲ୍ ଠିକଣା ଏବଂ ମେସେଜ୍।' },
+                    result: { en: 'Sends email with generated PDF attachment.', hi: 'जनरेट की गई पीडीएफ अनुलग्नक (Attachment) के साथ ईमेल भेजता है।', or: 'ପିଡିଏଫ୍ ଫାଇଲ୍ ସହିତ ଇମେଲ୍ ପଠାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '25',
+            key: 'data_security',
+            title: { en: '25. Data & Security', hi: '25. डेटा व सुरक्षा (Data & Security)', or: '25. ଡାଟା ଓ ସୁରକ୍ଷା (Data & Security)' },
+            url: "{% url 'company_settings' %}",
+            desc: {
+                en: 'Role-based access control, encrypted passwords, and audit log history.',
+                hi: 'रोल-आधारित एक्सेस कंट्रोल, एन्क्रिप्टेड पासवर्ड और ऑडिट लॉग हिस्ट्री।',
+                or: 'ରୋଲ୍ ଆଧାରିତ ଆକ୍ସେସ୍ ନିୟନ୍ତ୍ରଣ ଏବଂ ଅଡିଟ୍ ଲଗ୍।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Review Audit Trail', hi: 'ऑडिट लॉग्स देखें', or: 'ଅଡିଟ୍ ଲଗ୍ ଦେଖନ୍ତୁ' },
+                    what: { en: 'Business Settings -> Audit Logs.', hi: 'बिजनेस सेटिंग्स -> ऑडिट लॉग्स पर जाएँ।', or: 'Business Settings -> Audit Logs କୁ ଯାଆନ୍ତୁ।' },
+                    why: { en: 'Ensures accountability for every invoice creation, edit, or delete action.', hi: 'प्रत्येक इनवॉइस निर्माण, संपादन या हटाने की कार्रवाई की जवाबदेही सुनिश्चित करता है।', or: 'ପ୍ରତ୍ୟେକ ଇନଭଏସ୍ ତିଆରି, ସମ୍ପାଦନା କିମ୍ବା ଡିଲିଟ୍ କାର୍ଯ୍ୟର ହିସାବ ସୁନିଶ୍ଚିତ କରେ।' },
+                    enter: { en: 'Read-only log view.', hi: 'केवल पढ़ने योग्य लॉग दृश्य।', or: 'କେବଳ ଦେଖିବା ପାଇଁ ଲଗ୍।' },
+                    result: { en: 'Displays exact timestamp, user, action, and IP address.', hi: 'सटीक टाइमस्टैम्प, यूज़र, कार्रवाई और आईपी पता प्रदर्शित करता है।', or: 'ସଠିକ୍ ତାରିଖ, ୟୁଜର, କାର୍ଯ୍ୟ ଏବଂ IP ଠିକଣା ଦେଖାଏ।' }
+                }
+            ]
+        },
+        {
+            id: '26',
+            key: 'troubleshooting',
+            title: { en: '26. Troubleshooting', hi: '26. ट्रबलशूटिंग (Troubleshooting & FAQs)', or: '26. ଟ୍ରବୁଲସୁଟିଂ (Troubleshooting & FAQs)' },
+            url: "{% url 'how_to_use' %}",
+            desc: {
+                en: 'Solutions for common issues: Quotation saving, GST mismatch, PDF viewing, Email errors.',
+                hi: 'सामान्य समस्याओं के समाधान: कोटेशन सेव, जीएसटी मिसमैच, पीडीएफ और ईमेल त्रुटियां।',
+                or: 'ସାଧାରଣ ସମସ୍ୟାର ସମାଧାନ: କୋଟେସନ୍, ଜିଏସଟି, ପିଡିଏଫ୍ ଏବଂ ଇମେଲ୍ ତ୍ରୁଟି।'
+            },
+            steps: [
+                {
+                    step: '1',
+                    title: { en: 'Quotation / Invoice Not Saving', hi: 'कोटेशन / इनवॉइस सेव नहीं हो रहा', or: 'କୋଟେସନ୍ / ଇନଭଏସ୍ ସେଭ୍ ହେଉନାହିଁ' },
+                    what: { en: 'Ensure Customer, Products, and GST Rates are selected.', hi: 'सुनिश्चित करें कि कस्टमर, प्रोडक्ट्स और जीएसटी दरें चुनी गई हैं।', or: 'ଗ୍ରାହକ, ପ୍ରୋଡକ୍ଟ ଏବଂ ଜିଏସଟି ଦର ବଛାଯାଇଛି କି ନାହିଁ ଯାଞ୍ଚ କରନ୍ତୁ।' },
+                    why: { en: 'Required fields cannot be null.', hi: 'आवश्यक फ़ील्ड खाली नहीं छोड़े जा सकते।', or: 'ଆବଶ୍ୟକ ଘରଗୁଡ଼ିକ ଖାଲି ରହିପାରିବ ନାହିଁ।' },
+                    enter: { en: 'Fill all marked red form inputs.', hi: 'सभी लाल रंग से चिह्नित फ़ॉर्म इनपुट भरें।', or: 'ସମସ୍ତ ନାଲି ରଙ୍ଗର ଫର୍ମ ପ୍ରବେଶ କରନ୍ତୁ।' },
+                    result: { en: 'Document saves successfully.', hi: 'दस्तावेज़ सफलतापूर्वक सहेजा जाता है।', or: 'ଦଲିଲ ସଫଳତାର ସହିତ ସେଭ୍ ହୁଏ।' }
+                }
+            ]
+        }
+    ];
+
+    let currentLang = localStorage.getItem('guide_lang') || 'en';
+    let currentSectionIdx = parseInt(localStorage.getItem('guide_section_idx')) || 0;
+    let completedSections = JSON.parse(localStorage.getItem('guide_completed')) || [0];
+
+    // Helper to get localized value from field object or string
+    function getLangVal(field) {
+        if (!field) return '';
+        if (typeof field === 'string') return field;
+        return field[currentLang] || field.en || Object.values(field)[0] || '';
+    }
+
+    // DOM Elements
+    const sidebarList = document.getElementById('guide-sidebar-list');
+    const headerTitle = document.getElementById('guide-header-title');
+    const headerSub = document.getElementById('guide-header-sub');
+    const sectionBadge = document.getElementById('section-badge');
+    const sectionTitle = document.getElementById('section-title');
+    const sectionContentBody = document.getElementById('section-content-body');
+    const searchInput = document.getElementById('guide-search');
+    const progressText = document.getElementById('progress-text');
+    const markCompleteBtn = document.getElementById('mark-complete-btn');
+    const markBtnText = document.getElementById('mark-btn-text');
+    const prevBtn = document.getElementById('btn-prev-section');
+    const nextBtn = document.getElementById('btn-next-section');
+    const prevBtnLabel = document.getElementById('prev-btn-label');
+    const nextBtnLabel = document.getElementById('next-btn-label');
+
+    // Modal elements
+    const visualModal = document.getElementById('guide-visual-modal');
+    const modalBadge = document.getElementById('modal-sec-badge');
+    const modalTitle = document.getElementById('modal-sec-title');
+    const modalBody = document.getElementById('modal-sec-body');
+    const modalLiveLink = document.getElementById('modal-live-link');
+    const closeModalBtn1 = document.getElementById('close-guide-modal-btn');
+    const closeModalBtn2 = document.getElementById('close-guide-modal-btn2');
+
+    // UI Translation dictionary for static elements & card field titles
+    const uiTranslations = {
+        en: {
+            headerTitle: 'How to Use',
+            headerSub: 'Learn how to create quotations, invoices, purchase bills, manage products, customers, suppliers, GST, payments, reports and more.',
+            markComplete: 'Mark Completed',
+            markedDone: 'Completed ✓',
+            prev: 'Previous Section',
+            next: 'Next Section',
+            progress: 'Sections Read',
+            whatToClick: 'What to Click:',
+            whyRequired: 'Why Required:',
+            whatDataToEnter: 'What Data to Enter:',
+            expectedResult: 'Expected Result:',
+            clickToPreview: 'Click to Open Live Screen / Layout Preview',
+            openLiveScreen: 'Open Live Application Screen'
+        },
+        hi: {
+            headerTitle: 'उपयोग कैसे करें (How to Use)',
+            headerSub: 'कोटेशन, इनवॉइस, परचेज बिल बनाना, प्रोडक्ट, कस्टमर, सप्लायर, जीएसटी, पेमेंट और रिपोर्ट मैनेज करना सीखें।',
+            markComplete: 'पूर्ण चिह्नित करें',
+            markedDone: 'पूर्ण हुआ ✓',
+            prev: 'पिछला अनुभाग',
+            next: 'अगला अनुभाग',
+            progress: 'अनुभाग पढ़े गए',
+            whatToClick: 'क्या क्लिक करें:',
+            whyRequired: 'क्यों आवश्यक है:',
+            whatDataToEnter: 'क्या डेटा दर्ज करें:',
+            expectedResult: 'अनुमानित परिणाम (Result):',
+            clickToPreview: 'लाइव स्क्रीन / लेआउट प्रीव्यू खोलने के लिए क्लिक करें',
+            openLiveScreen: 'लाइव एप्लीकेशन स्क्रीन खोलें'
+        },
+        or: {
+            headerTitle: 'ବ୍ୟବହାର କିପରି କରିବେ (How to Use)',
+            headerSub: 'କୋଟେସନ୍, ଟ୍ୟାକ୍ସ ଇନଭଏସ୍, କ୍ରୟ ବିଲ୍, ପ୍ରୋଡକ୍ଟ, ଗ୍ରାହକ, ଜିଏସଟି, ପେମେଣ୍ଟ ଏବଂ ରିପୋର୍ଟ ଶିଖନ୍ତୁ।',
+            markComplete: 'ସମ୍ପୂର୍ଣ୍ଣ ଚିହ୍ନଟ କରନ୍ତୁ',
+            markedDone: 'ସମ୍ପୂର୍ଣ୍ଣ ହୋଇଛି ✓',
+            prev: 'ପୂର୍ବବର୍ତ୍ତୀ ବିଭାଗ',
+            next: 'ପରବର୍ତ୍ତୀ ବିଭାଗ',
+            progress: 'ବିଭାଗ ପଢାଗଲା',
+            whatToClick: 'କଣ କ୍ଲିକ୍ କରିବେ:',
+            whyRequired: 'କାହିଁକି ଆବଶ୍ୟକ:',
+            whatDataToEnter: 'କଣ ଡାଟା ପ୍ରବେଶ କରିବେ:',
+            expectedResult: 'ଆଶାକରାଯାଉଥିବା ଫଳାଫଳ:',
+            clickToPreview: 'ଲାଇଭ୍ ସ୍କ୍ରିନ୍ କିମ୍ବା ଲେଆଉଟ୍ ପ୍ରିଭ୍ୟୁ ଖୋଲିବା ପାଇଁ କ୍ଲିକ୍ କରନ୍ତୁ',
+            openLiveScreen: 'ଲାଇଭ୍ ଆପ୍ଲିକେସନ୍ ସ୍କ୍ରିନ୍ ଖୋଲନ୍ତୁ'
+        }
+    };
+
+    // Render Left Sidebar List
+    function renderSidebar(filterText = '') {
+        sidebarList.innerHTML = `<div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted-foreground); margin-bottom: 0.75rem; padding: 0 0.5rem;">
+            INDEX (${guideSections.length} SECTIONS)
+        </div>`;
+
+        guideSections.forEach((sec, idx) => {
+            const titleText = getLangVal(sec.title);
+            const descText = getLangVal(sec.desc);
+            if (filterText && !titleText.toLowerCase().includes(filterText.toLowerCase()) && !descText.toLowerCase().includes(filterText.toLowerCase())) {
+                return; // Filter out if search doesn't match
+            }
+
+            const isCurrent = idx === currentSectionIdx;
+            const isDone = completedSections.includes(idx);
+
+            const item = document.createElement('div');
+            item.className = `guide-nav-item ${isCurrent ? 'active' : ''} ${isDone ? 'completed' : ''}`;
+            item.innerHTML = `
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>${sec.id}.</span>
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;">${titleText.replace(/^\d+\.\s*/, '')}</span>
+                </span>
+                <i class="fa-solid ${isDone ? 'fa-circle-check check-icon' : (isCurrent ? 'fa-chevron-right' : '')}" style="font-size: 0.85rem;"></i>
+            `;
+
+            item.addEventListener('click', () => {
+                currentSectionIdx = idx;
+                localStorage.setItem('guide_section_idx', currentSectionIdx);
+                renderSidebar(searchInput.value.trim());
+                renderSectionContent();
+            });
+
+            sidebarList.appendChild(item);
+        });
+    }
+
+    // Open Interactive Visual Guide Lightbox Modal
+    function openVisualModal(sec) {
+        const t = uiTranslations[currentLang] || uiTranslations.en;
+        modalBadge.textContent = `SECTION ${sec.id}`;
+        modalTitle.textContent = getLangVal(sec.title);
+        modalLiveLink.href = sec.url || '#';
+        modalLiveLink.querySelector('span').textContent = t.openLiveScreen;
+
+        if (sec.image) {
+            modalBody.innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <img src="${sec.image}" alt="${getLangVal(sec.title)}" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.15);">
+                </div>
+                <div style="font-size: 0.9rem; color: var(--foreground);">${getLangVal(sec.desc)}</div>
+            `;
+        } else {
+            modalBody.innerHTML = `
+                <div style="background: var(--muted-bg, rgba(37,99,235,0.04)); border: 2px dashed var(--primary); border-radius: 12px; padding: 2.5rem 1.5rem; margin-bottom: 1rem;">
+                    <i class="fa-solid fa-desktop" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.3rem; font-weight: 700; color: var(--foreground);">${getLangVal(sec.title)}</h3>
+                    <p style="color: var(--muted-foreground); font-size: 0.95rem; max-width: 600px; margin: 0 auto 1.5rem auto;">
+                        ${getLangVal(sec.desc)}
+                    </p>
+                    <a href="${sec.url || '#'}" class="btn btn-primary" style="padding: 0.65rem 1.5rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> ${t.openLiveScreen}
+                    </a>
+                </div>
+            `;
+        }
+
+        visualModal.style.display = 'flex';
+    }
+
+    function closeVisualModal() {
+        visualModal.style.display = 'none';
+    }
+
+    closeModalBtn1.addEventListener('click', closeVisualModal);
+    closeModalBtn2.addEventListener('click', closeVisualModal);
+    visualModal.addEventListener('click', (e) => {
+        if (e.target === visualModal) closeVisualModal();
+    });
+
+    // Render Active Section Content
+    function renderSectionContent() {
+        const sec = guideSections[currentSectionIdx];
+        if (!sec) return;
+
+        // Update static UI translations
+        const t = uiTranslations[currentLang] || uiTranslations.en;
+        headerTitle.textContent = t.headerTitle;
+        headerSub.textContent = t.headerSub;
+        prevBtnLabel.textContent = t.prev;
+        nextBtnLabel.textContent = t.next;
+        progressText.textContent = `${completedSections.length} / ${guideSections.length} ${t.progress}`;
+
+        // Mark complete button state
+        const isDone = completedSections.includes(currentSectionIdx);
+        if (isDone) {
+            markCompleteBtn.className = "btn btn-success";
+            markBtnText.textContent = t.markedDone;
+        } else {
+            markCompleteBtn.className = "btn btn-secondary";
+            markBtnText.textContent = t.markComplete;
+        }
+
+        // Section Headers
+        sectionBadge.textContent = `SECTION ${sec.id}`;
+        sectionTitle.textContent = getLangVal(sec.title);
+
+        let html = `
+            <div style="font-size: 1rem; color: var(--foreground); margin-bottom: 1.5rem; line-height: 1.5; background: var(--muted-bg, rgba(37,99,235,0.05)); padding: 1rem 1.25rem; border-radius: 8px; border-left: 4px solid var(--primary);">
+                ${getLangVal(sec.desc)}
+            </div>
+
+            <!-- Screenshot / Interactive Visual Guide Card (CLICKABLE & INTERACTIVE) -->
+            <div id="active-visual-card" class="visual-card-clickable" title="${t.clickToPreview}">
+                ${sec.image ? `
+                    <div style="margin: 1.25rem 0; text-align: center; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.06); position: relative;">
+                        <img src="${sec.image}" alt="${getLangVal(sec.title)}" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+                        <div style="position: absolute; bottom: 12px; right: 12px; background: rgba(15,23,42,0.85); color: #fff; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-expand"></i> Click to Enlarge / Open Live Screen
+                        </div>
+                    </div>
+                ` : `
+                    <div class="app-screenshot-placeholder" style="position: relative;">
+                        <span class="badge badge-info" style="position: absolute; top: 12px; right: 12px; font-size: 0.75rem; padding: 0.3rem 0.6rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> ${t.clickToPreview}
+                        </span>
+                        <i class="fa-solid fa-desktop"></i>
+                        <span>[ Application Visual Guide — ${getLangVal(sec.title)} ]</span>
+                        <small style="color: var(--primary); font-weight: 600; margin-top: 0.35rem;">
+                            <i class="fa-solid fa-hand-pointer"></i> Click card to open live screen preview (${sec.key.replace('_', ' ')})
+                        </small>
+                    </div>
+                `}
+            </div>
+        `;
+
+        // Render Step by Step cards with full language support for titles, headers, and values
+        sec.steps.forEach(st => {
+            const stepTitle = getLangVal(st.title);
+            const whatVal = getLangVal(st.what);
+            const whyVal = getLangVal(st.why);
+            const enterVal = getLangVal(st.enter);
+            const resultVal = getLangVal(st.result);
+
+            html += `
+                <div class="guide-step-card">
+                    <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem;">
+                        <span style="background: var(--primary, #2563eb); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.825rem;">${st.step}</span>
+                        <h4 style="margin: 0; font-weight: 700; font-size: 1.05rem; color: var(--foreground);">${stepTitle}</h4>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; font-size: 0.875rem;">
+                        <div style="background: rgba(0,0,0,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border);">
+                            <div style="font-weight: 700; color: var(--primary); margin-bottom: 0.25rem;"><i class="fa-solid fa-mouse-pointer"></i> ${t.whatToClick}</div>
+                            <div style="color: var(--foreground);">${whatVal}</div>
+                        </div>
+
+                        <div style="background: rgba(0,0,0,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border);">
+                            <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 0.25rem;"><i class="fa-solid fa-lightbulb"></i> ${t.whyRequired}</div>
+                            <div style="color: var(--foreground);">${whyVal}</div>
+                        </div>
+
+                        <div style="background: rgba(0,0,0,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border);">
+                            <div style="font-weight: 700; color: #f59e0b; margin-bottom: 0.25rem;"><i class="fa-solid fa-pen-to-square"></i> ${t.whatDataToEnter}</div>
+                            <div style="color: var(--foreground);">${enterVal}</div>
+                        </div>
+
+                        <div style="background: rgba(0,0,0,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border);">
+                            <div style="font-weight: 700; color: var(--success); margin-bottom: 0.25rem;"><i class="fa-solid fa-circle-check"></i> ${t.expectedResult}</div>
+                            <div style="color: var(--foreground);">${resultVal}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        sectionContentBody.innerHTML = html;
+
+        // Attach click listener to active visual card to open modal
+        const cardEl = document.getElementById('active-visual-card');
+        if (cardEl) {
+            cardEl.addEventListener('click', () => openVisualModal(sec));
+        }
+
+        // Control Prev/Next Button states
+        prevBtn.disabled = currentSectionIdx === 0;
+        nextBtn.disabled = currentSectionIdx === guideSections.length - 1;
+        prevBtn.style.opacity = currentSectionIdx === 0 ? '0.5' : '1';
+        nextBtn.style.opacity = currentSectionIdx === guideSections.length - 1 ? '0.5' : '1';
+    }
+
+    // Language Change Handlers
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.dataset.lang === currentLang) btn.classList.add('active');
+        else btn.classList.remove('active');
+
+        btn.addEventListener('click', (e) => {
+            currentLang = e.target.dataset.lang;
+            localStorage.setItem('guide_lang', currentLang);
+
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            renderSidebar(searchInput.value.trim());
+            renderSectionContent();
+        });
+    });
+
+    // Mark Complete Handler
+    markCompleteBtn.addEventListener('click', () => {
+        if (!completedSections.includes(currentSectionIdx)) {
+            completedSections.push(currentSectionIdx);
+            localStorage.setItem('guide_completed', JSON.stringify(completedSections));
+        }
+        renderSidebar(searchInput.value.trim());
+        renderSectionContent();
+    });
+
+    // Search Input Listener
+    searchInput.addEventListener('input', (e) => {
+        renderSidebar(e.target.value.trim());
+    });
+
+    // Next / Prev Button Listeners
+    prevBtn.addEventListener('click', () => {
+        if (currentSectionIdx > 0) {
+            currentSectionIdx--;
+            localStorage.setItem('guide_section_idx', currentSectionIdx);
+            renderSidebar(searchInput.value.trim());
+            renderSectionContent();
+            window.scrollTo({ top: 120, behavior: 'smooth' });
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        if (currentSectionIdx < guideSections.length - 1) {
+            if (!completedSections.includes(currentSectionIdx)) {
+                completedSections.push(currentSectionIdx);
+                localStorage.setItem('guide_completed', JSON.stringify(completedSections));
+            }
+            currentSectionIdx++;
+            localStorage.setItem('guide_section_idx', currentSectionIdx);
+            renderSidebar(searchInput.value.trim());
+            renderSectionContent();
+            window.scrollTo({ top: 120, behavior: 'smooth' });
+        }
+    });
+
+    // Initial Render
+    renderSidebar();
+    renderSectionContent();
+});
+</script>
+{% endblock %}

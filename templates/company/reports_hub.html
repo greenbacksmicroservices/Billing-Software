@@ -112,25 +112,25 @@
 <div class="table-container-ajax" id="table-container">
     <!-- 5.1 Reports Dashboard Summary Cards -->
     <div class="dashboard-grid" style="margin-bottom: 1.5rem;">
-        <div class="stat-card" style="border-left: 4px solid var(--primary);">
-            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Total Records</div>
-            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary_metrics.total_records }}</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid var(--primary) !important; border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">Total Records</div>
+            <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; color: var(--foreground) !important;">{{ summary_metrics.total_records }}</div>
         </div>
-        <div class="stat-card" style="border-left: 4px solid var(--success);">
-            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Today's Records</div>
-            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary_metrics.today_records }}</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid var(--success) !important; border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">Today's Records</div>
+            <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; color: var(--foreground) !important;">{{ summary_metrics.today_records }}</div>
         </div>
-        <div class="stat-card" style="border-left: 4px solid var(--warning);">
-            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">This Month</div>
-            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary_metrics.this_month_records }}</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid var(--warning) !important; border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">This Month</div>
+            <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; color: var(--foreground) !important;">{{ summary_metrics.this_month_records }}</div>
         </div>
-        <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
-            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">This Year</div>
-            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">{{ summary_metrics.this_year_records }}</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid #8b5cf6 !important; border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">This Year</div>
+            <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; color: var(--foreground) !important;">{{ summary_metrics.this_year_records }}</div>
         </div>
-        <div class="stat-card" style="border-left: 4px solid var(--danger);">
-            <div class="stat-card-header" style="font-size: 0.8rem; font-weight: 600; color: var(--muted);">Total Amount</div>
-            <div class="stat-card-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem;">₹{{ summary_metrics.total_amount|floatformat:2 }}</div>
+        <div style="background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid var(--danger) !important; border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">Total Amount</div>
+            <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; color: var(--foreground) !important;">₹{{ summary_metrics.total_amount|floatformat:2 }}</div>
         </div>
     </div>
 

@@ -186,98 +186,307 @@ def calculate_item_gst(company_state_code, pos_state_code, taxable_value, gst_ra
     If intra-state: splits CGST and SGST/UTGST.
     If inter-state: applies IGST.
     """
-    taxable_value = Decimal(taxable_value)
-    gst_rate = Decimal(gst_rate)
-    
-    total_gst = quantize_amount(taxable_value * (gst_rate / Decimal('100.00')))
+    taxable_value = Decimal(str(taxable_value))
+    gst_rate = Decimal(str(gst_rate))
     
     # Standardize codes
-    comp_code = str(company_state_code).strip().zfill(2)
-    pos_code = str(pos_state_code).strip().zfill(2)
+    comp_code = str(company_state_code or '').strip().zfill(2)
+    pos_code = str(pos_state_code or '').strip().zfill(2)
     
     if comp_code == pos_code:
         # Intra-state
-        cgst = quantize_amount(total_gst / Decimal('2.00'))
-        sgst = quantize_amount(total_gst / Decimal('2.00'))
+        cgst_rate = (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        sgst_rate = (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        cgst = quantize_amount(taxable_value * (cgst_rate / Decimal('100.00')))
+        sgst = quantize_amount(taxable_value * (sgst_rate / Decimal('100.00')))
         igst = Decimal('0.00')
+        total_gst = cgst + sgst
     else:
         # Inter-state
         cgst = Decimal('0.00')
         sgst = Decimal('0.00')
+        total_gst = quantize_amount(taxable_value * (gst_rate / Decimal('100.00')))
         igst = total_gst
         
     return cgst, sgst, igst, total_gst
 
 
-def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=None, payment_percentage=None, advance_paid=None, payment_status=None):
+
+def calculate_line_item_financials(quantity, rate, discount=Decimal('0.00'), gst_rate=Decimal('18.00'), cess_rate=Decimal('0.00'), is_tax_inclusive=False, company_state_code=None, pos_state_code=None):
     """
-    Recalculates invoice totals, GST breakdowns, round off, and payment settlement fields.
-    Updates invoice in-memory. Caller is responsible for calling invoice.save().
+    Centralized financial calculator for any document line item.
+    - Line Subtotal = Quantity × Unit Price (rate)
+    - Line Discount = Discount (converts string '%', e.g., "10%" into monetary amount)
+    - Line Taxable Amount = Line Subtotal - Line Discount (or tax inclusive formula)
+    - GST = calculated strictly on Line Taxable Amount
+    - Cess = calculated strictly on Line Taxable Amount
+    - Line Total = Line Taxable Amount + CGST + SGST + IGST + Cess
     """
-    items = invoice.items.all()
+    qty = parse_money(quantity)
+    unit_price = parse_money(rate)
+    gross = qty * unit_price
+
+    if isinstance(discount, str) and str(discount).strip().endswith('%'):
+        pct = parse_money(discount)
+        disc_val = gross * (pct / Decimal('100.00'))
+    else:
+        disc_val = parse_money(discount)
+
+    line_subtotal = quantize_amount(gross)
+    line_discount = quantize_amount(max(Decimal('0.00'), min(disc_val, gross)))
+
+    if is_tax_inclusive:
+        g_rate = parse_money(gst_rate)
+        taxable_raw = gross / (Decimal('1.00') + (g_rate / Decimal('100.00')))
+        line_taxable = quantize_amount(taxable_raw - line_discount)
+    else:
+        line_taxable = quantize_amount(gross - line_discount)
+
+    line_taxable = max(Decimal('0.00'), line_taxable)
+
+    cgst, sgst, igst, total_gst = calculate_item_gst(
+        company_state_code,
+        pos_state_code,
+        line_taxable,
+        gst_rate
+    )
+
+    c_rate = parse_money(cess_rate)
+    cess_amt = quantize_amount(line_taxable * (c_rate / Decimal('100.00')))
+
+    line_total = quantize_amount(line_taxable + cgst + sgst + igst + cess_amt)
+
+    return {
+        'quantity': qty,
+        'rate': unit_price,
+        'line_subtotal': line_subtotal,
+        'line_discount': line_discount,
+        'line_taxable': line_taxable,
+        'gst_rate': parse_money(gst_rate),
+        'cgst_amount': cgst,
+        'sgst_amount': sgst,
+        'igst_amount': igst,
+        'cess_rate': c_rate,
+        'cess_amount': cess_amt,
+        'line_total': line_total
+    }
+
+
+def build_hsn_sac_tax_summary(items, company_state_code=None, pos_state_code=None):
+    """
+    Builds structured HSN/SAC tax summary grouped by (hsn_code, gst_rate).
+    Guarantees separate rate and amount entries for CGST, SGST, IGST, Cess, Total Tax.
+    """
+    comp_code = str(company_state_code or '').strip().zfill(2)
+    pos_code = str(pos_state_code or '').strip().zfill(2)
+
+    summary_map = {}
+    total_qty = Decimal('0.00')
+
+    for item in items:
+        hsn = getattr(item, 'hsn_code', None) or getattr(item, 'hsn_sac_code', None) or getattr(item, 'hsn_sac_snapshot', None) or ''
+        if not hsn and getattr(item, 'product', None) and getattr(item.product, 'hsn_sac', None):
+            hsn = item.product.hsn_sac.code
+        hsn = str(hsn).strip() or '-'
+
+        g_rate = parse_money(getattr(item, 'gst_rate', Decimal('18.00')))
+        key = (hsn, g_rate)
+
+        qty = parse_money(getattr(item, 'quantity', Decimal('0.00')))
+        taxable_val = parse_money(getattr(item, 'taxable_value', getattr(item, 'taxable_amount', Decimal('0.00'))))
+        cgst_amt = parse_money(getattr(item, 'cgst_amount', Decimal('0.00')))
+        sgst_amt = parse_money(getattr(item, 'sgst_amount', Decimal('0.00')))
+        igst_amt = parse_money(getattr(item, 'igst_amount', Decimal('0.00')))
+        cess_amt = parse_money(getattr(item, 'cess_amount', Decimal('0.00')))
+
+        total_qty += qty
+
+        if key not in summary_map:
+            summary_map[key] = {
+                'hsn': hsn,
+                'gst_rate': g_rate,
+                'cgst_rate': (g_rate / Decimal('2.00')).quantize(Decimal('0.01')),
+                'sgst_rate': (g_rate / Decimal('2.00')).quantize(Decimal('0.01')),
+                'igst_rate': g_rate,
+                'taxable_value': Decimal('0.00'),
+                'cgst_amount': Decimal('0.00'),
+                'sgst_amount': Decimal('0.00'),
+                'igst_amount': Decimal('0.00'),
+                'cess_amount': Decimal('0.00'),
+                'total_tax': Decimal('0.00'),
+            }
+
+        summary_map[key]['taxable_value'] += taxable_val
+        summary_map[key]['cgst_amount'] += cgst_amt
+        summary_map[key]['sgst_amount'] += sgst_amt
+        summary_map[key]['igst_amount'] += igst_amt
+        summary_map[key]['cess_amount'] += cess_amt
+        summary_map[key]['total_tax'] += (cgst_amt + sgst_amt + igst_amt + cess_amt)
+
+    summary_list = list(summary_map.values())
+    return summary_list, total_qty
+
+
+def recalculate_generic_document_totals(doc, items_queryset=None, company_state_code=None, pos_state_code=None):
+    """
+    Generic recalculator for document totals. Updates line items and document headers.
+    """
+    if items_queryset is None:
+        items = doc.items.all()
+    else:
+        items = items_queryset
+
+    comp_code = company_state_code or (doc.company.state_code if doc.company else '')
+    if not pos_state_code:
+        if hasattr(doc, 'place_of_supply_code') and doc.place_of_supply_code:
+            pos_code = doc.place_of_supply_code
+        elif hasattr(doc, 'customer') and doc.customer and getattr(doc.customer, 'billing_state_code', None):
+            pos_code = doc.customer.billing_state_code
+        elif hasattr(doc, 'supplier') and doc.supplier and getattr(doc.supplier, 'state_code', None):
+            pos_code = doc.supplier.state_code
+        elif hasattr(doc, 'state_code') and doc.state_code:
+            pos_code = doc.state_code
+        elif hasattr(doc, 'invoice') and doc.invoice and getattr(doc.invoice, 'place_of_supply_code', None):
+            pos_code = doc.invoice.place_of_supply_code
+        elif hasattr(doc, 'purchase_bill') and doc.purchase_bill and getattr(doc.purchase_bill, 'supplier', None):
+            pos_code = doc.purchase_bill.supplier.state_code
+        else:
+            pos_code = comp_code
+    else:
+        pos_code = pos_state_code
+
+    if not items.exists():
+        taxable_val = getattr(doc, 'taxable_value', getattr(doc, 'taxable_amount', getattr(doc, 'subtotal', Decimal('0.00'))))
+        if taxable_val == Decimal('0.00'):
+            taxable_val = getattr(doc, 'subtotal', Decimal('0.00'))
+        subtotal_val = getattr(doc, 'subtotal', taxable_val)
+        if subtotal_val == Decimal('0.00'):
+            subtotal_val = taxable_val
+
+        gst_rate = Decimal('18.00')
+        if hasattr(doc, 'invoice') and doc.invoice and doc.invoice.items.exists():
+            gst_rate = doc.invoice.items.first().gst_rate
+        elif hasattr(doc, 'purchase_bill') and doc.purchase_bill and doc.purchase_bill.items.exists():
+            gst_rate = doc.purchase_bill.items.first().gst_rate
+
+        cgst, sgst, igst, total_gst = calculate_item_gst(
+            comp_code,
+            pos_code,
+            taxable_val,
+            gst_rate
+        )
+        doc.subtotal = quantize_amount(subtotal_val)
+        if hasattr(doc, 'taxable_value'):
+            doc.taxable_value = quantize_amount(taxable_val)
+        if hasattr(doc, 'taxable_amount'):
+            doc.taxable_amount = quantize_amount(taxable_val)
+        if hasattr(doc, 'cgst_total'):
+            doc.cgst_total = quantize_amount(cgst)
+        if hasattr(doc, 'sgst_total'):
+            doc.sgst_total = quantize_amount(sgst)
+        if hasattr(doc, 'igst_total'):
+            doc.igst_total = quantize_amount(igst)
+        calculated_grand = taxable_val + cgst + sgst + igst
+        rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+        if hasattr(doc, 'round_off'):
+            doc.round_off = quantize_amount(rounded_grand - calculated_grand)
+        doc.grand_total = rounded_grand
+        doc.save()
+        return doc
+
     subtotal = Decimal('0.00')
     discount_total = Decimal('0.00')
-    taxable_value = Decimal('0.00')
+    taxable_total = Decimal('0.00')
     cgst_total = Decimal('0.00')
     sgst_total = Decimal('0.00')
     igst_total = Decimal('0.00')
     cess_total = Decimal('0.00')
-    
+
     for item in items:
-        # Item total calculations
-        qty = Decimal(item.quantity)
-        rate = Decimal(item.rate)
-        disc_amt = Decimal(item.discount)
+        qty = item.quantity
+        rate = item.rate
+        disc = getattr(item, 'discount', Decimal('0.00'))
+        g_rate = getattr(item, 'gst_rate', Decimal('18.00'))
         
-        # Calculate gross & taxable
-        gross = qty * rate
-        taxable = gross - disc_amt
-        
-        # If product is tax_inclusive, strip tax from rate on backend
-        if item.product and item.product.tax_inclusive:
-            taxable = gross / (Decimal('1.00') + (Decimal(item.gst_rate) / Decimal('100.00')))
-            taxable = taxable - disc_amt
-            
-        item.taxable_value = quantize_amount(taxable)
-        
-        # Calculate GST distribution
-        cgst, sgst, igst, total_gst = calculate_item_gst(
-            invoice.company.state_code,
-            invoice.place_of_supply_code,
-            item.taxable_value,
-            item.gst_rate
+        prod = getattr(item, 'product', None)
+        c_rate = Decimal('0.00')
+        is_tax_inc = False
+        if prod:
+            is_tax_inc = getattr(prod, 'tax_inclusive', False)
+            if hasattr(prod, 'hsn_sac') and prod.hsn_sac and hasattr(prod.hsn_sac, 'cess_rate'):
+                c_rate = prod.hsn_sac.cess_rate or Decimal('0.00')
+
+        res = calculate_line_item_financials(
+            quantity=qty,
+            rate=rate,
+            discount=disc,
+            gst_rate=g_rate,
+            cess_rate=c_rate,
+            is_tax_inclusive=is_tax_inc,
+            company_state_code=comp_code,
+            pos_state_code=pos_code
         )
-        
-        item.cgst_amount = cgst
-        item.sgst_amount = sgst
-        item.igst_amount = igst
-        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if (item.product and item.product.hsn_sac and hasattr(item.product.hsn_sac, 'cess_rate')) else Decimal('0.00'))
-        item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
+
+        if hasattr(item, 'taxable_value'):
+            item.taxable_value = res['line_taxable']
+        if hasattr(item, 'taxable_amount'):
+            item.taxable_amount = res['line_taxable']
+
+        item.cgst_amount = res['cgst_amount']
+        item.sgst_amount = res['sgst_amount']
+        item.igst_amount = res['igst_amount']
+        if hasattr(item, 'cess_amount'):
+            item.cess_amount = res['cess_amount']
+        item.total_amount = res['line_total']
         item.save()
-        
-        subtotal += gross
-        discount_total += disc_amt
-        taxable_value += item.taxable_value
-        cgst_total += item.cgst_amount
-        sgst_total += item.sgst_amount
-        igst_total += item.igst_amount
-        cess_total += item.cess_amount
-        
-    invoice.subtotal = quantize_amount(subtotal)
-    invoice.discount_total = quantize_amount(discount_total)
-    invoice.taxable_value = quantize_amount(taxable_value)
-    invoice.cgst_total = quantize_amount(cgst_total)
-    invoice.sgst_total = quantize_amount(sgst_total)
-    invoice.igst_total = quantize_amount(igst_total)
-    invoice.cess_total = quantize_amount(cess_total)
+
+        subtotal += res['line_subtotal']
+        discount_total += res['line_discount']
+        taxable_total += res['line_taxable']
+        cgst_total += res['cgst_amount']
+        sgst_total += res['sgst_amount']
+        igst_total += res['igst_amount']
+        cess_total += res['cess_amount']
+
+    doc.subtotal = quantize_amount(subtotal)
+    doc.discount_total = quantize_amount(discount_total)
+
+    if hasattr(doc, 'taxable_value'):
+        doc.taxable_value = quantize_amount(taxable_total)
+    if hasattr(doc, 'taxable_amount'):
+        doc.taxable_amount = quantize_amount(taxable_total)
+
+    if hasattr(doc, 'cgst_total'):
+        doc.cgst_total = quantize_amount(cgst_total)
+    if hasattr(doc, 'sgst_total'):
+        doc.sgst_total = quantize_amount(sgst_total)
+    if hasattr(doc, 'igst_total'):
+        doc.igst_total = quantize_amount(igst_total)
+    if hasattr(doc, 'cess_total'):
+        doc.cess_total = quantize_amount(cess_total)
+
+    taxable_val = getattr(doc, 'taxable_value', getattr(doc, 'taxable_amount', Decimal('0.00')))
+    c_tot = getattr(doc, 'cgst_total', Decimal('0.00'))
+    s_tot = getattr(doc, 'sgst_total', Decimal('0.00'))
+    i_tot = getattr(doc, 'igst_total', Decimal('0.00'))
+    cs_tot = getattr(doc, 'cess_total', Decimal('0.00'))
+
+    calculated_grand = taxable_val + c_tot + s_tot + i_tot + cs_tot
+    rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
     
-    # Calculate gross before round off
-    gross_total = invoice.taxable_value + invoice.cgst_total + invoice.sgst_total + invoice.igst_total + invoice.cess_total
-    
-    # Apply standard rounding
-    rounded_total = quantize_amount(gross_total.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
-    invoice.round_off = quantize_amount(rounded_total - gross_total)
-    invoice.grand_total = rounded_total
+    if hasattr(doc, 'round_off'):
+        doc.round_off = quantize_amount(rounded_grand - calculated_grand)
+    doc.grand_total = rounded_grand
+    doc.save()
+    return doc
+
+
+def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=None, payment_percentage=None, advance_paid=None, payment_status=None):
+    """
+    Recalculates invoice totals, GST breakdowns, round off, and payment settlement fields.
+    Updates invoice in-memory and database.
+    """
+    recalculate_generic_document_totals(invoice)
 
     # --- Payment Details Calculation ---
     if advance_paid in (False, 'false', 'False', 'no', 'No', '0'):
@@ -314,7 +523,6 @@ def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=Non
         if invoice.grand_total > Decimal('0.00') and paid_now_val > Decimal('0.00') and pct_val == Decimal('0.00'):
             pct_val = quantize_amount((paid_now_val / invoice.grand_total) * Decimal('100.00'))
 
-    # Dropdown override handling
     if payment_status == 'PAID':
         paid_now_val = max(Decimal('0.00'), invoice.grand_total - adv_val)
     elif payment_status == 'UNPAID':
@@ -360,61 +568,46 @@ def recalculate_purchase_totals(bill):
     """
     Recalculates all mathematical fields of a PurchaseBill from its items.
     """
-    items = bill.items.all()
-    subtotal = Decimal('0.00')
-    discount_total = Decimal('0.00')
-    taxable_value = Decimal('0.00')
-    cgst_total = Decimal('0.00')
-    sgst_total = Decimal('0.00')
-    igst_total = Decimal('0.00')
-    cess_total = Decimal('0.00')
-    
-    for item in items:
-        qty = Decimal(item.quantity)
-        rate = Decimal(item.rate)
-        disc_amt = Decimal(item.discount)
-        
-        gross = qty * rate
-        taxable = gross - disc_amt
-        
-        item.taxable_value = quantize_amount(taxable)
-        
-        # Supplier purchase tax logic matching Supplier state vs Company state
-        cgst, sgst, igst, total_gst = calculate_item_gst(
-            bill.company.state_code,
-            bill.supplier.state_code,
-            item.taxable_value,
-            item.gst_rate
-        )
-        
-        item.cgst_amount = cgst
-        item.sgst_amount = sgst
-        item.igst_amount = igst
-        item.cess_amount = quantize_amount(item.taxable_value * (item.product.hsn_sac.cess_rate / Decimal('100.00')) if item.product and item.product.hsn_sac else Decimal('0.00'))
-        item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
-        item.save()
-        
-        subtotal += gross
-        discount_total += disc_amt
-        taxable_value += item.taxable_value
-        cgst_total += item.cgst_amount
-        sgst_total += item.sgst_amount
-        igst_total += item.igst_amount
-        cess_total += item.cess_amount
-        
-    bill.subtotal = quantize_amount(subtotal)
-    bill.discount_total = quantize_amount(discount_total)
-    bill.taxable_value = quantize_amount(taxable_value)
-    bill.cgst_total = quantize_amount(cgst_total)
-    bill.sgst_total = quantize_amount(sgst_total)
-    bill.igst_total = quantize_amount(igst_total)
-    bill.cess_total = quantize_amount(cess_total)
-    
-    gross_total = bill.taxable_value + bill.cgst_total + bill.sgst_total + bill.igst_total + bill.cess_total
-    rounded_total = quantize_amount(gross_total.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
-    bill.round_off = quantize_amount(rounded_total - gross_total)
-    bill.grand_total = rounded_total
-    bill.save()
+    return recalculate_generic_document_totals(bill)
+
+
+def recalculate_sales_order_totals(sales_order):
+    """
+    Recalculates all mathematical fields of a SalesOrder from its items.
+    """
+    return recalculate_generic_document_totals(sales_order)
+
+
+def recalculate_purchase_order_totals(purchase_order):
+    """
+    Recalculates all mathematical fields of a PurchaseOrder from its items.
+    """
+    pos_code = purchase_order.state_code or purchase_order.supplier_state_code_snapshot or (purchase_order.supplier.state_code if purchase_order.supplier else purchase_order.company.state_code)
+    return recalculate_generic_document_totals(purchase_order, pos_state_code=pos_code)
+
+
+def recalculate_credit_note_totals(credit_note):
+    """
+    Recalculates all mathematical fields of a CreditNote from its items.
+    """
+    pos_code = credit_note.invoice.place_of_supply_code if credit_note.invoice else credit_note.company.state_code
+    return recalculate_generic_document_totals(credit_note, pos_state_code=pos_code)
+
+
+def recalculate_debit_note_totals(debit_note):
+    """
+    Recalculates all mathematical fields of a DebitNote from its items.
+    """
+    pos_code = debit_note.purchase_bill.supplier.state_code if (debit_note.purchase_bill and debit_note.purchase_bill.supplier) else debit_note.company.state_code
+    return recalculate_generic_document_totals(debit_note, pos_state_code=pos_code)
+
+
+def recalculate_proforma_totals(proforma_invoice):
+    """
+    Recalculates all mathematical fields of a ProformaInvoice from its items.
+    """
+    return recalculate_generic_document_totals(proforma_invoice)
+
 
 
 def update_product_stock(product_id):
@@ -1003,64 +1196,10 @@ def get_or_create_predefined_quotation_terms(company=None):
 
 
 def recalculate_quotation_totals(quotation):
-    items = quotation.items.all()
-    subtotal = Decimal('0.00')
-    discount_total = Decimal('0.00')
-    taxable_value = Decimal('0.00')
-    cgst_total = Decimal('0.00')
-    sgst_total = Decimal('0.00')
-    igst_total = Decimal('0.00')
-    cess_total = Decimal('0.00')
+    """
+    Recalculates all mathematical fields of a Quotation from its items.
+    """
+    return recalculate_generic_document_totals(quotation)
 
-    for item in items:
-        qty = Decimal(item.quantity)
-        rate = Decimal(item.rate)
-        disc_amt = Decimal(item.discount)
-        
-        gross = qty * rate
-        taxable = gross - disc_amt
-        
-        if item.product and getattr(item.product, 'tax_inclusive', False):
-            taxable = gross / (Decimal('1.00') + (Decimal(item.gst_rate) / Decimal('100.00')))
-            taxable = taxable - disc_amt
-
-        item.taxable_value = quantize_amount(taxable)
-        
-        cgst, sgst, igst, total_gst = calculate_item_gst(
-            quotation.company.state_code,
-            quotation.customer.billing_state_code or quotation.company.state_code,
-            item.taxable_value,
-            item.gst_rate
-        )
-        item.cgst_amount = cgst
-        item.sgst_amount = sgst
-        item.igst_amount = igst
-        
-        cess_rate_val = item.product.hsn_sac.cess_rate if (item.product and item.product.hsn_sac and hasattr(item.product.hsn_sac, 'cess_rate')) else Decimal('0.00')
-        item.cess_amount = quantize_amount(item.taxable_value * (Decimal(cess_rate_val) / Decimal('100.00')))
-        item.total_amount = quantize_amount(item.taxable_value + cgst + sgst + igst + item.cess_amount)
-        item.save()
-
-        subtotal += gross
-        discount_total += disc_amt
-        taxable_value += item.taxable_value
-        cgst_total += item.cgst_amount
-        sgst_total += item.sgst_amount
-        igst_total += item.igst_amount
-        cess_total += item.cess_amount
-
-    quotation.subtotal = quantize_amount(subtotal)
-    quotation.discount_total = quantize_amount(discount_total)
-    quotation.taxable_value = quantize_amount(taxable_value)
-    quotation.cgst_total = quantize_amount(cgst_total)
-    quotation.sgst_total = quantize_amount(sgst_total)
-    quotation.igst_total = quantize_amount(igst_total)
-    quotation.cess_total = quantize_amount(cess_total)
-
-    gross_total = quotation.taxable_value + quotation.cgst_total + quotation.sgst_total + quotation.igst_total + quotation.cess_total
-    rounded_total = quantize_amount(gross_total.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
-    quotation.round_off = quantize_amount(rounded_total - gross_total)
-    quotation.grand_total = rounded_total
-    quotation.save()
 
 

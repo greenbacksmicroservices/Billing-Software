@@ -24,8 +24,17 @@
         <p>Original Invoice Ref: <strong>{{ note.invoice.invoice_number }}</strong></p>
         <p>Adjustment Reason: {{ note.get_reason_display }}</p>
         <hr style="border: none; border-top:1px solid var(--border); margin:1rem 0;">
-        <div style="font-size: 1.25rem;">
-            Refund Value: <strong>₹{{ note.grand_total }}</strong>
+        <div style="font-size: 1rem; line-height: 1.8;">
+            <div>Gross Subtotal: <strong>₹{{ note.subtotal }}</strong></div>
+            <div>Discount: <strong>₹{{ note.discount_total }}</strong></div>
+            <div>CGST: <strong>₹{{ note.cgst_total }}</strong></div>
+            <div>SGST: <strong>₹{{ note.sgst_total }}</strong></div>
+            <div>IGST: <strong>₹{{ note.igst_total }}</strong></div>
+            <div>Cess: <strong>₹{{ note.cess_total }}</strong></div>
+            <div>Round Off: <strong>₹{{ note.round_off }}</strong></div>
+            <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-top: 0.5rem; border-top: 2px solid var(--border); padding-top: 0.5rem;">
+                Grand Total: ₹{{ note.grand_total }}
+            </div>
         </div>
     </div>
 </div>

@@ -697,6 +697,14 @@ class SalesOrder(models.Model):
     order_number = models.CharField(max_length=50)
     order_date = models.DateField()
     expected_delivery = models.DateField()
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    taxable_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     notes = models.TextField(blank=True, null=True)
@@ -717,6 +725,7 @@ class SalesOrderItem(models.Model):
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     hsn_sac_code = models.CharField(max_length=20, blank=True, null=True)
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
 
@@ -755,6 +764,14 @@ class ProformaInvoice(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
     proforma_number = models.CharField(max_length=50)
     date = models.DateField()
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    taxable_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     terms = models.TextField(blank=True, null=True)
     is_converted = models.BooleanField(default=False)
@@ -774,6 +791,7 @@ class ProformaInvoiceItem(models.Model):
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
 
 
@@ -839,6 +857,14 @@ class PurchaseOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def taxable_value(self):
+        return self.taxable_amount
+
+    @taxable_value.setter
+    def taxable_value(self, val):
+        self.taxable_amount = val
+
     class Meta:
         unique_together = ('company', 'po_number')
         ordering = ['-po_date', '-created_at']
@@ -867,6 +893,14 @@ class PurchaseOrderItem(models.Model):
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
+
+    @property
+    def taxable_value(self):
+        return self.taxable_amount
+
+    @taxable_value.setter
+    def taxable_value(self, val):
+        self.taxable_amount = val
 
     @property
     def hsn_code(self):
@@ -934,6 +968,7 @@ class PurchaseBillItem(models.Model):
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     hsn_sac_code = models.CharField(max_length=20, blank=True, null=True)
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
 
@@ -978,9 +1013,13 @@ class CreditNote(models.Model):
     reason = models.CharField(max_length=30, choices=REASONS, default='SALES_RETURN')
     
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    taxable_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     
     status = models.CharField(max_length=20, choices=[('DRAFT', 'Draft'), ('POSTED', 'Posted'), ('CANCELLED', 'Cancelled')], default='DRAFT')
@@ -995,11 +1034,13 @@ class CreditNoteItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
     rate = models.DecimalField(max_digits=12, decimal_places=2)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     taxable_value = models.DecimalField(max_digits=12, decimal_places=2)
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('18.00'))
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
 
 
@@ -1018,9 +1059,13 @@ class DebitNote(models.Model):
     reason = models.CharField(max_length=30, choices=REASONS, default='PURCHASE_RETURN')
     
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    taxable_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     cgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     sgst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     igst_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    cess_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    round_off = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     
     status = models.CharField(max_length=20, choices=[('DRAFT', 'Draft'), ('POSTED', 'Posted'), ('CANCELLED', 'Cancelled')], default='DRAFT')
@@ -1035,11 +1080,13 @@ class DebitNoteItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
     rate = models.DecimalField(max_digits=12, decimal_places=2)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     taxable_value = models.DecimalField(max_digits=12, decimal_places=2)
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('18.00'))
     cgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     sgst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     igst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    cess_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
 
 

@@ -394,37 +394,26 @@
                         <td>Gross Subtotal:</td>
                         <td style="text-align: right; font-weight: 600;">{{ po.subtotal|indian_currency }}</td>
                     </tr>
-                    {% if po.discount_total > 0 %}
-                        <tr>
-                            <td>Total Discount:</td>
-                            <td style="text-align: right; color: #16a34a;">-{{ po.discount_total|indian_currency }}</td>
-                        </tr>
-                    {% endif %}
                     <tr>
-                        <td style="border-top: 1px dashed #cbd5e1;">Taxable Amount:</td>
-                        <td style="text-align: right; border-top: 1px dashed #cbd5e1; font-weight: 600;">{{ po.taxable_amount|indian_currency }}</td>
+                        <td>Discount:</td>
+                        <td style="text-align: right;">{{ po.discount_total|indian_currency }}</td>
                     </tr>
-                    {% if is_interstate %}
-                        <tr>
-                            <td>IGST Total:</td>
-                            <td style="text-align: right;">{{ po.igst_total|indian_currency }}</td>
-                        </tr>
-                    {% else %}
-                        <tr>
-                            <td>CGST Total:</td>
-                            <td style="text-align: right;">{{ po.cgst_total|indian_currency }}</td>
-                        </tr>
-                        <tr>
-                            <td>SGST Total:</td>
-                            <td style="text-align: right;">{{ po.sgst_total|indian_currency }}</td>
-                        </tr>
-                    {% endif %}
-                    {% if po.cess_total > 0 %}
-                        <tr>
-                            <td>Cess Total:</td>
-                            <td style="text-align: right;">{{ po.cess_total|indian_currency }}</td>
-                        </tr>
-                    {% endif %}
+                    <tr>
+                        <td>CGST:</td>
+                        <td style="text-align: right;">{{ po.cgst_total|indian_currency }}</td>
+                    </tr>
+                    <tr>
+                        <td>SGST:</td>
+                        <td style="text-align: right;">{{ po.sgst_total|indian_currency }}</td>
+                    </tr>
+                    <tr>
+                        <td>IGST:</td>
+                        <td style="text-align: right;">{{ po.igst_total|indian_currency }}</td>
+                    </tr>
+                    <tr>
+                        <td>Cess:</td>
+                        <td style="text-align: right;">{{ po.cess_total|indian_currency }}</td>
+                    </tr>
                     <tr>
                         <td>Round Off:</td>
                         <td style="text-align: right;">{{ po.round_off|indian_currency }}</td>

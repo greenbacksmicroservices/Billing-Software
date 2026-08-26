@@ -228,15 +228,14 @@
             <table class="p-hsn-table p-border-bottom" style="width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000;">
                 <thead>
                     <tr>
-                        <th style="width: 15%;" rowspan="2">HSN/SAC</th>
-                        <th style="width: 15%; text-align: right;" rowspan="2">Taxable Value</th>
+                        <th style="width: 25%;" rowspan="2">HSN/SAC</th>
                         {% if invoice.igst_total > 0 %}
-                            <th colspan="2" class="p-text-center" style="width: 30%;">Integrated Tax</th>
+                            <th colspan="2" class="p-text-center" style="width: 45%;">Integrated Tax</th>
                         {% else %}
                             <th colspan="2" class="p-text-center" style="width: 25%;">Central Tax</th>
                             <th colspan="2" class="p-text-center" style="width: 25%;">State Tax</th>
                         {% endif %}
-                        <th style="width: 20%; text-align: right;" rowspan="2">Total Tax Amount</th>
+                        <th style="width: 30%; text-align: right;" rowspan="2">Total Tax Amount</th>
                     </tr>
                     <tr>
                         {% if invoice.igst_total > 0 %}
@@ -254,7 +253,6 @@
                     {% for row in hsn_summary %}
                         <tr>
                             <td>{{ row.hsn }}</td>
-                            <td class="p-text-right">₹{{ row.taxable_value }}</td>
                             {% if invoice.igst_total > 0 %}
                                 <td class="p-text-right">{{ row.gst_rate }}%</td>
                                 <td class="p-text-right">₹{{ row.igst_amount }}</td>
@@ -269,7 +267,6 @@
                     {% endfor %}
                     <tr class="total-row">
                         <td>Total</td>
-                        <td class="p-text-right">₹{{ invoice.taxable_value }}</td>
                         {% if invoice.igst_total > 0 %}
                             <td></td>
                             <td class="p-text-right">₹{{ invoice.igst_total }}</td>
@@ -420,43 +417,30 @@
                     <span>₹{{ invoice.subtotal }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; color: var(--success);">
-                    <span>Discount Deducted:</span>
-                    <span>-₹{{ invoice.discount_total }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-weight: 500;">
-                    <span>Taxable Value:</span>
-                    <span>₹{{ invoice.taxable_value }}</span>
+                    <span>Discount:</span>
+                    <span>₹{{ invoice.discount_total }}</span>
                 </div>
                 
                 <hr style="border: none; border-top: 1px solid var(--border);">
                 
-                {% if invoice.cgst_total > 0 or invoice.sgst_total > 0 %}
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>CGST Total:</span>
-                        <span>₹{{ invoice.cgst_total }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>SGST Total:</span>
-                        <span>₹{{ invoice.sgst_total }}</span>
-                    </div>
-                {% endif %}
-                
-                {% if invoice.igst_total > 0 %}
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>IGST Total:</span>
-                        <span>₹{{ invoice.igst_total }}</span>
-                    </div>
-                {% endif %}
-                
-                {% if invoice.cess_total > 0 %}
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>Cess Total:</span>
-                        <span>₹{{ invoice.cess_total }}</span>
-                    </div>
-                {% endif %}
-
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                    <span>Round Off Difference:</span>
+                    <span>CGST:</span>
+                    <span>₹{{ invoice.cgst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>SGST:</span>
+                    <span>₹{{ invoice.sgst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>IGST:</span>
+                    <span>₹{{ invoice.igst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>Cess:</span>
+                    <span>₹{{ invoice.cess_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>Round Off:</span>
                     <span>₹{{ invoice.round_off }}</span>
                 </div>
                 

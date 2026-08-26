@@ -320,18 +320,17 @@
         <table class="hsn-table border-bottom">
             <thead>
                 <tr>
-                    <th style="width: 15%;" rowspan="2">HSN/SAC</th>
-                    <th style="width: 15%; text-align: right;" rowspan="2">Taxable Value</th>
-                    {% if invoice.igst_total > 0 %}
-                        <th colspan="2" class="text-center" style="width: 30%;">Integrated Tax</th>
+                    <th style="width: 25%;" rowspan="2">HSN/SAC</th>
+                    {% if is_interstate %}
+                        <th colspan="2" class="text-center" style="width: 45%;">Integrated Tax</th>
                     {% else %}
                         <th colspan="2" class="text-center" style="width: 25%;">Central Tax</th>
                         <th colspan="2" class="text-center" style="width: 25%;">State Tax</th>
                     {% endif %}
-                    <th style="width: 20%; text-align: right;" rowspan="2">Total Tax Amount</th>
+                    <th style="width: 30%; text-align: right;" rowspan="2">Total Tax Amount</th>
                 </tr>
                 <tr>
-                    {% if invoice.igst_total > 0 %}
+                    {% if is_interstate %}
                         <th class="text-right">Rate</th>
                         <th class="text-right">Amount</th>
                     {% else %}
@@ -346,8 +345,7 @@
                 {% for row in hsn_summary %}
                     <tr>
                         <td>{{ row.hsn }}</td>
-                        <td class="text-right">₹{{ row.taxable_value }}</td>
-                        {% if invoice.igst_total > 0 %}
+                        {% if is_interstate %}
                             <td class="text-right">{{ row.gst_rate }}%</td>
                             <td class="text-right">₹{{ row.igst_amount }}</td>
                         {% else %}
@@ -361,8 +359,7 @@
                 {% endfor %}
                 <tr class="total-row total-row">
                     <td>Total</td>
-                    <td class="text-right">₹{{ invoice.taxable_value }}</td>
-                    {% if invoice.igst_total > 0 %}
+                    {% if is_interstate %}
                         <td></td>
                         <td class="text-right">₹{{ invoice.igst_total }}</td>
                     {% else %}
@@ -372,7 +369,7 @@
                         <td class="text-right">₹{{ invoice.sgst_total }}</td>
                     {% endif %}
                     <td class="text-right bold">
-                        ₹{% widthratio invoice.cgst_total|add:invoice.sgst_total|add:invoice.igst_total 1 1 %}
+                        ₹{{ invoice.cgst_total|add:invoice.sgst_total|add:invoice.igst_total }}
                     </td>
                 </tr>
             </tbody>

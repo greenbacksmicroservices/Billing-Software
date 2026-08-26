@@ -19,7 +19,7 @@ from django.core.exceptions import PermissionDenied
 import json
 import os
 import mimetypes
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, date, timedelta
 
 from .models import (
@@ -34,7 +34,9 @@ from .mixins import CompanyRequiredMixin, RoleRequiredMixin, CompanyQuerySetMixi
 from .services import QuotationService, PurchaseOrderService
 from .utils import (
     quantize_amount, calculate_item_gst, calculate_gst, recalculate_invoice_totals,
-    recalculate_purchase_totals, update_product_stock, generate_upi_qr_string, log_action,
+    recalculate_purchase_totals, recalculate_quotation_totals, recalculate_sales_order_totals,
+    recalculate_purchase_order_totals, recalculate_credit_note_totals, recalculate_debit_note_totals,
+    recalculate_proforma_totals, update_product_stock, generate_upi_qr_string, log_action,
     record_invoice_accounting, cancel_invoice_accounting, record_purchase_accounting,
     cancel_purchase_accounting, record_payment_accounting, record_credit_note_accounting,
     record_debit_note_accounting, parse_money, format_money, serialize_decimal, build_products_json
@@ -2015,92 +2017,125 @@ def admin_hsn_sac_export_error_report(request):
 
 # --- COMPANY PANEL VIEWS ---
 
+def get_company_dashboard_metrics(company):
+    today = timezone.localtime(timezone.now()).date()
+    yesterday = today - timedelta(days=1)
+    
+    valid_sales_statuses = ['POSTED', 'PARTIALLY_PAID', 'PAID']
+    valid_purchase_statuses = ['POSTED', 'PARTIALLY_PAID', 'PAID']
+
+    today_sales = Invoice.objects.filter(company=company, invoice_date=today, status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    today_purchase = PurchaseBill.objects.filter(company=company, bill_date=today, status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    today_collection = Payment.objects.filter(company=company, payment_date=today, payment_type='RECEIPT').aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
+    
+    yesterday_sales = Invoice.objects.filter(company=company, invoice_date=yesterday, status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    yesterday_purchase = PurchaseBill.objects.filter(company=company, bill_date=yesterday, status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    yesterday_collection = Payment.objects.filter(company=company, payment_date=yesterday, payment_type='RECEIPT').aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
+    
+    if yesterday_sales > 0:
+        sales_trend = round(float((today_sales - yesterday_sales) / yesterday_sales * 100), 1)
+    else:
+        sales_trend = 0.0 if today_sales == 0 else 100.0
+        
+    if yesterday_purchase > 0:
+        purchase_trend = round(float((today_purchase - yesterday_purchase) / yesterday_purchase * 100), 1)
+    else:
+        purchase_trend = 0.0 if today_purchase == 0 else 100.0
+        
+    if yesterday_collection > 0:
+        collection_trend = round(float((today_collection - yesterday_collection) / yesterday_collection * 100), 1)
+    else:
+        collection_trend = 0.0 if today_collection == 0 else 100.0
+    
+    receivable = Customer.objects.filter(company=company).aggregate(sum=Sum('outstanding_balance'))['sum'] or Decimal('0.00')
+    payable = Supplier.objects.filter(company=company).aggregate(sum=Sum('outstanding_balance'))['sum'] or Decimal('0.00')
+    
+    total_stock_value = Product.objects.filter(company=company).aggregate(val=Sum(F('current_stock') * F('selling_price')))['val'] or Decimal('0.00')
+    low_stock_items = Product.objects.filter(company=company, current_stock__lte=F('min_stock'), track_inventory=True).count()
+    
+    first_day_of_month = today.replace(day=1)
+    mtd_sales = Invoice.objects.filter(company=company, invoice_date__range=(first_day_of_month, today), status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    mtd_purchases = PurchaseBill.objects.filter(company=company, bill_date__range=(first_day_of_month, today), status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    mtd_expenses = Expense.objects.filter(company=company, created_at__date__range=(first_day_of_month, today)).aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
+    profit_mtd = mtd_sales - mtd_purchases - mtd_expenses
+    
+    last_day_of_last_month = first_day_of_month - timedelta(days=1)
+    first_day_of_last_month = last_day_of_last_month.replace(day=1)
+    lm_sales = Invoice.objects.filter(company=company, invoice_date__range=(first_day_of_last_month, last_day_of_last_month), status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    lm_purchases = PurchaseBill.objects.filter(company=company, bill_date__range=(first_day_of_last_month, last_day_of_last_month), status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
+    lm_expenses = Expense.objects.filter(company=company, created_at__date__range=(first_day_of_last_month, last_day_of_last_month)).aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
+    lm_profit = lm_sales - lm_purchases - lm_expenses
+    
+    if lm_profit > 0:
+        profit_trend = round(float((profit_mtd - lm_profit) / lm_profit * 100), 1)
+    else:
+        profit_trend = 0.0 if profit_mtd == 0 else 100.0
+
+    input_gst = PurchaseBill.objects.filter(company=company, status='POSTED').aggregate(cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'))
+    output_gst = Invoice.objects.filter(company=company, status='POSTED').aggregate(cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'))
+    
+    recent_invoices = Invoice.objects.filter(company=company).order_by('-created_at')[:5]
+    recent_payments = Payment.objects.filter(company=company).order_by('-created_at')[:5]
+    low_stock_alerts = Product.objects.filter(company=company, current_stock__lte=F('min_stock'), track_inventory=True)[:5]
+    
+    return {
+        'today_sales': today_sales,
+        'today_purchase': today_purchase,
+        'today_collection': today_collection,
+        'sales_trend': sales_trend,
+        'purchase_trend': purchase_trend,
+        'collection_trend': collection_trend,
+        'receivable': receivable,
+        'payable': payable,
+        'total_stock_value': total_stock_value,
+        'low_stock_items': low_stock_items,
+        'profit_mtd': profit_mtd,
+        'profit_trend': profit_trend,
+        'input_gst': input_gst,
+        'output_gst': output_gst,
+        'recent_invoices': recent_invoices,
+        'recent_payments': recent_payments,
+        'low_stock_alerts': low_stock_alerts,
+    }
+
+
+class HowToUseView(LoginRequiredMixin, TemplateView):
+    template_name = 'company/how_to_use.html'
+
+
 class CompanyDashboardView(CompanyRequiredMixin, TemplateView):
     template_name = 'company/dashboard.html'
-
-
-class CompanyDeliveryView(CompanyRequiredMixin, TemplateView):
-    template_name = 'company/delivery_coming_soon.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         company = self.request.user.company
-
-        # Sales dashboard cards - timezone aware local date
-        today = timezone.localtime(timezone.now()).date()
-        yesterday = today - timedelta(days=1)
-        
-        valid_sales_statuses = ['POSTED', 'PARTIALLY_PAID', 'PAID']
-        valid_purchase_statuses = ['POSTED', 'PARTIALLY_PAID', 'PAID']
-
-        # Today's metrics
-        today_sales = Invoice.objects.filter(company=company, invoice_date=today, status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        today_purchase = PurchaseBill.objects.filter(company=company, bill_date=today, status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        today_collection = Payment.objects.filter(company=company, payment_date=today, payment_type='RECEIPT').aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
-        
-        context['today_sales'] = today_sales
-        context['today_purchase'] = today_purchase
-        context['today_collection'] = today_collection
-        
-        # Calculate yesterday metrics for trends
-        yesterday_sales = Invoice.objects.filter(company=company, invoice_date=yesterday, status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        yesterday_purchase = PurchaseBill.objects.filter(company=company, bill_date=yesterday, status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        yesterday_collection = Payment.objects.filter(company=company, payment_date=yesterday, payment_type='RECEIPT').aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
-        
-        if yesterday_sales > 0:
-            context['sales_trend'] = round(float((today_sales - yesterday_sales) / yesterday_sales * 100), 1)
-        else:
-            context['sales_trend'] = 0.0 if today_sales == 0 else 100.0
-            
-        if yesterday_purchase > 0:
-            context['purchase_trend'] = round(float((today_purchase - yesterday_purchase) / yesterday_purchase * 100), 1)
-        else:
-            context['purchase_trend'] = 0.0 if today_purchase == 0 else 100.0
-            
-        if yesterday_collection > 0:
-            context['collection_trend'] = round(float((today_collection - yesterday_collection) / yesterday_collection * 100), 1)
-        else:
-            context['collection_trend'] = 0.0 if today_collection == 0 else 100.0
-        
-        # Outstanding counts
-        context['receivable'] = Customer.objects.filter(company=company).aggregate(sum=Sum('outstanding_balance'))['sum'] or Decimal('0.00')
-        context['payable'] = Supplier.objects.filter(company=company).aggregate(sum=Sum('outstanding_balance'))['sum'] or Decimal('0.00')
-        
-        # Inventory
-        context['total_stock_value'] = Product.objects.filter(company=company).aggregate(val=Sum(F('current_stock') * F('selling_price')))['val'] or Decimal('0.00')
-        context['low_stock_items'] = Product.objects.filter(company=company, current_stock__lte=F('min_stock'), track_inventory=True).count()
-        
-        # Month-To-Date Profit
-        first_day_of_month = today.replace(day=1)
-        mtd_sales = Invoice.objects.filter(company=company, invoice_date__range=(first_day_of_month, today), status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        mtd_purchases = PurchaseBill.objects.filter(company=company, bill_date__range=(first_day_of_month, today), status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        mtd_expenses = Expense.objects.filter(company=company, created_at__date__range=(first_day_of_month, today)).aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
-        profit_mtd = mtd_sales - mtd_purchases - mtd_expenses
-        context['profit_mtd'] = profit_mtd
-        
-        # Last Month Profit for trend comparison
-        last_day_of_last_month = first_day_of_month - timedelta(days=1)
-        first_day_of_last_month = last_day_of_last_month.replace(day=1)
-        lm_sales = Invoice.objects.filter(company=company, invoice_date__range=(first_day_of_last_month, last_day_of_last_month), status__in=valid_sales_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        lm_purchases = PurchaseBill.objects.filter(company=company, bill_date__range=(first_day_of_last_month, last_day_of_last_month), status__in=valid_purchase_statuses).aggregate(sum=Sum('grand_total'))['sum'] or Decimal('0.00')
-        lm_expenses = Expense.objects.filter(company=company, created_at__date__range=(first_day_of_last_month, last_day_of_last_month)).aggregate(sum=Sum('amount'))['sum'] or Decimal('0.00')
-        lm_profit = lm_sales - lm_purchases - lm_expenses
-        
-        if lm_profit > 0:
-            context['profit_trend'] = round(float((profit_mtd - lm_profit) / lm_profit * 100), 1)
-        else:
-            context['profit_trend'] = 0.0 if profit_mtd == 0 else 100.0
-
-        # GST
-        context['input_gst'] = PurchaseBill.objects.filter(company=company, status='POSTED').aggregate(cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'))
-        context['output_gst'] = Invoice.objects.filter(company=company, status='POSTED').aggregate(cgst=Sum('cgst_total'), sgst=Sum('sgst_total'), igst=Sum('igst_total'))
-        
-        # Lists
-        context['recent_invoices'] = Invoice.objects.filter(company=company).order_by('-created_at')[:5]
-        context['recent_payments'] = Payment.objects.filter(company=company).order_by('-created_at')[:5]
-        context['low_stock_alerts'] = Product.objects.filter(company=company, current_stock__lte=F('min_stock'), track_inventory=True)[:5]
-        
+        metrics = get_company_dashboard_metrics(company)
+        context.update(metrics)
         return context
+
+
+class CompanyDashboardDataApiView(CompanyRequiredMixin, View):
+    def get(self, request):
+        company = request.user.company
+        metrics = get_company_dashboard_metrics(company)
+        return JsonResponse({
+            'today_sales': float(metrics['today_sales']),
+            'today_purchase': float(metrics['today_purchase']),
+            'today_collection': float(metrics['today_collection']),
+            'sales_trend': metrics['sales_trend'],
+            'purchase_trend': metrics['purchase_trend'],
+            'collection_trend': metrics['collection_trend'],
+            'receivable': float(metrics['receivable']),
+            'payable': float(metrics['payable']),
+            'total_stock_value': float(metrics['total_stock_value']),
+            'low_stock_items': metrics['low_stock_items'],
+            'profit_mtd': float(metrics['profit_mtd']),
+            'profit_trend': metrics['profit_trend'],
+        })
+
+
+class CompanyDeliveryView(CompanyRequiredMixin, TemplateView):
+    template_name = 'company/delivery_coming_soon.html'
 
 
 class CompanySettingsView(CompanyRequiredMixin, View):
@@ -4011,7 +4046,7 @@ class QuotationDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView
 
 
 def build_quotation_context(quotation):
-    from .utils import parse_product_specifications
+    from .utils import parse_product_specifications, build_hsn_sac_tax_summary
     company = quotation.company
     customer = quotation.customer
     
@@ -4020,10 +4055,7 @@ def build_quotation_context(quotation):
     is_interstate = (company_state_code != customer_state_code)
     
     enriched_items = []
-    total_quantity = Decimal('0.00')
-    
     for item in quotation.items.all().select_related('product', 'product__unit', 'product__hsn_sac'):
-        total_quantity += item.quantity
         prod = item.product
         desc = prod.description or ''
         parsed_spec = parse_product_specifications(desc)
@@ -4048,28 +4080,7 @@ def build_quotation_context(quotation):
             'total_amount': item.total_amount,
         })
         
-    hsn_map = {}
-    for item in quotation.items.all():
-        hsn = item.hsn_code or ''
-        rate = item.gst_rate
-        if hsn not in hsn_map:
-            hsn_map[hsn] = {
-                'hsn': hsn,
-                'taxable_value': Decimal('0.00'),
-                'cgst_amount': Decimal('0.00'),
-                'sgst_amount': Decimal('0.00'),
-                'igst_amount': Decimal('0.00'),
-                'total_tax': Decimal('0.00'),
-                'cgst_rate': (rate / Decimal('2.00')).quantize(Decimal('0.01')),
-                'sgst_rate': (rate / Decimal('2.00')).quantize(Decimal('0.01')),
-                'gst_rate': rate
-            }
-        hsn_map[hsn]['taxable_value'] += item.taxable_value
-        hsn_map[hsn]['cgst_amount'] += item.cgst_amount
-        hsn_map[hsn]['sgst_amount'] += item.sgst_amount
-        hsn_map[hsn]['igst_amount'] += item.igst_amount
-        hsn_map[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount)
-
+    hsn_summary, total_quantity = build_hsn_sac_tax_summary(quotation.items.all(), company_state_code, customer_state_code)
     total_tax = quotation.cgst_total + quotation.sgst_total + quotation.igst_total
     selected_terms = list(quotation.selected_terms.all().order_by('display_order', 'id'))
     if selected_terms:
@@ -4084,7 +4095,7 @@ def build_quotation_context(quotation):
         'customer': customer,
         'enriched_items': enriched_items,
         'total_quantity': total_quantity,
-        'hsn_summary': list(hsn_map.values()),
+        'hsn_summary': hsn_summary,
         'is_interstate': is_interstate,
         'total_tax': total_tax,
         'terms_list': terms_list,
@@ -4311,18 +4322,16 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
                 hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
                 SalesOrderItem.objects.create(
                     sales_order=so, product=prod, quantity=qty, rate=rate,
-                    discount=disc, taxable_value=taxable, gst_rate=rate_gst,
-                    cgst_amount=cgst, sgst_amount=sgst, igst_amount=igst,
-                    hsn_sac_code=hsn_code, total_amount=tot
+                    discount=disc, taxable_value=Decimal('0.00'), gst_rate=rate_gst,
+                    cgst_amount=Decimal('0.00'), sgst_amount=Decimal('0.00'), igst_amount=Decimal('0.00'),
+                    hsn_sac_code=hsn_code, total_amount=Decimal('0.00')
                 )
-                grand += tot
                 created_items_count += 1
                 
             if created_items_count == 0:
                 raise ValueError("At least one valid item is required in the sales order.")
 
-            so.grand_total = quantize_amount(grand)
-            so.save()
+            recalculate_sales_order_totals(so)
             log_action(request.user, 'CREATE_SALES_ORDER', 'SALES_ORDER', so.id, request=request)
             messages.success(request, f"Sales Order {so.order_number} saved successfully!")
             if is_ajax:
@@ -4354,11 +4363,37 @@ class SalesOrderDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
     template_name = 'company/sales_order_detail.html'
     context_object_name = 'order'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_sales_order_totals
+        order = self.object
+        recalculate_sales_order_totals(order)
+        comp_code = str(order.company.state_code or '').strip().zfill(2)
+        pos_code = str(order.customer.billing_state_code or comp_code).strip().zfill(2)
+        summary_list, total_qty = build_hsn_sac_tax_summary(order.items.all(), comp_code, pos_code)
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
+        context['is_interstate'] = (comp_code != pos_code)
+        return context
+
 
 class SalesOrderPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     model = SalesOrder
     template_name = 'company/sales_order_pdf.html'
     context_object_name = 'order'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_sales_order_totals
+        order = self.object
+        recalculate_sales_order_totals(order)
+        comp_code = str(order.company.state_code or '').strip().zfill(2)
+        pos_code = str(order.customer.billing_state_code or comp_code).strip().zfill(2)
+        summary_list, total_qty = build_hsn_sac_tax_summary(order.items.all(), comp_code, pos_code)
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
+        context['is_interstate'] = (comp_code != pos_code)
+        return context
 
 
 def sales_order_convert_to_invoice(request, pk):
@@ -4778,37 +4813,15 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
 
 
 def add_invoice_hsn_summary_to_context(invoice, context):
-    hsn_summary = {}
-    total_quantity = Decimal('0.00')
-    for item in invoice.items.all():
-        hsn = item.hsn_code or '-'
-        hsn = normalize_hsn_sac(hsn)
-        if not hsn:
-            hsn = '-'
-        
-        total_quantity += item.quantity
-        
-        if hsn not in hsn_summary:
-            hsn_summary[hsn] = {
-                'hsn': hsn,
-                'taxable_value': Decimal('0.00'),
-                'gst_rate': item.gst_rate,
-                'cgst_rate': (item.gst_rate / Decimal('2.00')).quantize(Decimal('0.01')),
-                'sgst_rate': (item.gst_rate / Decimal('2.00')).quantize(Decimal('0.01')),
-                'cgst_amount': Decimal('0.00'),
-                'sgst_amount': Decimal('0.00'),
-                'igst_amount': Decimal('0.00'),
-                'total_tax': Decimal('0.00'),
-            }
-        
-        hsn_summary[hsn]['taxable_value'] += item.taxable_value
-        hsn_summary[hsn]['cgst_amount'] += item.cgst_amount
-        hsn_summary[hsn]['sgst_amount'] += item.sgst_amount
-        hsn_summary[hsn]['igst_amount'] += item.igst_amount
-        hsn_summary[hsn]['total_tax'] += (item.cgst_amount + item.sgst_amount + item.igst_amount + item.cess_amount)
+    from .utils import build_hsn_sac_tax_summary
+    company_state_code = str(invoice.company.state_code or '').strip().zfill(2)
+    pos_state_code = str(invoice.place_of_supply_code or getattr(invoice.customer, 'billing_state_code', company_state_code)).strip().zfill(2)
+    is_interstate = (company_state_code != pos_state_code)
 
-    context['hsn_summary'] = list(hsn_summary.values())
-    context['total_quantity'] = total_quantity
+    summary_list, total_qty = build_hsn_sac_tax_summary(invoice.items.all(), company_state_code, pos_state_code)
+    context['hsn_summary'] = summary_list
+    context['total_quantity'] = total_qty
+    context['is_interstate'] = is_interstate
     return context
 
 
@@ -5148,15 +5161,20 @@ class PurchaseOrderDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, Detail
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_purchase_order_totals
         po = self.object
+        recalculate_purchase_order_totals(po)
         company = po.company
         supplier = po.supplier
         
         company_state_code = str(company.state_code or '').strip().zfill(2)
         supplier_state_code = str(po.supplier_state_code_snapshot or (supplier.state_code if supplier else company_state_code)).strip().zfill(2)
         is_interstate = (company_state_code != supplier_state_code)
+        summary_list, total_qty = build_hsn_sac_tax_summary(po.items.all(), company_state_code, supplier_state_code)
         
         context['is_interstate'] = is_interstate
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
         context['statuses'] = PurchaseOrder.STATUS_CHOICES
         return context
 
@@ -5169,13 +5187,16 @@ class PurchaseOrderPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         context = self.get_context_data(object=self.object)
+        from .utils import build_hsn_sac_tax_summary, recalculate_purchase_order_totals
         po = self.object
+        recalculate_purchase_order_totals(po)
         company = po.company
         supplier = po.supplier
 
         company_state_code = str(company.state_code or '').strip().zfill(2)
         supplier_state_code = str(po.supplier_state_code_snapshot or (supplier.state_code if supplier else company_state_code)).strip().zfill(2)
         is_interstate = (company_state_code != supplier_state_code)
+        summary_list, total_qty = build_hsn_sac_tax_summary(po.items.all(), company_state_code, supplier_state_code)
 
         raw_terms = company.terms_and_conditions or ""
         terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
@@ -5185,6 +5206,8 @@ class PurchaseOrderPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
             'company': company,
             'supplier': supplier,
             'is_interstate': is_interstate,
+            'hsn_summary': summary_list,
+            'total_quantity': total_qty,
             'terms_list': terms_list,
         })
         return self.render_to_response(context)
@@ -5563,6 +5586,21 @@ class PurchaseBillDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailV
     template_name = 'company/purchase_bill_detail.html'
     context_object_name = 'bill'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_purchase_totals
+        bill = self.object
+        recalculate_purchase_totals(bill)
+        company = bill.company
+        supplier = bill.supplier
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        supplier_state_code = str(supplier.state_code if supplier else company_state_code).strip().zfill(2)
+        summary_list, total_qty = build_hsn_sac_tax_summary(bill.items.all(), company_state_code, supplier_state_code)
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
+        context['is_interstate'] = (company_state_code != supplier_state_code)
+        return context
+
 
 class PurchaseBillPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     model = PurchaseBill
@@ -5572,14 +5610,17 @@ class PurchaseBillPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         context = self.get_context_data(object=self.object)
+        from .utils import build_hsn_sac_tax_summary, recalculate_purchase_totals
         bill = self.object
+        recalculate_purchase_totals(bill)
         company = bill.company
         supplier = bill.supplier
         
         company_state_code = str(company.state_code or '').strip().zfill(2)
-        supplier_state_code = str(supplier.state_code or company_state_code).strip().zfill(2)
+        supplier_state_code = str(supplier.state_code if supplier else company_state_code).strip().zfill(2)
         is_interstate = (company_state_code != supplier_state_code)
         
+        summary_list, total_qty = build_hsn_sac_tax_summary(bill.items.all(), company_state_code, supplier_state_code)
         raw_terms = company.terms_and_conditions or ""
         terms_list = [t.strip() for t in raw_terms.splitlines() if t.strip()]
         
@@ -5588,9 +5629,11 @@ class PurchaseBillPDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView
             'company': company,
             'supplier': supplier,
             'is_interstate': is_interstate,
+            'hsn_summary': summary_list,
+            'total_quantity': total_qty,
             'terms_list': terms_list,
         })
-        return render(request, self.template_name, context)
+        return self.render_to_response(context)
 
 
 def warehouse_detail_api(request, pk):
@@ -6375,14 +6418,22 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
             gst_rate
         )
         
+        form.instance.taxable_value = subtotal
+        form.instance.discount_total = Decimal('0.00')
+        form.instance.cess_total = Decimal('0.00')
         form.instance.cgst_total = cgst
         form.instance.sgst_total = sgst
         form.instance.igst_total = igst
-        form.instance.grand_total = subtotal + cgst + sgst + igst
+        
+        calculated_grand = subtotal + cgst + sgst + igst
+        rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+        form.instance.round_off = quantize_amount(rounded_grand - calculated_grand)
+        form.instance.grand_total = rounded_grand
         form.instance.status = 'POSTED'
         
         response = super().form_valid(form)
         note = self.object
+        recalculate_credit_note_totals(note)
         
         # Adjust customer receivable outstanding balance
         customer = original_invoice.customer
@@ -6438,11 +6489,41 @@ class CreditNoteDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailVie
     template_name = 'company/credit_note_detail.html'
     context_object_name = 'note'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_credit_note_totals
+        note = self.object
+        recalculate_credit_note_totals(note)
+        company = note.company
+        customer = note.invoice.customer
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        pos_code = str(note.invoice.place_of_supply_code or customer.billing_state_code or company_state_code).strip().zfill(2)
+        summary_list, total_qty = build_hsn_sac_tax_summary(note.items.all(), company_state_code, pos_code)
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
+        context['is_interstate'] = (company_state_code != pos_code)
+        return context
+
 
 class CreditNotePDFView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
     model = CreditNote
     template_name = 'company/credit_note_pdf.html'
     context_object_name = 'note'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from .utils import build_hsn_sac_tax_summary, recalculate_credit_note_totals
+        note = self.object
+        recalculate_credit_note_totals(note)
+        company = note.company
+        customer = note.invoice.customer
+        company_state_code = str(company.state_code or '').strip().zfill(2)
+        pos_code = str(note.invoice.place_of_supply_code or customer.billing_state_code or company_state_code).strip().zfill(2)
+        summary_list, total_qty = build_hsn_sac_tax_summary(note.items.all(), company_state_code, pos_code)
+        context['hsn_summary'] = summary_list
+        context['total_quantity'] = total_qty
+        context['is_interstate'] = (company_state_code != pos_code)
+        return context
 
 
 class DebitNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixin, ListView):
@@ -6534,14 +6615,22 @@ class DebitNoteCreateView(CompanyRequiredMixin, CreateView):
             gst_rate
         )
         
+        form.instance.taxable_value = subtotal
+        form.instance.discount_total = Decimal('0.00')
+        form.instance.cess_total = Decimal('0.00')
         form.instance.cgst_total = cgst
         form.instance.sgst_total = sgst
         form.instance.igst_total = igst
-        form.instance.grand_total = subtotal + cgst + sgst + igst
+        
+        calculated_grand = subtotal + cgst + sgst + igst
+        rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+        form.instance.round_off = quantize_amount(rounded_grand - calculated_grand)
+        form.instance.grand_total = rounded_grand
         form.instance.status = 'POSTED'
         
         response = super().form_valid(form)
         note = self.object
+        recalculate_debit_note_totals(note)
         
         # Adjust supplier outstanding payable balance
         supplier = bill.supplier

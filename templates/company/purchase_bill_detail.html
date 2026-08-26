@@ -156,33 +156,27 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; color: var(--success);">
                     <span>Discount:</span>
-                    <span>-₹{{ bill.discount_total }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-weight: 500;">
-                    <span>Taxable Value:</span>
-                    <span>₹{{ bill.taxable_value }}</span>
+                    <span>₹{{ bill.discount_total }}</span>
                 </div>
                 
                 <hr style="border: none; border-top: 1px solid var(--border);">
                 
-                {% if bill.cgst_total > 0 or bill.sgst_total > 0 %}
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>CGST:</span>
-                        <span>₹{{ bill.cgst_total }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>SGST:</span>
-                        <span>₹{{ bill.sgst_total }}</span>
-                    </div>
-                {% endif %}
-                
-                {% if bill.igst_total > 0 %}
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
-                        <span>IGST:</span>
-                        <span>₹{{ bill.igst_total }}</span>
-                    </div>
-                {% endif %}
-
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>CGST:</span>
+                    <span>₹{{ bill.cgst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>SGST:</span>
+                    <span>₹{{ bill.sgst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>IGST:</span>
+                    <span>₹{{ bill.igst_total }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
+                    <span>Cess:</span>
+                    <span>₹{{ bill.cess_total }}</span>
+                </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted-foreground);">
                     <span>Round Off:</span>
                     <span>₹{{ bill.round_off }}</span>

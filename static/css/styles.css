@@ -227,19 +227,20 @@ button, input, select, textarea {
     font-size: 1.1rem;
 }
 
-.sidebar-link span {
+.sidebar-link span,
+.sidebar-logo span {
     white-space: nowrap;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    opacity: 1;
+    visibility: visible;
 }
 
-.sidebar.collapsed .sidebar-link span {
-    opacity: 0;
-    pointer-events: none;
-    display: none;
-}
-
+.sidebar.collapsed .sidebar-link span,
 .sidebar.collapsed .sidebar-logo span {
-    display: none;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    display: none !important;
+    pointer-events: none !important;
 }
 
 /* Sidebar Dropdown Menu styling */
@@ -2060,7 +2061,7 @@ button, input, select, textarea {
     height: auto;
     transform: translate(-50%, -50%) scale(1.08); /* Slightly scale to eliminate border blur artifacts */
     object-fit: cover;
-    filter: blur(6px) brightness(0.85); /* Slightly blurred background video */
+    filter: blur(12px) brightness(0.8); /* Elegant blurred background video */
 }
 
 /* Dark gradient overlay above video for maximum contrast and elegance */
@@ -2069,6 +2070,8 @@ button, input, select, textarea {
     inset: 0;
     background: radial-gradient(circle at center, rgba(10, 20, 35, 0.45) 0%, rgba(3, 7, 18, 0.85) 100%),
                 linear-gradient(to bottom, rgba(10, 15, 30, 0.5) 0%, rgba(3, 7, 18, 0.9) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 1;
 }
 
@@ -2456,4 +2459,173 @@ button, input, select, textarea {
     transform: none;
     box-shadow: none;
 }
+
+/* --- HOW TO USE HEADER BUTTON & USER GUIDE STYLES --- */
+.btn-how-to-use {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    background-color: var(--primary, #2563eb);
+    color: #ffffff !important;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 0.25rem;
+    margin-right: 0;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.btn-how-to-use:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.btn-how-to-use i {
+    font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+    .btn-how-to-use span {
+        display: none;
+    }
+    .btn-how-to-use {
+        padding: 0.45rem;
+        margin-right: 0.4rem;
+    }
+}
+
+/* User Guide Page Layout */
+.guide-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 992px) {
+    .guide-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.guide-nav-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 1rem;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.guide-nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--foreground, #0f172a);
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 0.2rem;
+}
+
+.guide-nav-item:hover {
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--primary, #2563eb);
+}
+
+.guide-nav-item.active {
+    background-color: var(--primary, #2563eb);
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.guide-nav-item.completed .check-icon {
+    color: var(--success, #10b981);
+}
+
+.guide-nav-item.active .check-icon {
+    color: #ffffff;
+}
+
+/* Screenshot Placeholder */
+.app-screenshot-placeholder {
+    width: 100%;
+    min-height: 160px;
+    background: var(--card-bg, #ffffff);
+    border: 2px dashed var(--border, #cbd5e1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--foreground, #0f172a);
+    padding: 1.5rem;
+    margin: 1.25rem 0;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
+}
+
+.app-screenshot-placeholder:hover {
+    border-color: var(--primary, #2563eb);
+    background-color: rgba(37, 99, 235, 0.03);
+}
+
+.app-screenshot-placeholder i {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary, #2563eb);
+}
+
+.app-screenshot-placeholder span {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--foreground, #0f172a);
+}
+
+.app-screenshot-placeholder small {
+    font-size: 0.825rem;
+    color: var(--muted-foreground, #64748b);
+    margin-top: 0.35rem;
+}
+
+/* Tutorial Callout boxes */
+.guide-callout {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.guide-callout-info {
+    background-color: rgba(37, 99, 235, 0.08);
+    border-left: 4px solid #2563eb;
+    color: var(--foreground);
+}
+
+.guide-callout-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid #f59e0b;
+    color: var(--foreground);
+}
+
+.guide-step-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
 

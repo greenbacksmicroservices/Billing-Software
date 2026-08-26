@@ -228,31 +228,27 @@
 
             <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.65rem;">
                 <div style="display: flex; justify-content: space-between;">
-                    <span>Subtotal Gross:</span>
+                    <span>Gross Subtotal:</span>
                     <strong id="summary-subtotal">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
-                    <span>Total Discount:</span>
-                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border); padding-top: 0.4rem;">
-                    <span>Taxable Amount:</span>
-                    <strong id="summary-taxable">₹0.00</strong>
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cgst-row">
-                    <span>CGST Total:</span>
+                    <span>CGST:</span>
                     <strong id="summary-cgst">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="sgst-row">
-                    <span>SGST Total:</span>
+                    <span>SGST:</span>
                     <strong id="summary-sgst">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="igst-row">
-                    <span>IGST Total:</span>
+                    <span>IGST:</span>
                     <strong id="summary-igst">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cess-row">
-                    <span>Cess Total:</span>
+                    <span>Cess:</span>
                     <strong id="summary-cess">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem;">
@@ -965,8 +961,7 @@
         const grandEl = document.getElementById('summary-grand');
 
         if (subtotalEl) subtotalEl.innerText = '₹' + subtotal.toFixed(2);
-        if (discountEl) discountEl.innerText = '-₹' + discountTotal.toFixed(2);
-        if (taxableEl) taxableEl.innerText = '₹' + taxableTotal.toFixed(2);
+        if (discountEl) discountEl.innerText = '₹' + discountTotal.toFixed(2);
 
         if (isInterstate) {
             if (cgstRow) cgstRow.style.display = 'none';

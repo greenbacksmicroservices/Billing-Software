@@ -212,8 +212,8 @@ class QuotationService:
 
             gross = qty * rate
             taxable_item = quantize_amount(gross - disc)
-            gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
-            cess_rate = prod.hsn_sac.cess_rate if prod.hsn_sac else Decimal('0.00')
+            gst_rate = parse_money(item_data.get('gst_rate', (prod.hsn_sac.gst_rate if prod and prod.hsn_sac else Decimal('18.00'))))
+            cess_rate = prod.hsn_sac.cess_rate if (prod and prod.hsn_sac) else Decimal('0.00')
 
             cgst_item, sgst_item, igst_item, total_gst_item = calculate_item_gst(
                 company_state_code,
@@ -359,8 +359,8 @@ class QuotationService:
 
             gross = qty * rate
             taxable_item = quantize_amount(gross - disc)
-            gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
-            cess_rate = prod.hsn_sac.cess_rate if prod.hsn_sac else Decimal('0.00')
+            gst_rate = parse_money(item_data.get('gst_rate', (prod.hsn_sac.gst_rate if prod and prod.hsn_sac else Decimal('18.00'))))
+            cess_rate = prod.hsn_sac.cess_rate if (prod and prod.hsn_sac) else Decimal('0.00')
 
             cgst_item, sgst_item, igst_item, total_gst_item = calculate_item_gst(
                 company_state_code,

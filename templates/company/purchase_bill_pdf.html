@@ -312,31 +312,26 @@
                             <td style="padding: 5px 12px; color: #475569;">Gross Subtotal:</td>
                             <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.subtotal }}</td>
                         </tr>
-                        {% if bill.discount_total > 0 %}
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 12px; color: #475569;">Total Discount:</td>
-                                <td class="text-right bold" style="padding: 5px 12px; color: #b91c1c;">-₹{{ bill.discount_total }}</td>
-                            </tr>
-                        {% endif %}
                         <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 5px 12px; color: #475569;">Taxable Value:</td>
-                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.taxable_value }}</td>
+                            <td style="padding: 5px 12px; color: #475569;">Discount:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.discount_total }}</td>
                         </tr>
-                        {% if is_interstate %}
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 12px; color: #475569;">IGST Total:</td>
-                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.igst_total }}</td>
-                            </tr>
-                        {% else %}
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 12px; color: #475569;">CGST Total:</td>
-                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.cgst_total }}</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 12px; color: #475569;">SGST Total:</td>
-                                <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.sgst_total }}</td>
-                            </tr>
-                        {% endif %}
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">CGST:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.cgst_total }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">SGST:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.sgst_total }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">IGST:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.igst_total }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 5px 12px; color: #475569;">Cess:</td>
+                            <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.cess_total }}</td>
+                        </tr>
                         <tr style="border-bottom: 1px solid #e2e8f0;">
                             <td style="padding: 5px 12px; color: #475569;">Round Off:</td>
                             <td class="text-right bold" style="padding: 5px 12px;">₹{{ bill.round_off }}</td>

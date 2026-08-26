@@ -52,8 +52,25 @@
             </tbody>
         </table>
         
-        <div style="text-align: right; margin-top: 2rem; font-size: 1.2rem;">
-            <strong>Order Grand Total: ₹{{ order.grand_total }}</strong>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <div style="max-width: 50%;">
+                {% if order.notes %}
+                    <h5 style="margin-bottom: 0.5rem; font-weight: 600;">Special Notes:</h5>
+                    <p style="font-size: 0.9rem; color: var(--muted-foreground);">{{ order.notes|linebreaksbr }}</p>
+                {% endif %}
+            </div>
+            <div style="text-align: right; font-size: 1.1rem; line-height: 1.6;">
+                <div>Gross Subtotal: <strong>₹{{ order.subtotal }}</strong></div>
+                <div style="color: var(--success);">Discount: <strong>₹{{ order.discount_total }}</strong></div>
+                <div>CGST: <strong>₹{{ order.cgst_total }}</strong></div>
+                <div>SGST: <strong>₹{{ order.sgst_total }}</strong></div>
+                <div>IGST: <strong>₹{{ order.igst_total }}</strong></div>
+                <div>Cess: <strong>₹{{ order.cess_total }}</strong></div>
+                <div>Round Off: <strong>₹{{ order.round_off }}</strong></div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 0.5rem; border-top: 2px solid var(--border); padding-top: 0.5rem;">
+                    Grand Total: ₹{{ order.grand_total }}
+                </div>
+            </div>
         </div>
     </div>
 </div>

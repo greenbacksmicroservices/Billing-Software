@@ -87,11 +87,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>Discount:</span>
-                    <strong id="summary-discount" style="color: var(--success);">-₹{{ quotation.discount_total|default:'0.00' }}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Taxable:</span>
-                    <strong id="summary-taxable">₹{{ quotation.taxable_value }}</strong>
+                    <strong id="summary-discount" style="color: var(--success);">₹{{ quotation.discount_total|default:'0.00' }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cgst-row">
                     <span>CGST:</span>
@@ -666,8 +662,7 @@
         const roundOff = roundedGrand - totalTaxableAndTax;
 
         document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
-        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discTotal);
-        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxable);
+        document.getElementById('summary-discount').innerText = window.formatIndianCurrency(discTotal);
         
         document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
         document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);

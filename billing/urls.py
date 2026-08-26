@@ -13,6 +13,7 @@ urlpatterns = [
     path('forgot-password/verify/', views.verify_otp_view, name='verify_otp'),
     path('forgot-password/reset/', views.reset_password_view, name='reset_password'),
     path('company/dashboard/chart-data/', views.CompanyDashboardChartDataView.as_view(), name='company_dashboard_chart_data'),
+    path('company/dashboard/data/', views.CompanyDashboardDataApiView.as_view(), name='company_dashboard_data'),
     path('admin/dashboard/chart-data/', views.AdminDashboardChartDataView.as_view(), name='admin_dashboard_chart_data'),
 
     # Admin Panel
@@ -58,6 +59,7 @@ urlpatterns = [
 
     # Company Panel
     path('company/dashboard/', views.CompanyDashboardView.as_view(), name='company_dashboard'),
+    path('company/how-to-use/', views.HowToUseView.as_view(), name='how_to_use'),
     path('company/delivery/', views.CompanyDeliveryView.as_view(), name='company_delivery'),
     path('company/settings/', views.CompanySettingsView.as_view(), name='company_settings'),
 

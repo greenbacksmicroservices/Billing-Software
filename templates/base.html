@@ -45,9 +45,14 @@
             <!-- Header / Topbar -->
             <header class="app-header">
                 <div class="header-left">
-                    <button class="toggle-sidebar-btn" id="toggle-sidebar">
+                    <button type="button" class="toggle-sidebar-btn" id="toggle-sidebar" onclick="toggleAppSidebar(event)" title="Toggle Sidebar">
                         <i class="fa-solid fa-bars"></i>
                     </button>
+                    <!-- How to Use Header Button (Right of collapse sidebar button) -->
+                    <a href="{% url 'how_to_use' %}" class="btn-how-to-use" title="How to Use - User Guide">
+                        <i class="fa-solid fa-circle-question"></i>
+                        <span>How to Use</span>
+                    </a>
                 </div>
 
                 <div class="header-right">

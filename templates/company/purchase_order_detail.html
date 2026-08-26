@@ -200,37 +200,26 @@
                 <span>Gross Subtotal:</span>
                 <strong>{{ po.subtotal|indian_currency }}</strong>
             </div>
-            {% if po.discount_total > 0 %}
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Total Discount:</span>
-                    <strong style="color: var(--success);">-{{ po.discount_total|indian_currency }}</strong>
-                </div>
-            {% endif %}
-            <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border); padding-top: 0.3rem;">
-                <span>Taxable Amount:</span>
-                <strong>{{ po.taxable_amount|indian_currency }}</strong>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Discount:</span>
+                <strong style="color: var(--success);">{{ po.discount_total|indian_currency }}</strong>
             </div>
-            {% if is_interstate %}
-                <div style="display: flex; justify-content: space-between;">
-                    <span>IGST Total:</span>
-                    <strong>{{ po.igst_total|indian_currency }}</strong>
-                </div>
-            {% else %}
-                <div style="display: flex; justify-content: space-between;">
-                    <span>CGST Total:</span>
-                    <strong>{{ po.cgst_total|indian_currency }}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>SGST Total:</span>
-                    <strong>{{ po.sgst_total|indian_currency }}</strong>
-                </div>
-            {% endif %}
-            {% if po.cess_total > 0 %}
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Cess Total:</span>
-                    <strong>{{ po.cess_total|indian_currency }}</strong>
-                </div>
-            {% endif %}
+            <div style="display: flex; justify-content: space-between;">
+                <span>CGST:</span>
+                <strong>{{ po.cgst_total|indian_currency }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>SGST:</span>
+                <strong>{{ po.sgst_total|indian_currency }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>IGST:</span>
+                <strong>{{ po.igst_total|indian_currency }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Cess:</span>
+                <strong>{{ po.cess_total|indian_currency }}</strong>
+            </div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.4rem;">
                 <span>Round Off:</span>
                 <strong>{{ po.round_off|indian_currency }}</strong>

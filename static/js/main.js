@@ -1,24 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar toggle logic (Desktop collapse / Mobile drawer)
-    const toggleBtn = document.getElementById('toggle-sidebar');
     const sidebar = document.getElementById('sidebar');
-    
-    if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.innerWidth <= 768) {
-                sidebar.classList.toggle('open');
-            } else {
-                sidebar.classList.toggle('collapsed');
-            }
-        });
+
+    // On desktop, default to expanded sidebar on menu navigation (prevent auto-collapsing on page change)
+    if (sidebar && window.innerWidth > 768) {
+        if (sessionStorage.getItem('sidebar_collapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+        }
     }
+
+    // Global Sidebar Toggle Function (Failsafe for header button click)
+    window.toggleAppSidebar = function(e) {
+        if (e) {
+            e.preventDefault();
+        }
+        const sidebarEl = document.getElementById('sidebar');
+        if (!sidebarEl) return;
+
+        if (window.innerWidth <= 768) {
+            sidebarEl.classList.toggle('open');
+        } else {
+            const isCollapsed = sidebarEl.classList.toggle('collapsed');
+            sessionStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+            localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+        }
+    };
+
+    // Sidebar toggle logic (Event Delegation)
+    document.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('#toggle-sidebar');
+        if (!toggleBtn) return;
+        window.toggleAppSidebar(e);
+    });
 
     // Close mobile sidebar when clicking outside
     document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('open')) {
-            if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
-                sidebar.classList.remove('open');
+        const sidebarEl = document.getElementById('sidebar');
+        const toggleBtn = e.target.closest('#toggle-sidebar');
+        if (window.innerWidth <= 768 && sidebarEl && sidebarEl.classList.contains('open')) {
+            if (!sidebarEl.contains(e.target) && !toggleBtn) {
+                sidebarEl.classList.remove('open');
             }
         }
     });

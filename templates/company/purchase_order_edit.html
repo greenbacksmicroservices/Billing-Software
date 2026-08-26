@@ -221,31 +221,27 @@
 
             <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.65rem;">
                 <div style="display: flex; justify-content: space-between;">
-                    <span>Subtotal Gross:</span>
+                    <span>Gross Subtotal:</span>
                     <strong id="summary-subtotal">₹{{ po.subtotal }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
-                    <span>Total Discount:</span>
-                    <strong id="summary-discount" style="color: var(--success);">-₹{{ po.discount_total }}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border); padding-top: 0.4rem;">
-                    <span>Taxable Amount:</span>
-                    <strong id="summary-taxable">₹{{ po.taxable_amount }}</strong>
+                    <span>Discount:</span>
+                    <strong id="summary-discount" style="color: var(--success);">₹{{ po.discount_total }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cgst-row">
-                    <span>CGST Total:</span>
+                    <span>CGST:</span>
                     <strong id="summary-cgst">₹{{ po.cgst_total }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="sgst-row">
-                    <span>SGST Total:</span>
+                    <span>SGST:</span>
                     <strong id="summary-sgst">₹{{ po.sgst_total }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="igst-row">
-                    <span>IGST Total:</span>
+                    <span>IGST:</span>
                     <strong id="summary-igst">₹{{ po.igst_total }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cess-row">
-                    <span>Cess Total:</span>
+                    <span>Cess:</span>
                     <strong id="summary-cess">₹{{ po.cess_total }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem;">
@@ -834,8 +830,7 @@
         const roundOff = roundedGrand - calculatedGrand;
 
         document.getElementById('summary-subtotal').innerText = '₹' + subtotal.toFixed(2);
-        document.getElementById('summary-discount').innerText = '-₹' + discountTotal.toFixed(2);
-        document.getElementById('summary-taxable').innerText = '₹' + taxableTotal.toFixed(2);
+        document.getElementById('summary-discount').innerText = '₹' + discountTotal.toFixed(2);
 
         const cgstRow = document.getElementById('cgst-row');
         const sgstRow = document.getElementById('sgst-row');

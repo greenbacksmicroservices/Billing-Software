@@ -85,13 +85,9 @@
                     <span>Gross Subtotal:</span>
                     <strong id="summary-subtotal">₹0.00</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between;" id="discount-row">
                     <span>Discount:</span>
-                    <strong id="summary-discount" style="color: var(--success);">-₹0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Taxable:</span>
-                    <strong id="summary-taxable">₹0.00</strong>
+                    <strong id="summary-discount" style="color: var(--success);">₹0.00</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between;" id="cgst-row">
                     <span>CGST:</span>
@@ -109,7 +105,7 @@
                     <span>Cess:</span>
                     <strong id="summary-cess">₹0.00</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;" id="roundoff-row">
                     <span>Round Off:</span>
                     <strong id="summary-roundoff">₹0.00</strong>
                 </div>
@@ -637,14 +633,31 @@
         const roundOff = roundedGrand - totalTaxableAndTax;
 
         document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
-        document.getElementById('summary-discount').innerText = '-' + window.formatIndianCurrency(discTotal);
-        document.getElementById('summary-taxable').innerText = window.formatIndianCurrency(taxable);
-        
+
+        const discRow = document.getElementById('discount-row');
+        if (discRow) discRow.style.display = 'flex';
+        document.getElementById('summary-discount').innerText = window.formatIndianCurrency(discTotal);
+
+        const cgstRow = document.getElementById('cgst-row');
+        if (cgstRow) cgstRow.style.display = 'flex';
         document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
+
+        const sgstRow = document.getElementById('sgst-row');
+        if (sgstRow) sgstRow.style.display = 'flex';
         document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
+
+        const igstRow = document.getElementById('igst-row');
+        if (igstRow) igstRow.style.display = 'flex';
         document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
+
+        const cessRow = document.getElementById('cess-row');
+        if (cessRow) cessRow.style.display = 'flex';
         document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
+
+        const roundoffRow = document.getElementById('roundoff-row');
+        if (roundoffRow) roundoffRow.style.display = 'flex';
         document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
+
         document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
     }
 

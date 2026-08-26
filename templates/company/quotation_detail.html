@@ -131,17 +131,13 @@
                 {% endif %}
             </div>
             <div style="text-align: right; font-size: 1.1rem; line-height: 1.6;">
-                <div>Subtotal: <strong>₹{{ quotation.subtotal }}</strong></div>
-                {% if quotation.discount_total > 0 %}
-                    <div style="color: var(--danger);">Discount: <strong>-₹{{ quotation.discount_total }}</strong></div>
-                {% endif %}
-                <div>Taxable Amount: <strong>₹{{ quotation.taxable_value }}</strong></div>
-                {% if quotation.igst_total > 0 %}
-                    <div>IGST: <strong>₹{{ quotation.igst_total }}</strong></div>
-                {% else %}
-                    <div>CGST: <strong>₹{{ quotation.cgst_total }}</strong></div>
-                    <div>SGST: <strong>₹{{ quotation.sgst_total }}</strong></div>
-                {% endif %}
+                <div>Gross Subtotal: <strong>₹{{ quotation.subtotal }}</strong></div>
+                <div style="color: var(--success);">Discount: <strong>₹{{ quotation.discount_total }}</strong></div>
+                <div>CGST: <strong>₹{{ quotation.cgst_total }}</strong></div>
+                <div>SGST: <strong>₹{{ quotation.sgst_total }}</strong></div>
+                <div>IGST: <strong>₹{{ quotation.igst_total }}</strong></div>
+                <div>Cess: <strong>₹{{ quotation.cess_total }}</strong></div>
+                <div>Round Off: <strong>₹{{ quotation.round_off }}</strong></div>
                 <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 0.5rem; border-top: 2px solid var(--border); padding-top: 0.5rem;">
                     Grand Total: ₹{{ quotation.grand_total }}
                 </div>
