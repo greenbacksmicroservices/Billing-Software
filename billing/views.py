@@ -3022,6 +3022,48 @@ class ProductUpdateView(CompanyRequiredMixin, CompanyQuerySetMixin, UpdateView):
         return super().form_invalid(form)
 
 
+class ProductDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):
+    model = Product
+    template_name = 'company/product_detail.html'
+    context_object_name = 'product'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        product = self.get_object()
+
+        # Stock Movements history
+        context['stock_movements'] = StockMovement.objects.filter(
+            product=product, company=self.request.user.company
+        ).select_related('warehouse', 'created_by').order_by('-created_at')[:50]
+
+        # Recent Sales history (Invoice items)
+        context['recent_sales'] = InvoiceItem.objects.filter(
+            product=product, invoice__company=self.request.user.company
+        ).select_related('invoice', 'invoice__customer').order_by('-invoice__invoice_date', '-id')[:30]
+
+        # Recent Purchase history (Purchase bill items)
+        context['recent_purchases'] = PurchaseBillItem.objects.filter(
+            product=product, purchase_bill__company=self.request.user.company
+        ).select_related('purchase_bill', 'purchase_bill__supplier').order_by('-purchase_bill__bill_date', '-id')[:30]
+
+        # Warehouses for adjustment modal
+        from .models import Warehouse
+        context['warehouses'] = Warehouse.objects.filter(company=self.request.user.company, is_active=True)
+
+        # Calculated metrics (Profit margin per unit)
+        if product.selling_price and product.purchase_price and product.purchase_price > Decimal('0.00'):
+            profit = product.selling_price - product.purchase_price
+            margin_pct = (profit / product.purchase_price) * Decimal('100.00')
+        else:
+            profit = Decimal('0.00')
+            margin_pct = Decimal('0.00')
+
+        context['profit_per_unit'] = profit
+        context['profit_margin_pct'] = round(margin_pct, 2)
+
+        return context
+
+
 def product_duplicate(request, pk):
     company = request.user.company
     prod = get_object_or_404(Product, id=pk, company=company)

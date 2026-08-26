@@ -1,0 +1,524 @@
+{% extends 'base_company.html' %}
+
+{% block title %}{{ product.name }} - Product Details{% endblock %}
+{% block sub_products %}sub-item-active{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ product.name }}</h1>
+            <span class="badge {% if product.product_type == 'GOODS' %}badge-info{% else %}badge-secondary{% endif %}" style="font-size: 0.85rem; padding: 0.3rem 0.65rem;">
+                <i class="fa-solid {% if product.product_type == 'GOODS' %}fa-box{% else %}fa-hand-holding-hand{% endif %}" style="margin-right: 0.25rem;"></i>
+                {{ product.get_product_type_display }}
+            </span>
+            <span class="badge {% if product.is_active %}badge-success{% else %}badge-danger{% endif %}" style="font-size: 0.85rem; padding: 0.3rem 0.65rem;">
+                {{ product.is_active|yesno:"Active,Inactive" }}
+            </span>
+        </div>
+        <p style="color: var(--muted-foreground); margin-top: 0.35rem; font-size: 0.9rem;">
+            Category: <strong>{{ product.category.name|default:"General" }}</strong> 
+            {% if product.brand %} | Brand: <strong>{{ product.brand.name }}</strong>{% endif %}
+            | Created on: {{ product.created_at|date:"d M Y, h:i A" }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <a href="{% url 'product_list' %}" class="btn btn-secondary" style="font-size: 0.9rem;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Products
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openAdjustModal()" style="font-size: 0.9rem;">
+            <i class="fa-solid fa-arrows-rotate" style="color: #3b82f6;"></i> Adjust Stock
+        </button>
+        <a href="{% url 'product_duplicate' product.id %}" class="btn btn-secondary" style="font-size: 0.9rem;">
+            <i class="fa-regular fa-copy" style="color: #8b5cf6;"></i> Duplicate
+        </a>
+        <a href="{% url 'product_edit' product.id %}" class="btn btn-primary" style="font-size: 0.9rem;">
+            <i class="fa-regular fa-pen-to-square"></i> Edit Details
+        </a>
+        <button type="button" onclick="triggerGlobalDelete('/api/delete/product/{{ product.id }}/', '{{ product.name|escapejs }}')" class="btn btn-danger" style="font-size: 0.9rem; background-color: var(--danger); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">
+            <i class="fa-regular fa-trash-can"></i> Delete
+        </button>
+    </div>
+</div>
+
+<!-- Key Performance Indicators Row -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <!-- Stock Metric -->
+    <div class="card-container" style="padding: 1.25rem; border-left: 4px solid {% if product.current_stock <= product.min_stock and product.track_inventory %}var(--danger){% else %}var(--success){% endif %};">
+        <div style="font-size: 0.8rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Current Stock</div>
+        <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.35rem;">
+            <span style="font-size: 1.85rem; font-weight: 800; color: {% if product.current_stock <= product.min_stock and product.track_inventory %}var(--danger){% else %}var(--foreground){% endif %};">
+                {{ product.current_stock }}
+            </span>
+            <span style="font-size: 0.9rem; font-weight: 600; color: var(--muted-foreground);">{{ product.unit.name|default:"PCS" }}</span>
+        </div>
+        <div style="margin-top: 0.4rem; font-size: 0.78rem;">
+            {% if product.track_inventory %}
+                {% if product.current_stock <= product.min_stock %}
+                    <span style="color: var(--danger); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Low Stock Alert (Min: {{ product.min_stock }})</span>
+                {% else %}
+                    <span style="color: var(--success); font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Sufficient Stock</span>
+                {% endif %}
+            {% else %}
+                <span style="color: var(--muted-foreground);"><i class="fa-solid fa-ban"></i> Inventory Tracking Off</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Selling Price Metric -->
+    <div class="card-container" style="padding: 1.25rem; border-left: 4px solid var(--primary);">
+        <div style="font-size: 0.8rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Selling Price</div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: var(--primary); margin-top: 0.35rem;">
+            ₹{{ product.selling_price }}
+        </div>
+        <div style="margin-top: 0.4rem; font-size: 0.78rem; color: var(--muted-foreground);">
+            MRP: <strong style="text-decoration: line-through;">₹{{ product.mrp }}</strong>
+            {% if product.tax_inclusive %}
+                <span class="badge badge-info" style="font-size: 0.7rem; margin-left: 0.25rem;">Tax Inclusive</span>
+            {% else %}
+                <span class="badge badge-secondary" style="font-size: 0.7rem; margin-left: 0.25rem;">+ GST Extra</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Purchase Price & Margin Metric -->
+    <div class="card-container" style="padding: 1.25rem; border-left: 4px solid #10b981;">
+        <div style="font-size: 0.8rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Purchase Price & Margin</div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 0.35rem;">
+            <span style="font-size: 1.5rem; font-weight: 800; color: var(--foreground);">₹{{ product.purchase_price }}</span>
+            <span class="badge badge-success" style="font-size: 0.85rem; font-weight: 700;">
+                +{{ profit_margin_pct }}%
+            </span>
+        </div>
+        <div style="margin-top: 0.4rem; font-size: 0.78rem; color: var(--muted-foreground);">
+            Unit Profit: <strong style="color: #10b981;">₹{{ profit_per_unit }}</strong> / {{ product.unit.name|default:"PCS" }}
+        </div>
+    </div>
+
+    <!-- HSN & Tax Code Metric -->
+    <div class="card-container" style="padding: 1.25rem; border-left: 4px solid #8b5cf6;">
+        <div style="font-size: 0.8rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">HSN/SAC & Tax Rate</div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: var(--foreground); margin-top: 0.35rem;">
+            <code>{{ product.hsn_sac.code|default:"N/A" }}</code>
+        </div>
+        <div style="margin-top: 0.4rem; font-size: 0.78rem; color: var(--muted-foreground);">
+            GST Rate: <strong style="color: #8b5cf6;">{{ product.hsn_sac.gst_rate|default:"0.00" }}%</strong> 
+            {% if product.hsn_sac.cgst_rate %}
+                (CGST: {{ product.hsn_sac.cgst_rate }}% | SGST: {{ product.hsn_sac.sgst_rate }}%)
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; align-items: start;">
+    
+    <!-- LEFT COLUMN: Product Image & Overview -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- Product Image & Quick Info -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1rem; font-weight: 700; margin: 0;">
+                    <i class="fa-regular fa-image" style="color: var(--primary); margin-right: 0.5rem;"></i> Product Image
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem; text-align: center;">
+                {% if product.get_image_url %}
+                    <img src="{{ product.get_image_url }}" alt="{{ product.name }}" style="max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border); padding: 0.5rem; background: var(--background);">
+                {% else %}
+                    <div style="padding: 3rem 1.5rem; border: 2px dashed var(--border); border-radius: 8px; background: var(--background); color: var(--muted-foreground);">
+                        <i class="fa-solid fa-box-open" style="font-size: 3.5rem; margin-bottom: 0.75rem; color: var(--muted-foreground); opacity: 0.5; display: block;"></i>
+                        <span style="font-size: 0.85rem; font-weight: 500;">No product image uploaded</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- System & Identifiers Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-barcode" style="color: var(--primary); margin-right: 0.5rem;"></i> Product Identifiers
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.88rem; border-collapse: separate; border-spacing: 0 0.6rem;">
+                    <tr>
+                        <td style="color: var(--muted-foreground); width: 45%; font-weight: 500;">SKU Code</td>
+                        <td style="font-weight: 600; text-align: right;">
+                            {% if product.sku %}
+                                <code style="background: var(--background); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid var(--border);">{{ product.sku }}</code>
+                            {% else %}
+                                <span style="color: var(--muted-foreground);">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Barcode</td>
+                        <td style="font-weight: 600; text-align: right;">
+                            {% if product.barcode %}
+                                <code style="background: var(--background); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid var(--border);">{{ product.barcode }}</code>
+                            {% else %}
+                                <span style="color: var(--muted-foreground);">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Unit of Measurement</td>
+                        <td style="font-weight: 600; text-align: right;">{{ product.unit.name|default:"PCS" }} {% if product.unit.symbol %}({{ product.unit.symbol }}){% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Category</td>
+                        <td style="font-weight: 600; text-align: right;"><span class="badge badge-secondary">{{ product.category.name|default:"General" }}</span></td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Brand</td>
+                        <td style="font-weight: 600; text-align: right;">{{ product.brand.name|default:"-" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Inventory Control Rules Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-sliders" style="color: var(--primary); margin-right: 0.5rem;"></i> Inventory Controls
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.88rem; border-collapse: separate; border-spacing: 0 0.6rem;">
+                    <tr>
+                        <td style="color: var(--muted-foreground); width: 55%; font-weight: 500;">Track Inventory</td>
+                        <td style="font-weight: 600; text-align: right;">
+                            <span class="badge {% if product.track_inventory %}badge-success{% else %}badge-secondary{% endif %}">
+                                {{ product.track_inventory|yesno:"Enabled,Disabled" }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Allow Negative Stock</td>
+                        <td style="font-weight: 600; text-align: right;">
+                            <span class="badge {% if product.allow_negative_stock %}badge-warning{% else %}badge-secondary{% endif %}">
+                                {{ product.allow_negative_stock|yesno:"Yes,No" }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Minimum Stock Alert</td>
+                        <td style="font-weight: 600; text-align: right;">{{ product.min_stock }} {{ product.unit.name|default:"PCS" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--muted-foreground); font-weight: 500;">Maximum Stock Limit</td>
+                        <td style="font-weight: 600; text-align: right;">{{ product.max_stock }} {{ product.unit.name|default:"PCS" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        {% if product.description %}
+        <!-- Product Description Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1rem; font-weight: 700; margin: 0;">
+                    <i class="fa-regular fa-file-lines" style="color: var(--primary); margin-right: 0.5rem;"></i> Description / Notes
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem; font-size: 0.9rem; line-height: 1.6; color: var(--foreground); white-space: pre-line;">
+                {{ product.description }}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- RIGHT COLUMN: Price Structure & Transaction Tabs -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+        <!-- Comprehensive Pricing Structure Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title" style="font-size: 1.05rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-indian-rupee-sign" style="color: var(--primary); margin-right: 0.5rem;"></i> Detailed Price Structure
+                </h3>
+                <span class="badge badge-secondary" style="font-weight: 500;">
+                    Tax Mode: {% if product.tax_inclusive %}Inclusive of Tax{% else %}Exclusive (+ GST){% endif %}
+                </span>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Selling Price (Standard)</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-top: 0.25rem;">₹{{ product.selling_price }}</div>
+                    </div>
+
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Maximum Retail Price (MRP)</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">₹{{ product.mrp }}</div>
+                    </div>
+
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Purchase Price (Cost)</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">₹{{ product.purchase_price }}</div>
+                    </div>
+
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Wholesale Price</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">₹{{ product.wholesale_price }}</div>
+                    </div>
+
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Retail Price</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">₹{{ product.retail_price }}</div>
+                    </div>
+
+                    <div style="padding: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--background);">
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; font-weight: 600;">Min Allowed Sale Price</div>
+                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--foreground); margin-top: 0.25rem;">₹{{ product.min_selling_price }}</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Movements History Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 class="card-title" style="font-size: 1.05rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary); margin-right: 0.5rem;"></i> Stock Movement History
+                </h3>
+                <a href="{% url 'stock_ledger' %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.3rem 0.65rem;">View Full Audit Log</a>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="custom-table" style="font-size: 0.85rem; margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Type</th>
+                                <th>Warehouse</th>
+                                <th style="text-align: right;">Qty</th>
+                                <th>Reference</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mv in stock_movements %}
+                                <tr>
+                                    <td style="white-space: nowrap;">{{ mv.created_at|date:"d M Y, h:i A" }}</td>
+                                    <td>
+                                        <span class="badge {% if mv.quantity > 0 %}badge-success{% else %}badge-danger{% endif %}" style="font-weight: 600;">
+                                            {{ mv.get_movement_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ mv.warehouse.name }}</td>
+                                    <td style="text-align: right; font-weight: 700; color: {% if mv.quantity > 0 %}var(--success){% else %}var(--danger){% endif %};">
+                                        {% if mv.quantity > 0 %}+{% endif %}{{ mv.quantity }}
+                                    </td>
+                                    <td>
+                                        {% if mv.reference_no %}
+                                            <code style="font-size: 0.8rem;">{{ mv.reference_no }}</code>
+                                        {% else %}
+                                            <span style="color: var(--muted-foreground);">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="color: var(--muted-foreground);">{{ mv.created_by.get_full_name|default:mv.created_by.username|default:"System" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No stock movement records found for this product.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Sales Transactions Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1.05rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-file-invoice" style="color: var(--primary); margin-right: 0.5rem;"></i> Recent Sales History
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                    <table class="custom-table" style="font-size: 0.85rem; margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th style="text-align: right;">Qty</th>
+                                <th style="text-align: right;">Sale Rate</th>
+                                <th style="text-align: right;">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'invoice_view' sale.invoice.id %}" style="color: var(--primary); font-weight: 600;">
+                                            {{ sale.invoice.invoice_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ sale.invoice.invoice_date|date:"d M Y" }}</td>
+                                    <td>{{ sale.invoice.customer.name }}</td>
+                                    <td style="text-align: right; font-weight: 600;">{{ sale.quantity }}</td>
+                                    <td style="text-align: right;">₹{{ sale.rate }}</td>
+                                    <td style="text-align: right; font-weight: 700;">₹{{ sale.total_amount }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No sales invoices generated with this product yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Purchase Transactions Card -->
+        <div class="card-container">
+            <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                <h3 class="card-title" style="font-size: 1.05rem; font-weight: 700; margin: 0;">
+                    <i class="fa-solid fa-cart-shopping" style="color: var(--primary); margin-right: 0.5rem;"></i> Recent Purchase History
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                    <table class="custom-table" style="font-size: 0.85rem; margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Bill #</th>
+                                <th>Date</th>
+                                <th>Supplier</th>
+                                <th style="text-align: right;">Qty</th>
+                                <th style="text-align: right;">Purchase Rate</th>
+                                <th style="text-align: right;">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for purch in recent_purchases %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'purchase_bill_view' purch.purchase_bill.id %}" style="color: var(--primary); font-weight: 600;">
+                                            {{ purch.purchase_bill.supplier_bill_no|default:purch.purchase_bill.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ purch.purchase_bill.bill_date|date:"d M Y" }}</td>
+                                    <td>{{ purch.purchase_bill.supplier.name }}</td>
+                                    <td style="text-align: right; font-weight: 600;">{{ purch.quantity }}</td>
+                                    <td style="text-align: right;">₹{{ purch.rate }}</td>
+                                    <td style="text-align: right; font-weight: 700;">₹{{ purch.total_amount }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 2rem;">No purchase bills generated for this product yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div id="adjust-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="card-container" style="max-width: 420px; width: 100%; margin: 0;">
+        <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700;">Adjust Stock Level</h3>
+            <button onclick="closeAdjustModal()" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);">&times;</button>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            <p style="font-weight: 600; margin-bottom: 0.5rem; color: var(--foreground);">{{ product.name }}</p>
+            <p style="font-size: 0.85rem; color: var(--muted-foreground); margin-bottom: 1rem;">
+                Current stock level: <strong style="color: var(--primary);">{{ product.current_stock }} {{ product.unit.name|default:"PCS" }}</strong>
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="adjust-qty" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Quantity Change (Inward/Outward) *</label>
+                <input type="number" id="adjust-qty" class="form-control" placeholder="Use negative values to deduct e.g. -5" step="any">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="adjust-reason" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Reason for Adjustment</label>
+                <input type="text" id="adjust-reason" class="form-control" placeholder="e.g. Damaged stock, physical audit">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="adjust-warehouse" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Select Warehouse</label>
+                <select id="adjust-warehouse" class="form-control">
+                    {% for wh in warehouses %}
+                        <option value="{{ wh.id }}">{{ wh.name }}</option>
+                    {% empty %}
+                        <option value="1">Main Warehouse</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button onclick="closeAdjustModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="submitAdjustment()" class="btn btn-primary">Post Adjustment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openAdjustModal() {
+        document.getElementById('adjust-qty').value = '';
+        document.getElementById('adjust-reason').value = '';
+        document.getElementById('adjust-modal').style.display = 'flex';
+    }
+
+    function closeAdjustModal() {
+        document.getElementById('adjust-modal').style.display = 'none';
+    }
+
+    function submitAdjustment() {
+        const qty = document.getElementById('adjust-qty').value;
+        const reason = document.getElementById('adjust-reason').value;
+        
+        if (!qty || isNaN(qty)) {
+            alert('Please enter a valid numeric quantity.');
+            return;
+        }
+
+        fetch('/company/products/{{ product.id }}/adjust-stock/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                quantity: parseFloat(qty),
+                reason: reason,
+                warehouse_id: document.getElementById('adjust-warehouse').value || 1
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeAdjustModal();
+                window.location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Connection error. Please try again.');
+        });
+    }
+</script>
+{% endblock %}
