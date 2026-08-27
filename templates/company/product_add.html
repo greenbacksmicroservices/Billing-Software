@@ -11,10 +11,13 @@
     </a>
 </div>
 
-<form method="POST" enctype="multipart/form-data" class="card-container">
+<form method="POST" enctype="multipart/form-data" class="card-container" id="productForm">
     {% csrf_token %}
     <div class="card-header"><h3 class="card-title">Product Details</h3></div>
     <div class="card-body">
+        <div id="hsn_sac_top_error" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: #fee2e2; border-left: 4px solid var(--danger, #ef4444); color: #991b1b; border-radius: 6px; font-weight: 600;">
+            <i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.5rem;"></i> Please select either an HSN or SAC code.
+        </div>
         {% if form.errors %}
             <div class="message-item error" style="margin-bottom: 1.5rem; padding: 1rem; background: #fee2e2; border-left: 4px solid var(--danger, #ef4444); color: #991b1b; border-radius: 6px;">
                 <strong>Unable to save product. Please check the highlighted fields.</strong>
@@ -25,6 +28,7 @@
                 </ul>
             </div>
         {% endif %}
+
 
         <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-bottom: 1rem;">1. Basic Details</h4>
         <div class="form-row">
@@ -67,27 +71,90 @@
         </div>
 
         <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 1rem;">2. Tax & Code configuration</h4>
-        <div class="form-row">
-            <div class="form-group" style="position: relative;">
-                <label class="form-label">HSN/SAC Code Assignment</label>
-                <div style="display: none;">
-                    {{ form.hsn_sac }}
+        
+        <div class="hsn-sac-section-container" style="background: var(--card, #ffffff); border: 1px solid var(--border, #cbd5e1); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-size: 1rem; font-weight: 700; color: var(--foreground, #0f172a); margin-bottom: 0.25rem; display: block;">HSN/SAC Code Assignment</label>
+                <div style="font-size: 0.875rem; color: var(--muted-foreground, #64748b);">Select the applicable code type:</div>
+            </div>
+
+            <!-- Hidden input managed by Django -->
+            {{ form.hsn_sac }}
+
+            <!-- HSN / SAC Round Pill Selection Buttons -->
+            <div class="code-type-selector" style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem;">
+                <button type="button" id="btn_type_hsn" class="pill-type-btn" style="padding: 0.55rem 1.85rem; border-radius: 9999px; border: 1.5px solid #cbd5e1; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: #ffffff; color: #1e293b; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-boxes-stacked" style="font-size: 0.85rem;"></i> HSN
+                </button>
+                <button type="button" id="btn_type_sac" class="pill-type-btn" style="padding: 0.55rem 1.85rem; border-radius: 9999px; border: 1.5px solid #cbd5e1; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: #ffffff; color: #1e293b; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-handshake-angle" style="font-size: 0.85rem;"></i> SAC
+                </button>
+            </div>
+
+            <!-- Searchable Dropdown Container -->
+            <div id="hsn_sac_dropdown_wrapper" style="display: none; position: relative; margin-bottom: 1rem; max-width: 650px;">
+                <label id="hsn_sac_input_label" class="form-label" style="font-weight: 600; color: var(--foreground, #0f172a); margin-bottom: 0.35rem; display: block;">HSN Code</label>
+                
+                <div style="position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground, #64748b); font-size: 0.9rem; pointer-events: none;"></i>
+                    <input type="text" id="hsn_sac_search_input" class="form-control" placeholder="Search or select HSN code" autocomplete="off" style="padding-left: 36px; padding-right: 32px; height: 42px; border-radius: 8px; font-size: 0.9rem;">
+                    <i id="hsn_search_spinner" class="fa-solid fa-circle-notch fa-spin" style="display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--primary, #2563eb);"></i>
                 </div>
-                <div class="hsn-searchable-select-wrapper" style="position: relative;">
-                    <div id="hsn_select_display" class="form-control" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--card, #ffffff);">
-                        <span id="hsn_select_label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; color: var(--foreground);">Search HSN/SAC Code...</span>
-                        <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: var(--muted-foreground); margin-left: 8px;"></i>
+
+                <!-- Floating Dropdown Box -->
+                <div id="hsn_sac_results_box" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1060; background: var(--card, #ffffff); border: 1px solid var(--border, #cbd5e1); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin-top: 4px; max-height: 260px; overflow-y: auto; padding: 4px;">
+                </div>
+            </div>
+
+            <!-- Selected Value Card & GST Information Breakdown -->
+            <div id="selected_code_card" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span id="card_type_badge" class="badge" style="background: #2563eb; color: #ffffff; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px; font-size: 0.8rem; letter-spacing: 0.5px;">HSN</span>
+                        <span id="card_code_number" style="font-size: 1.15rem; font-weight: 700; color: #0f172a; letter-spacing: 0.5px;">8471</span>
                     </div>
-                    <div id="hsn_select_dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1060; background: var(--card, #ffffff); border: 1px solid var(--border, #cbd5e1); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); margin-top: 4px; padding: 10px;">
-                        <div style="position: relative; margin-bottom: 8px;">
-                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); font-size: 0.85rem;"></i>
-                            <input type="text" id="hsn_search_input" class="form-control" placeholder="Search HSN/SAC Code..." style="padding-left: 32px; font-size: 0.875rem;" autocomplete="off">
+                    <button type="button" id="btn_clear_selection" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                        <i class="fa-solid fa-xmark"></i> Change / Clear Selection
+                    </button>
+                </div>
+
+                <div style="font-size: 0.925rem; color: #334155; margin-bottom: 1rem; line-height: 1.5; font-weight: 500;" id="card_description_text">
+                    Computers and data processing machines
+                </div>
+
+                <div style="border-top: 1px dashed #cbd5e1; padding-top: 0.85rem;">
+                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 0.6rem;">GST Information</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.75rem; background: #ffffff; padding: 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b;">GST Rate</div>
+                            <div id="card_gst_rate" style="font-size: 1rem; font-weight: 700; color: #0f172a;">18%</div>
                         </div>
-                        <div id="hsn_options_list" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b;">CGST Rate</div>
+                            <div id="card_cgst_rate" style="font-size: 0.95rem; font-weight: 600; color: #334155;">9%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b;">SGST Rate</div>
+                            <div id="card_sgst_rate" style="font-size: 0.95rem; font-weight: 600; color: #334155;">9%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b;">IGST Rate</div>
+                            <div id="card_igst_rate" style="font-size: 0.95rem; font-weight: 600; color: #334155;">18%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b;">UQC</div>
+                            <div id="card_uqc" style="font-size: 0.95rem; font-weight: 600; color: #334155;">PCS</div>
+                        </div>
+                        <div id="card_subcategory_box">
+                            <div style="font-size: 0.75rem; color: #64748b;">Sub Category</div>
+                            <div id="card_sub_category" style="font-size: 0.875rem; font-weight: 500; color: #334155;">-</div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="form-row">
             <div class="form-group">
                 <label class="form-label">Unit of Measure (UQC)</label>
                 {{ form.unit }}
@@ -191,6 +258,32 @@
 .autocomplete-suggestion-item.create-btn {
     font-weight: 600;
     color: var(--primary, #2563eb);
+}
+.pill-type-btn:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+}
+.pill-type-btn.active-hsn-sac {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+.hsn-sac-option-item {
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border-radius: 6px;
+    color: var(--foreground, #0f172a);
+    transition: background 0.15s;
+    border-bottom: 1px solid #f1f5f9;
+}
+.hsn-sac-option-item:last-child {
+    border-bottom: none;
+}
+.hsn-sac-option-item:hover {
+    background-color: #eff6ff;
+    color: #2563eb;
 }
 </style>
 
@@ -341,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function escapeHtml(str) {
-        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     setupSearchableAutocomplete({
@@ -360,112 +453,244 @@ document.addEventListener('DOMContentLoaded', function() {
         quickAddUrl: "{% url 'brand_quick_add' %}"
     });
 
-    // --- Searchable HSN/SAC Dropdown ---
+    // ==========================================
+    // NEW HSN / SAC CODE SELECTION MODULE
+    // ==========================================
     (function() {
-        const rawSelect = document.getElementById('id_hsn_sac');
-        const display = document.getElementById('hsn_select_display');
-        const label = document.getElementById('hsn_select_label');
-        const dropdown = document.getElementById('hsn_select_dropdown');
-        const searchInput = document.getElementById('hsn_search_input');
-        const optionsList = document.getElementById('hsn_options_list');
+        const hiddenInput = document.getElementById('id_hsn_sac');
+        const btnHsn = document.getElementById('btn_type_hsn');
+        const btnSac = document.getElementById('btn_type_sac');
+        const dropdownWrapper = document.getElementById('hsn_sac_dropdown_wrapper');
+        const inputLabel = document.getElementById('hsn_sac_input_label');
+        const searchInput = document.getElementById('hsn_sac_search_input');
+        const spinner = document.getElementById('hsn_search_spinner');
+        const resultsBox = document.getElementById('hsn_sac_results_box');
+        const selectedCard = document.getElementById('selected_code_card');
+        const btnClear = document.getElementById('btn_clear_selection');
 
-        if (!rawSelect || !display || !dropdown || !searchInput || !optionsList) return;
+        const cardTypeBadge = document.getElementById('card_type_badge');
+        const cardCodeNumber = document.getElementById('card_code_number');
+        const cardDescriptionText = document.getElementById('card_description_text');
+        const cardGstRate = document.getElementById('card_gst_rate');
+        const cardCgstRate = document.getElementById('card_cgst_rate');
+        const cardSgstRate = document.getElementById('card_sgst_rate');
+        const cardIgstRate = document.getElementById('card_igst_rate');
+        const cardUqc = document.getElementById('card_uqc');
+        const cardSubCategory = document.getElementById('card_sub_category');
 
-        const options = [];
-        Array.from(rawSelect.options).forEach(opt => {
-            options.push({
-                value: opt.value,
-                text: opt.text.trim()
-            });
-        });
+        if (!hiddenInput || !btnHsn || !btnSac || !dropdownWrapper || !searchInput || !resultsBox || !selectedCard) {
+            return;
+        }
 
-        function updateLabel() {
-            const selectedOpt = options.find(o => String(o.value) === String(rawSelect.value));
-            if (selectedOpt && selectedOpt.value) {
-                label.innerText = selectedOpt.text;
-                label.style.color = 'var(--foreground, #0f172a)';
+        let selectedType = null; // 'HSN' or 'SAC'
+        let debounceTimer = null;
+
+        function updatePillButtons(type) {
+            selectedType = type;
+            if (type === 'HSN') {
+                btnHsn.classList.add('active-hsn-sac');
+                btnHsn.style.backgroundColor = '#2563eb';
+                btnHsn.style.color = '#ffffff';
+                btnHsn.style.borderColor = '#2563eb';
+
+                btnSac.classList.remove('active-hsn-sac');
+                btnSac.style.backgroundColor = '#ffffff';
+                btnSac.style.color = '#1e293b';
+                btnSac.style.borderColor = '#cbd5e1';
+            } else if (type === 'SAC') {
+                btnSac.classList.add('active-hsn-sac');
+                btnSac.style.backgroundColor = '#2563eb';
+                btnSac.style.color = '#ffffff';
+                btnSac.style.borderColor = '#2563eb';
+
+                btnHsn.classList.remove('active-hsn-sac');
+                btnHsn.style.backgroundColor = '#ffffff';
+                btnHsn.style.color = '#1e293b';
+                btnHsn.style.borderColor = '#cbd5e1';
             } else {
-                label.innerText = 'Search HSN/SAC Code...';
-                label.style.color = 'var(--muted-foreground, #64748b)';
+                btnHsn.classList.remove('active-hsn-sac');
+                btnHsn.style.backgroundColor = '#ffffff';
+                btnHsn.style.color = '#1e293b';
+                btnHsn.style.borderColor = '#cbd5e1';
+
+                btnSac.classList.remove('active-hsn-sac');
+                btnSac.style.backgroundColor = '#ffffff';
+                btnSac.style.color = '#1e293b';
+                btnSac.style.borderColor = '#cbd5e1';
             }
         }
 
-        updateLabel();
-
-        function renderOptions(filterText = '') {
-            optionsList.innerHTML = '';
-            const query = filterText.trim().toLowerCase();
-            const filtered = options.filter(o => {
-                if (!query) return true;
-                return o.text.toLowerCase().includes(query) || String(o.value).toLowerCase().includes(query);
-            });
-
-            if (filtered.length === 0) {
-                const emptyDiv = document.createElement('div');
-                emptyDiv.style.cssText = 'padding: 8px 12px; font-size: 0.85rem; color: var(--muted-foreground); text-align: center;';
-                emptyDiv.innerText = 'No matching HSN/SAC codes found';
-                optionsList.appendChild(emptyDiv);
+        function selectType(type) {
+            if (selectedType === type && selectedCard.style.display === 'block') {
                 return;
             }
+            updatePillButtons(type);
+            hiddenInput.value = '';
+            selectedCard.style.display = 'none';
 
-            filtered.forEach(o => {
-                const item = document.createElement('div');
-                item.className = 'hsn-option-item';
-                const isSelected = String(o.value) === String(rawSelect.value);
-                item.style.cssText = `padding: 8px 12px; font-size: 0.875rem; cursor: pointer; border-radius: 6px; color: var(--foreground, #0f172a); transition: background 0.15s; ${isSelected ? 'background: var(--primary-bg, #eff6ff); font-weight: 600; color: var(--primary, #2563eb);' : ''}`;
-                item.innerText = o.text || '---------';
+            if (type === 'HSN') {
+                inputLabel.textContent = 'HSN Code';
+                searchInput.placeholder = 'Search or select HSN code';
+            } else {
+                inputLabel.textContent = 'SAC Code';
+                searchInput.placeholder = 'Search or select SAC code';
+            }
 
-                item.addEventListener('mouseenter', () => {
-                    if (String(o.value) !== String(rawSelect.value)) item.style.background = 'var(--muted-bg, #f1f5f9)';
-                });
-                item.addEventListener('mouseleave', () => {
-                    if (String(o.value) !== String(rawSelect.value)) item.style.background = 'transparent';
-                });
-
-                item.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    rawSelect.value = o.value;
-                    const event = new Event('change', { bubbles: true });
-                    rawSelect.dispatchEvent(event);
-                    updateLabel();
-                    closeDropdown();
-                });
-
-                optionsList.appendChild(item);
-            });
-        }
-
-        function openDropdown() {
-            dropdown.style.display = 'block';
+            dropdownWrapper.style.display = 'block';
             searchInput.value = '';
-            renderOptions();
+            fetchOptions('', type);
             searchInput.focus();
         }
 
-        function closeDropdown() {
-            dropdown.style.display = 'none';
+        function fetchOptions(query, type) {
+            if (!type) return;
+            spinner.style.display = 'inline-block';
+            const url = "{% url 'hsn_sac_search_api' %}?type=" + type + "&q=" + encodeURIComponent(query);
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    spinner.style.display = 'none';
+                    resultsBox.innerHTML = '';
+                    const list = data.results || data.hsn_sac_list || [];
+
+                    if (list.length === 0) {
+                        const noRes = document.createElement('div');
+                        noRes.style.cssText = 'padding: 12px; font-size: 0.875rem; color: #64748b; text-align: center;';
+                        noRes.textContent = 'No active ' + type + ' codes found matching query.';
+                        resultsBox.appendChild(noRes);
+                    } else {
+                        list.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'hsn-sac-option-item';
+                            div.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="font-weight: 700; color: #0f172a;">${escapeHtml(item.code)}</div>
+                                    <div style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 600;">GST: ${item.gst_rate}%</div>
+                                </div>
+                                <div style="font-size: 0.825rem; color: #475569; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                                    ${escapeHtml(item.description)}
+                                </div>
+                            `;
+                            div.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                renderSelectedCard(item);
+                            });
+                            resultsBox.appendChild(div);
+                        });
+                    }
+                    resultsBox.style.display = 'block';
+                })
+                .catch(err => {
+                    console.error('HSN/SAC search error:', err);
+                    spinner.style.display = 'none';
+                    resultsBox.style.display = 'none';
+                });
         }
 
-        display.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (dropdown.style.display === 'block') {
-                closeDropdown();
+        function renderSelectedCard(item) {
+            hiddenInput.value = item.id;
+            cardTypeBadge.textContent = item.type || selectedType;
+            cardCodeNumber.textContent = item.code;
+            cardDescriptionText.textContent = item.description;
+            cardGstRate.textContent = (item.gst_rate || '18') + '%';
+            cardCgstRate.textContent = (item.cgst_rate || '9') + '%';
+            cardSgstRate.textContent = (item.sgst_rate || '9') + '%';
+            cardIgstRate.textContent = (item.igst_rate || '18') + '%';
+            cardUqc.textContent = item.uqc || 'PCS';
+            cardSubCategory.textContent = item.sub_category || '-';
+
+            resultsBox.style.display = 'none';
+            dropdownWrapper.style.display = 'none';
+            selectedCard.style.display = 'block';
+        }
+
+        function clearSelection() {
+            hiddenInput.value = '';
+            selectedCard.style.display = 'none';
+            if (selectedType) {
+                dropdownWrapper.style.display = 'block';
+                searchInput.value = '';
+                fetchOptions('', selectedType);
+                searchInput.focus();
             } else {
-                openDropdown();
+                dropdownWrapper.style.display = 'none';
             }
+        }
+
+        btnHsn.addEventListener('click', function() {
+            selectType('HSN');
+        });
+
+        btnSac.addEventListener('click', function() {
+            selectType('SAC');
+        });
+
+        btnClear.addEventListener('click', function() {
+            clearSelection();
         });
 
         searchInput.addEventListener('input', function() {
-            renderOptions(this.value);
+            clearTimeout(debounceTimer);
+            const q = searchInput.value.trim();
+            debounceTimer = setTimeout(function() {
+                fetchOptions(q, selectedType);
+            }, 200);
+        });
+
+        searchInput.addEventListener('focus', function() {
+            if (selectedType && resultsBox.children.length > 0) {
+                resultsBox.style.display = 'block';
+            }
         });
 
         document.addEventListener('click', function(e) {
-            if (!display.contains(e.target) && !dropdown.contains(e.target)) {
-                closeDropdown();
+            if (!dropdownWrapper.contains(e.target)) {
+                resultsBox.style.display = 'none';
             }
         });
+
+        // Form submission validation for HSN/SAC
+        const formEl = document.getElementById('productForm');
+        const topError = document.getElementById('hsn_sac_top_error');
+        if (formEl) {
+            formEl.addEventListener('submit', function(e) {
+                if (!hiddenInput.value) {
+                    e.preventDefault();
+                    if (topError) {
+                        topError.style.display = 'block';
+                        topError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return false;
+                } else if (topError) {
+                    topError.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize state on page load (for edit or existing selection)
+        const initialId = hiddenInput.value;
+        if (initialId) {
+            fetch("{% url 'hsn_sac_search_api' %}?id=" + encodeURIComponent(initialId))
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.hsn_sac) {
+                        updatePillButtons(data.hsn_sac.type);
+                        renderSelectedCard(data.hsn_sac);
+                    } else {
+                        updatePillButtons(null);
+                    }
+                })
+                .catch(() => {
+                    updatePillButtons(null);
+                });
+        } else {
+            updatePillButtons(null);
+        }
     })();
 });
 </script>
 {% endblock %}
+
+
 

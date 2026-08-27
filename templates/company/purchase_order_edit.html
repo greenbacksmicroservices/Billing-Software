@@ -250,15 +250,9 @@
                     <span>Cess:</span>
                     <strong id="summary-cess">₹{{ po.cess_total }}</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem;" id="roundoff-row">
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <button type="button" id="toggle-roundoff-btn" onclick="toggleRoundOff()" class="btn btn-sm btn-outline-primary" style="padding: 1px 7px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--primary, #2563eb); display: inline-flex; align-items: center; justify-content: center;" title="Add Round Off">
-                            <i class="fa-solid fa-plus" id="roundoff-btn-icon"></i>
-                        </button>
-                        <span>Round Off:</span>
-                    </div>
-                    <strong id="summary-roundoff">₹{{ po.round_off }}</strong>
-                    <input type="hidden" name="round_off_applied" id="round_off_applied_input" value="{% if po.round_off != 0 %}true{% else %}false{% endif %}">
+                <div style="display: flex; justify-content: space-between;" id="roundoff-row">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹{{ po.round_off|default:'0.00' }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; color: var(--primary); margin-top: 0.2rem;">
                     <span>Grand Total:</span>
@@ -841,35 +835,6 @@
         recalculateAllRows();
     }
 
-    let isRoundOffEnabled = parseFloat("{{ po.round_off|default:'0' }}") !== 0;
-
-    function toggleRoundOff() {
-        isRoundOffEnabled = !isRoundOffEnabled;
-        const input = document.getElementById('round_off_applied_input');
-        if (input) input.value = isRoundOffEnabled ? 'true' : 'false';
-        updateRoundOffButtonUI();
-        recalculateAllRows();
-    }
-
-    function updateRoundOffButtonUI() {
-        const btn = document.getElementById('toggle-roundoff-btn');
-        const icon = document.getElementById('roundoff-btn-icon');
-        if (!btn || !icon) return;
-        if (isRoundOffEnabled) {
-            icon.className = 'fa-solid fa-minus';
-            btn.className = 'btn btn-sm btn-outline-danger';
-            btn.style.borderColor = 'var(--destructive, #dc2626)';
-            btn.style.color = 'var(--destructive, #dc2626)';
-            btn.title = 'Remove Round Off';
-        } else {
-            icon.className = 'fa-solid fa-plus';
-            btn.className = 'btn btn-sm btn-outline-primary';
-            btn.style.borderColor = 'var(--primary, #2563eb)';
-            btn.style.color = 'var(--primary, #2563eb)';
-            btn.title = 'Add Round Off';
-        }
-    }
-
     function recalculateAllRows() {
         let subtotal = 0;
         let discountTotal = 0;
@@ -878,13 +843,21 @@
         let sgstTotal = 0;
         let igstTotal = 0;
 
-        const isInterstate = (companyStateCode !== supplierStateCode);
+        const isInterstate = (companyStateCode && supplierStateCode && companyStateCode !== supplierStateCode);
 
         document.querySelectorAll('#items-tbody tr').forEach(tr => {
-            const qty = parseMoneyVal(tr.querySelector('.item-qty').value);
-            const rate = parseMoneyVal(tr.querySelector('.item-rate').value);
-            const disc = parseMoneyVal(tr.querySelector('.item-disc').value);
-            const gstRate = parseMoneyVal(tr.querySelector('.item-gstrate').value);
+            const qtyInput = tr.querySelector('.item-qty, .qty-input');
+            const rateInput = tr.querySelector('.item-rate, .rate-input');
+            const discInput = tr.querySelector('.item-disc, .disc-input');
+            const gstInput = tr.querySelector('.item-gstrate, .gst-input');
+            const cgstEl = tr.querySelector('.item-cgst');
+            const sgstEl = tr.querySelector('.item-sgst');
+            const igstEl = tr.querySelector('.item-igst');
+
+            const qty = window.parseMoney(qtyInput ? qtyInput.value : 0);
+            const rate = window.parseMoney(rateInput ? rateInput.value : 0);
+            const disc = window.parseMoney(discInput ? discInput.value : 0);
+            const gstRate = window.parseMoney(gstInput ? gstInput.value : 0);
 
             const gross = qty * rate;
             const taxable = Math.max(0, gross - disc);
@@ -896,51 +869,38 @@
 
             if (isInterstate) {
                 igstTotal += taxVal;
-                tr.querySelector('.item-cgst').innerText = '₹0.00';
-                tr.querySelector('.item-sgst').innerText = '₹0.00';
-                tr.querySelector('.item-igst').innerText = '₹' + taxVal.toFixed(2);
+                if (cgstEl) cgstEl.innerText = window.formatIndianCurrency(0);
+                if (sgstEl) sgstEl.innerText = window.formatIndianCurrency(0);
+                if (igstEl) igstEl.innerText = window.formatIndianCurrency(taxVal);
             } else {
                 const halfTax = taxVal / 2;
                 cgstTotal += halfTax;
                 sgstTotal += halfTax;
-                tr.querySelector('.item-cgst').innerText = '₹' + halfTax.toFixed(2);
-                tr.querySelector('.item-sgst').innerText = '₹' + halfTax.toFixed(2);
-                tr.querySelector('.item-igst').innerText = '₹0.00';
+                if (cgstEl) cgstEl.innerText = window.formatIndianCurrency(halfTax);
+                if (sgstEl) sgstEl.innerText = window.formatIndianCurrency(halfTax);
+                if (igstEl) igstEl.innerText = window.formatIndianCurrency(0);
             }
         });
 
         const calculatedGrand = taxableTotal + cgstTotal + sgstTotal + igstTotal;
-        let roundedGrand = calculatedGrand;
-        let roundOff = 0;
 
-        if (isRoundOffEnabled) {
-            roundedGrand = Math.round(calculatedGrand);
-            roundOff = roundedGrand - calculatedGrand;
-        }
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const discountEl = document.getElementById('summary-discount');
+        const cgstSumEl = document.getElementById('summary-cgst');
+        const sgstSumEl = document.getElementById('summary-sgst');
+        const igstSumEl = document.getElementById('summary-igst');
+        const cessSumEl = document.getElementById('summary-cess');
+        const roundoffSumEl = document.getElementById('summary-roundoff');
+        const grandEl = document.getElementById('summary-grand');
 
-        document.getElementById('summary-subtotal').innerText = '₹' + subtotal.toFixed(2);
-        document.getElementById('summary-discount').innerText = '₹' + discountTotal.toFixed(2);
-
-        const cgstRow = document.getElementById('cgst-row');
-        const sgstRow = document.getElementById('sgst-row');
-        const igstRow = document.getElementById('igst-row');
-
-        if (isInterstate) {
-            cgstRow.style.display = 'none';
-            sgstRow.style.display = 'none';
-            igstRow.style.display = 'flex';
-            document.getElementById('summary-igst').innerText = '₹' + igstTotal.toFixed(2);
-        } else {
-            cgstRow.style.display = 'flex';
-            sgstRow.style.display = 'flex';
-            igstRow.style.display = 'none';
-            document.getElementById('summary-cgst').innerText = '₹' + cgstTotal.toFixed(2);
-            document.getElementById('summary-sgst').innerText = '₹' + sgstTotal.toFixed(2);
-        }
-
-        document.getElementById('summary-cess').innerText = '₹0.00';
-        document.getElementById('summary-roundoff').innerText = '₹' + roundOff.toFixed(2);
-        document.getElementById('summary-grand').innerText = '₹' + roundedGrand.toFixed(2);
+        if (subtotalEl) subtotalEl.innerText = window.formatIndianCurrency(subtotal);
+        if (discountEl) discountEl.innerText = window.formatIndianCurrency(discountTotal);
+        if (cgstSumEl) cgstSumEl.innerText = window.formatIndianCurrency(cgstTotal);
+        if (sgstSumEl) sgstSumEl.innerText = window.formatIndianCurrency(sgstTotal);
+        if (igstSumEl) igstSumEl.innerText = window.formatIndianCurrency(igstTotal);
+        if (cessSumEl) cessSumEl.innerText = window.formatIndianCurrency(0);
+        if (roundoffSumEl) roundoffSumEl.innerText = window.formatIndianCurrency(0);
+        if (grandEl) grandEl.innerText = window.formatIndianCurrency(calculatedGrand);
     }
 
     // Helper functions for safe toast notifications

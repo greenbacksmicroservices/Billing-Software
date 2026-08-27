@@ -2359,17 +2359,42 @@ def hsn_sac_search_api(request):
         
     company = getattr(request.user, 'company', None)
     q = request.GET.get('q', '').strip()
+    type_param = request.GET.get('type', '').strip().upper()
+    id_param = request.GET.get('id', '').strip()
     
     qs = HSNSACMaster.objects.filter(is_active=True)
     if company:
         qs = qs.filter(Q(company=company) | Q(company__isnull=True))
     else:
         qs = qs.filter(company__isnull=True)
+
+    if id_param and id_param.isdigit():
+        hsn = qs.filter(id=int(id_param)).first()
+        if hsn:
+            item_data = {
+                'id': hsn.id,
+                'code': hsn.code,
+                'description': hsn.description,
+                'type': hsn.type,
+                'gst_rate': str(hsn.gst_rate),
+                'cgst_rate': str(hsn.get_cgst_rate()),
+                'sgst_rate': str(hsn.get_sgst_rate()),
+                'igst_rate': str(hsn.get_igst_rate()),
+                'cess_rate': str(hsn.cess_rate),
+                'uqc': hsn.uqc or 'PCS',
+                'category': hsn.category or '',
+                'sub_category': hsn.sub_category or ''
+            }
+            return JsonResponse({'status': 'success', 'hsn_sac': item_data, 'results': [item_data], 'hsn_sac_list': [item_data]})
+        return JsonResponse({'status': 'error', 'message': 'HSN/SAC record not found.'}, status=404)
+
+    if type_param in ['HSN', 'SAC']:
+        qs = qs.filter(type=type_param)
         
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(description__icontains=q))
         
-    records = qs.order_by('code')[:25]
+    records = qs.order_by('code')[:50]
     
     data = []
     for h in records:
@@ -2378,17 +2403,18 @@ def hsn_sac_search_api(request):
             'code': h.code,
             'description': h.description,
             'type': h.type,
-            'gst_rate': float(h.gst_rate),
-            'cgst_rate': float(h.get_cgst_rate()),
-            'sgst_rate': float(h.get_sgst_rate()),
-            'igst_rate': float(h.get_igst_rate()),
-            'cess_rate': float(h.cess_rate),
+            'gst_rate': str(h.gst_rate),
+            'cgst_rate': str(h.get_cgst_rate()),
+            'sgst_rate': str(h.get_sgst_rate()),
+            'igst_rate': str(h.get_igst_rate()),
+            'cess_rate': str(h.cess_rate),
             'uqc': h.uqc or 'PCS',
             'category': h.category or '',
             'sub_category': h.sub_category or ''
         })
         
-    return JsonResponse({'status': 'success', 'hsn_sac_list': data})
+    return JsonResponse({'status': 'success', 'results': data, 'hsn_sac_list': data})
+
 
 
 def category_search_api(request):

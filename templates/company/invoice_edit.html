@@ -137,14 +137,9 @@
                     <span>Cess:</span>
                     <strong id="summary-cess">₹{{ invoice.cess_total }}</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;" id="roundoff-row">
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <button type="button" id="toggle-roundoff-btn" onclick="toggleRoundOff()" class="btn btn-sm btn-outline-primary" style="padding: 1px 7px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--primary, #2563eb); display: inline-flex; align-items: center; justify-content: center;" title="Add Round Off">
-                            <i class="fa-solid fa-plus" id="roundoff-btn-icon"></i>
-                        </button>
-                        <span>Round Off:</span>
-                    </div>
-                    <strong id="summary-roundoff">₹{{ invoice.round_off }}</strong>
+                <div style="display: flex; justify-content: space-between;" id="roundoff-row">
+                    <span>Round Off:</span>
+                    <strong id="summary-roundoff">₹{{ invoice.round_off|default:'0.00' }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700; color: var(--primary);">
                     <span>Grand Total:</span>
@@ -266,35 +261,9 @@
         const posCodeInput = document.getElementById('place-of-supply-code');
         if (posInput) posInput.addEventListener('input', recalculateAll);
         if (posCodeInput) posCodeInput.addEventListener('input', recalculateAll);
-        updateRoundOffButtonUI();
     });
 
-    let isRoundOffEnabled = window.parseMoney("{{ invoice.round_off|default:'0' }}") !== 0;
-
-    function toggleRoundOff() {
-        isRoundOffEnabled = !isRoundOffEnabled;
-        updateRoundOffButtonUI();
-        calculateTotals();
-    }
-
-    function updateRoundOffButtonUI() {
-        const btn = document.getElementById('toggle-roundoff-btn');
-        const icon = document.getElementById('roundoff-btn-icon');
-        if (!btn || !icon) return;
-        if (isRoundOffEnabled) {
-            icon.className = 'fa-solid fa-minus';
-            btn.className = 'btn btn-sm btn-outline-danger';
-            btn.style.borderColor = 'var(--destructive, #dc2626)';
-            btn.style.color = 'var(--destructive, #dc2626)';
-            btn.title = 'Remove Round Off';
-        } else {
-            icon.className = 'fa-solid fa-plus';
-            btn.className = 'btn btn-sm btn-outline-primary';
-            btn.style.borderColor = 'var(--primary, #2563eb)';
-            btn.style.color = 'var(--primary, #2563eb)';
-            btn.title = 'Add Round Off';
-        }
-    }
+    let isRoundOffEnabled = false;
 
     function toggleAdvancePayment(isYes) {
         const advGroup = document.getElementById('advance-amount-group');
@@ -502,7 +471,8 @@
 
     function recalculateAll() {
         const rows = document.querySelectorAll('.item-row');
-        const posCode = (document.getElementById('place-of-supply-code').value || '').trim().padStart(2, '0');
+        const posCodeInput = document.getElementById('place-of-supply-code');
+        const posCode = (posCodeInput ? posCodeInput.value : '').trim().padStart(2, '0');
         const companyStateCodeNormalized = (companyStateCode || '').trim().padStart(2, '0');
         
         let subtotal = 0;
@@ -513,16 +483,23 @@
         let igstTotal = 0;
         let cessTotal = 0;
         
-        const isSameState = (posCode === companyStateCodeNormalized);
+        const isSameState = (!posCode || posCode === '00' || posCode === companyStateCodeNormalized);
         
         rows.forEach(row => {
-            const qty = window.parseMoney(row.querySelector('.qty-input').value) || 0;
-            const rate = window.parseMoney(row.querySelector('.rate-input').value) || 0;
-            const disc = window.parseMoney(row.querySelector('.disc-input').value) || 0;
-            const gstRate = window.parseMoney(row.querySelector('.gst-input').value) || 0;
+            const qtyInput = row.querySelector('.qty-input, .item-qty');
+            const rateInput = row.querySelector('.rate-input, .item-rate');
+            const discInput = row.querySelector('.disc-input, .item-disc');
+            const gstInput = row.querySelector('.gst-input, .item-gstrate');
+            const rowTotalEl = row.querySelector('.row-total, .item-total');
             
-            const prodId = row.querySelector('.prod-select').value;
-            const prod = products.find(p => p.id == prodId);
+            const qty = window.parseMoney(qtyInput ? qtyInput.value : 0);
+            const rate = window.parseMoney(rateInput ? rateInput.value : 0);
+            const disc = window.parseMoney(discInput ? discInput.value : 0);
+            const gstRate = window.parseMoney(gstInput ? gstInput.value : 0);
+            
+            const prodSelect = row.querySelector('.prod-select');
+            const prodId = prodSelect ? prodSelect.value : null;
+            const prod = prodId ? products.find(p => p.id == prodId) : null;
             const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
@@ -536,7 +513,7 @@
             let rowCess = taxable * (cessRate / 100.00);
             let rowTotal = taxable + rowGst + rowCess;
             
-            row.querySelector('.row-total').innerText = window.formatIndianCurrency(rowTotal);
+            if (rowTotalEl) rowTotalEl.innerText = window.formatIndianCurrency(rowTotal);
             
             subtotal += gross;
             discountTotal += disc;
@@ -551,24 +528,25 @@
             }
         });
 
-        const totalTaxableAndTax = taxableTotal + cgstTotal + sgstTotal + igstTotal + cessTotal;
-        let roundedGrand = totalTaxableAndTax;
-        let roundOff = 0;
+        const subtotalEl = document.getElementById('summary-subtotal');
+        const discountEl = document.getElementById('summary-discount');
+        const cgstEl = document.getElementById('summary-cgst');
+        const sgstEl = document.getElementById('summary-sgst');
+        const igstEl = document.getElementById('summary-igst');
+        const cessEl = document.getElementById('summary-cess');
+        const roundoffEl = document.getElementById('summary-roundoff');
+        const grandEl = document.getElementById('summary-grand');
 
-        if (isRoundOffEnabled) {
-            roundedGrand = Math.round(totalTaxableAndTax);
-            roundOff = roundedGrand - totalTaxableAndTax;
-        }
-        
-        document.getElementById('summary-subtotal').innerText = window.formatIndianCurrency(subtotal);
-        document.getElementById('summary-discount').innerText = window.formatIndianCurrency(discountTotal);
-        
-        document.getElementById('summary-cgst').innerText = window.formatIndianCurrency(cgstTotal);
-        document.getElementById('summary-sgst').innerText = window.formatIndianCurrency(sgstTotal);
-        document.getElementById('summary-igst').innerText = window.formatIndianCurrency(igstTotal);
-        document.getElementById('summary-cess').innerText = window.formatIndianCurrency(cessTotal);
-        document.getElementById('summary-roundoff').innerText = window.formatIndianCurrency(roundOff);
-        document.getElementById('summary-grand').innerText = window.formatIndianCurrency(roundedGrand);
+        if (subtotalEl) subtotalEl.innerText = window.formatIndianCurrency(subtotal);
+        if (discountEl) discountEl.innerText = window.formatIndianCurrency(discountTotal);
+        if (cgstEl) cgstEl.innerText = window.formatIndianCurrency(cgstTotal);
+        if (sgstEl) sgstEl.innerText = window.formatIndianCurrency(sgstTotal);
+        if (igstEl) igstEl.innerText = window.formatIndianCurrency(igstTotal);
+        if (cessEl) cessEl.innerText = window.formatIndianCurrency(cessTotal);
+        if (roundoffEl) roundoffEl.innerText = window.formatIndianCurrency(0);
+
+        const grandTotal = taxableTotal + cgstTotal + sgstTotal + igstTotal + cessTotal;
+        if (grandEl) grandEl.innerText = window.formatIndianCurrency(grandTotal);
 
         recalculatePaymentDetails();
     }

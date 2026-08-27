@@ -189,11 +189,10 @@ def calculate_item_gst(company_state_code, pos_state_code, taxable_value, gst_ra
     taxable_value = Decimal(str(taxable_value))
     gst_rate = Decimal(str(gst_rate))
     
-    # Standardize codes
     comp_code = str(company_state_code or '').strip().zfill(2)
     pos_code = str(pos_state_code or '').strip().zfill(2)
     
-    if comp_code == pos_code:
+    if not pos_state_code or pos_code == '00' or comp_code == pos_code:
         # Intra-state
         cgst_rate = (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
         sgst_rate = (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
@@ -391,8 +390,6 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
         should_round = False
         if apply_round_off is not None:
             should_round = bool(apply_round_off)
-        elif hasattr(doc, 'round_off') and doc.round_off != Decimal('0.00'):
-            should_round = True
 
         if should_round:
             rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
@@ -462,7 +459,10 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
         cess_total += res['cess_amount']
 
     doc.subtotal = quantize_amount(subtotal)
-    doc.discount_total = quantize_amount(discount_total)
+    if hasattr(doc, 'discount_total'):
+        doc.discount_total = quantize_amount(discount_total)
+    elif hasattr(doc, 'discount'):
+        doc.discount = quantize_amount(discount_total)
 
     if hasattr(doc, 'taxable_value'):
         doc.taxable_value = quantize_amount(taxable_total)
@@ -489,8 +489,6 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
     should_round = False
     if apply_round_off is not None:
         should_round = bool(apply_round_off)
-    elif hasattr(doc, 'round_off') and doc.round_off != Decimal('0.00'):
-        should_round = True
 
     if should_round:
         rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))

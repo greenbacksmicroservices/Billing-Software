@@ -362,6 +362,7 @@ window.parseMoney = function(val) {
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
     let s = String(val).trim()
         .replace(/[₹$€£\u20B9\u00A0]/g, '')
+        .replace(/%/g, '')
         .replace(/\b(inr|rupees?)\b/gi, '')
         .replace(/rs\.?/gi, '')
         .replace(/,/g, '')

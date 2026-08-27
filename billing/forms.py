@@ -116,22 +116,38 @@ class ProductForm(MoneyModelForm):
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'hsn_sac': forms.HiddenInput(),
         }
 
     def __init__(self, company, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.company = company
         # Filter foreign keys by company
         from .models import Category, Brand, Unit, HSNSACMaster
         self.fields['category'].queryset = Category.objects.filter(company=company)
         self.fields['brand'].queryset = Brand.objects.filter(company=company)
         self.fields['unit'].queryset = Unit.objects.filter(company=company)
         self.fields['hsn_sac'].queryset = HSNSACMaster.objects.filter(Q(company=company) | Q(company__isnull=True), is_active=True)
+        self.fields['hsn_sac'].error_messages['invalid_choice'] = "Selected HSN/SAC code is no longer available. Please select a valid code."
+        self.fields['hsn_sac'].error_messages['required'] = "Please select either an HSN or SAC code."
         
         for field_name, field in self.fields.items():
             if field_name != 'name':
                 field.required = False
-            if field_name not in ['description', 'image', 'tax_inclusive', 'track_inventory', 'allow_negative_stock']:
+            if field_name not in ['description', 'image', 'tax_inclusive', 'track_inventory', 'allow_negative_stock', 'hsn_sac']:
                 field.widget.attrs['class'] = 'form-control'
+
+    def clean_hsn_sac(self):
+        hsn_sac = self.cleaned_data.get('hsn_sac')
+        if not hsn_sac:
+            return None
+        if not hsn_sac.is_active:
+            raise forms.ValidationError("Selected HSN/SAC code is no longer available. Please select a valid code.")
+        if hsn_sac.company_id and self.company and hsn_sac.company_id != self.company.id:
+            raise forms.ValidationError("Selected HSN/SAC code is no longer available. Please select a valid code.")
+        return hsn_sac
+
+
 
 
 class CustomerForm(MoneyModelForm):
