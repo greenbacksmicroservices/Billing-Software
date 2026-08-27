@@ -1,0 +1,459 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Apply GST - GST Billing System{% endblock %}
+{% block sub_apply_gst %}sub-item-active{% endblock %}
+
+{% block content %}
+<style>
+    .apply-gst-banner {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        border-radius: 12px;
+        color: #ffffff;
+        padding: 1.15rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .apply-gst-banner::before {
+        content: '\f570';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: -15px;
+        bottom: -20px;
+        font-size: 6rem;
+        opacity: 0.1;
+        color: #ffffff;
+        pointer-events: none;
+    }
+    .banner-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f59e0b;
+        color: #0f172a;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: 12px;
+        margin-bottom: 0.35rem;
+    }
+    .banner-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        margin: 0 0 0.25rem 0;
+        line-height: 1.25;
+    }
+    .banner-sub {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin: 0;
+        max-width: 580px;
+        line-height: 1.4;
+    }
+    .price-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.22);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.925rem;
+        font-weight: 700;
+        color: #ffffff;
+        white-space: nowrap;
+    }
+
+    .form-grid-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 1.75rem;
+    }
+
+    @media (max-width: 992px) {
+        .form-grid-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .custom-alert {
+        padding: 1rem 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 0.925rem;
+    }
+    .custom-alert-success {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+    }
+    .custom-alert-danger {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .status-pending {
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+    .status-done {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .feature-list-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        color: var(--foreground, #334155);
+    }
+    .feature-icon {
+        color: var(--success, #10b981);
+        font-size: 1.1rem;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Apply GST</h1>
+        <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: var(--muted-foreground, #64748b);">Submit your GST registration details to get expert assistance from our team.</p>
+    </div>
+</div>
+
+<!-- Promotional Banner -->
+<div class="apply-gst-banner">
+    <div>
+        <div class="banner-badge">
+            <i class="fa-solid fa-star"></i> GST REGISTRATION
+        </div>
+        <h2 class="banner-title">Get your GST Registration Started</h2>
+        <p class="banner-sub">Start your GST registration process with our expert assistance. Fast, reliable, and hassle-free documentation.</p>
+    </div>
+    <div class="price-pill">
+        <i class="fa-solid fa-tag" style="color: #f59e0b;"></i> Starting from ₹750
+    </div>
+</div>
+
+<!-- Main Form Section -->
+<div class="form-grid-layout">
+    <!-- Left Column: Form Card -->
+    <div class="card-container" style="margin-bottom: 0;">
+        <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border, #e2e8f0);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-pen" style="color: var(--primary, #2563eb);"></i> Apply for GST
+            </h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--muted-foreground, #64748b);">Please enter your details below and our team will contact you.</p>
+        </div>
+
+        <div class="card-body" style="padding: 1.5rem;">
+            <!-- Success Alert -->
+            <div id="form-success-alert" class="custom-alert custom-alert-success" style="display: none;">
+                <i class="fa-solid fa-circle-check" style="font-size: 1.4rem; color: #16a34a;"></i>
+                <div>
+                    <strong style="display: block; margin-bottom: 2px; font-size: 0.95rem;">Application Submitted!</strong>
+                    <span id="form-success-message">Your GST application has been submitted successfully. Our team will contact you shortly.</span>
+                </div>
+            </div>
+
+            <!-- Error Alert -->
+            <div id="form-error-alert" class="custom-alert custom-alert-danger" style="display: none;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.4rem; color: #dc2626;"></i>
+                <div>
+                    <strong style="display: block; margin-bottom: 2px; font-size: 0.95rem;">Submission Error</strong>
+                    <span id="form-error-message">Unable to submit your application. Please check details and try again.</span>
+                </div>
+            </div>
+
+            <form id="gst-application-form" method="POST" action="{% url 'apply_gst' %}" novalidate>
+                {% csrf_token %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">Full Name <span style="color: var(--destructive, #ef4444);">*</span></label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" value="{{ initial_name }}" placeholder="Enter full name" required>
+                        <small class="field-error-msg" id="err-full_name" style="color: var(--destructive, #ef4444); display: none; margin-top: 4px; font-size: 0.8rem;">Please enter your full name.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="phone_number">Phone Number <span style="color: var(--destructive, #ef4444);">*</span></label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" value="{{ initial_phone }}" placeholder="10-digit mobile number" maxlength="15" required>
+                        <small class="field-error-msg" id="err-phone_number" style="color: var(--destructive, #ef4444); display: none; margin-top: 4px; font-size: 0.8rem;">Please enter a valid 10-digit phone number.</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address <span style="color: var(--destructive, #ef4444);">*</span></label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ initial_email }}" placeholder="example@email.com" required>
+                    <small class="field-error-msg" id="err-email" style="color: var(--destructive, #ef4444); display: none; margin-top: 4px; font-size: 0.8rem;">Please enter a valid email address.</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="message">Message / Requirements</label>
+                    <textarea class="form-control" id="message" name="message" rows="4" placeholder="Tell us about your business or any specific requirements (optional)..." style="resize: vertical;"></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border, #e2e8f0);">
+                    <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.65rem 1.5rem; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-paper-plane"></i> Submit Application
+                    </button>
+                    <span style="font-size: 0.825rem; color: var(--muted-foreground, #64748b); display: flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-lock" style="color: #10b981;"></i> Your details are safe with us
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Benefits / Perks -->
+    <div class="card-container" style="background: var(--muted-bg, #f8fafc); border: 1px solid var(--border, #e2e8f0); height: fit-content;">
+        <div class="card-header" style="padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--border, #e2e8f0);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-shield-halved" style="color: var(--primary, #2563eb);"></i> Why Choose Us?
+            </h3>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            <div class="feature-list-item">
+                <i class="fa-solid fa-circle-check feature-icon"></i>
+                <div>
+                    <strong>Expert Guidance:</strong> Complete assistance by experienced GST professionals.
+                </div>
+            </div>
+            <div class="feature-list-item">
+                <i class="fa-solid fa-circle-check feature-icon"></i>
+                <div>
+                    <strong>Fast Process:</strong> Application submitted swiftly without unnecessary delay.
+                </div>
+            </div>
+            <div class="feature-list-item">
+                <i class="fa-solid fa-circle-check feature-icon"></i>
+                <div>
+                    <strong>Affordable Pricing:</strong> Clear upfront pricing starting from ₹750.
+                </div>
+            </div>
+            <div class="feature-list-item" style="margin-bottom: 0;">
+                <i class="fa-solid fa-circle-check feature-icon"></i>
+                <div>
+                    <strong>Dedicated Support:</strong> Realtime tracking of your application status.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- My GST Applications Table Section -->
+<div class="card-container" style="margin-top: 2rem;">
+    <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border, #e2e8f0);">
+        <h3 class="card-title" style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary, #2563eb);"></i> My GST Applications
+        </h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="data-table" style="width: 100%; margin: 0;">
+                <thead>
+                    <tr>
+                        <th style="padding: 12px 16px;">#</th>
+                        <th style="padding: 12px 16px;">Submitted Date</th>
+                        <th style="padding: 12px 16px;">Applicant Name</th>
+                        <th style="padding: 12px 16px;">Phone</th>
+                        <th style="padding: 12px 16px;">Email</th>
+                        <th style="padding: 12px 16px;">Status</th>
+                        <th style="padding: 12px 16px;">Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="applications-tbody">
+                    {% if applications %}
+                        {% for app in applications %}
+                        <tr>
+                            <td style="padding: 14px 16px; font-weight: 600; color: var(--muted-foreground, #64748b);">#{{ app.id }}</td>
+                            <td style="padding: 14px 16px;">{{ app.created_at|date:"d M Y, h:i A" }}</td>
+                            <td style="padding: 14px 16px; font-weight: 600;">{{ app.full_name }}</td>
+                            <td style="padding: 14px 16px;">{{ app.phone_number }}</td>
+                            <td style="padding: 14px 16px;">{{ app.email }}</td>
+                            <td style="padding: 14px 16px;">
+                                {% if app.status == 'Work Done' %}
+                                    <span class="status-pill status-done"><i class="fa-solid fa-circle-check"></i> Work Done</span>
+                                {% else %}
+                                    <span class="status-pill status-pending"><i class="fa-solid fa-clock"></i> Work Pending</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 16px; color: var(--muted-foreground, #64748b); font-size: 0.85rem;">{{ app.updated_at|date:"d M Y, h:i A" }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="empty-row">
+                            <td colspan="7" style="text-align: center; padding: 2.5rem 1rem; color: var(--muted-foreground, #64748b);">
+                                <i class="fa-solid fa-inbox" style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.4; display: block;"></i>
+                                <span style="font-size: 0.95rem; font-weight: 500;">No GST applications submitted yet.</span>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('gst-application-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const successAlert = document.getElementById('form-success-alert');
+    const successMessage = document.getElementById('form-success-message');
+    const errorAlert = document.getElementById('form-error-alert');
+    const errorMessage = document.getElementById('form-error-message');
+    const tbody = document.getElementById('applications-tbody');
+
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Reset error messages and alerts
+        successAlert.style.display = 'none';
+        errorAlert.style.display = 'none';
+        document.querySelectorAll('.field-error-msg').forEach(el => el.style.display = 'none');
+
+        const fullNameInput = document.getElementById('full_name');
+        const phoneInput = document.getElementById('phone_number');
+        const emailInput = document.getElementById('email');
+        const messageInput = document.getElementById('message');
+
+        const fullName = fullNameInput ? fullNameInput.value.trim() : '';
+        const phone = phoneInput ? phoneInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+        const message = messageInput ? messageInput.value.trim() : '';
+
+        // Front-end validation
+        let isValid = true;
+        if (!fullName) {
+            document.getElementById('err-full_name').style.display = 'block';
+            isValid = false;
+        }
+
+        const cleanedPhone = phone.replace(/[\s\-\+]/g, '');
+        if (!phone || cleanedPhone.length < 10 || !/^\d+$/.test(cleanedPhone)) {
+            document.getElementById('err-phone_number').style.display = 'block';
+            isValid = false;
+        }
+
+        if (!email || !email.includes('@') || !email.includes('.')) {
+            document.getElementById('err-email').style.display = 'block';
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        // Loading state
+        const originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+
+        fetch('{% url "apply_gst" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                full_name: fullName,
+                phone_number: phone,
+                email: email,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success || data.status === 'success') {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Application Submitted';
+                submitBtn.style.backgroundColor = 'var(--success, #10b981)';
+
+                if (successMessage) successMessage.innerText = data.message || 'Your GST application has been submitted successfully. Our team will contact you shortly.';
+                successAlert.style.display = 'flex';
+
+                if (messageInput) messageInput.value = '';
+
+                // Insert into application history table in real time
+                if (data.application && tbody) {
+                    const emptyRow = document.getElementById('empty-row');
+                    if (emptyRow) emptyRow.remove();
+
+                    const newRow = document.createElement('tr');
+                    newRow.style.background = '#f0fdf4';
+                    newRow.innerHTML = `
+                        <td style="padding: 14px 16px; font-weight: 600; color: var(--muted-foreground, #64748b);">#${data.application.id}</td>
+                        <td style="padding: 14px 16px;">${data.application.created_at}</td>
+                        <td style="padding: 14px 16px; font-weight: 600;">${escapeHtml(data.application.full_name)}</td>
+                        <td style="padding: 14px 16px;">${escapeHtml(data.application.phone_number)}</td>
+                        <td style="padding: 14px 16px;">${escapeHtml(data.application.email)}</td>
+                        <td style="padding: 14px 16px;">
+                            <span class="status-pill status-pending"><i class="fa-solid fa-clock"></i> Work Pending</span>
+                        </td>
+                        <td style="padding: 14px 16px; color: var(--muted-foreground, #64748b); font-size: 0.85rem;">${data.application.created_at}</td>
+                    `;
+                    tbody.insertBefore(newRow, tbody.firstChild);
+                }
+
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalBtnHtml;
+                    submitBtn.style.backgroundColor = '';
+                }, 4000);
+
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+                if (errorMessage) errorMessage.innerText = data.message || 'Unable to submit your application. Please check details and try again.';
+                errorAlert.style.display = 'flex';
+            }
+        })
+        .catch(error => {
+            console.error('Error submitting application:', error);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+            if (errorMessage) errorMessage.innerText = 'Network error occurred. Please check your internet connection and try again.';
+            errorAlert.style.display = 'flex';
+        });
+    });
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.innerText = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}

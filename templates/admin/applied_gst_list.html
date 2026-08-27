@@ -1,0 +1,577 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Applied GST Applications - Admin Panel{% endblock %}
+{% block nav_applied_gst %}sub-item-active{% endblock %}
+
+{% block content %}
+<style>
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .status-pending {
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+    .status-done {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .kpi-card {
+        background: var(--card, #ffffff);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 12px;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .kpi-icon-wrap {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    /* Modal Backdrop & Popup Styling */
+    .custom-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+    .custom-modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .custom-modal-box {
+        background: #ffffff;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 650px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        transform: translateY(20px);
+        transition: transform 0.25s ease;
+    }
+    .custom-modal-overlay.active .custom-modal-box {
+        transform: translateY(0);
+    }
+    .custom-modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border, #e2e8f0);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--muted-bg, #f8fafc);
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+    }
+    .custom-modal-body {
+        padding: 1.5rem;
+    }
+    .custom-modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border, #e2e8f0);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        background: var(--muted-bg, #f8fafc);
+        border-bottom-left-radius: 16px;
+        border-bottom-right-radius: 16px;
+    }
+    .close-modal-btn {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: var(--muted-foreground, #64748b);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+    .close-modal-btn:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Applied GST Applications</h1>
+        <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: var(--muted-foreground, #64748b);">Manage and process GST registration applications submitted by clients.</p>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem;">
+    <div class="kpi-card" style="border-left: 4px solid var(--primary, #2563eb);">
+        <div>
+            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Total Applications</span>
+            <div style="font-size: 1.75rem; font-weight: 800; color: var(--foreground, #0f172a); margin-top: 4px;">{{ total_count }}</div>
+        </div>
+        <div class="kpi-icon-wrap" style="background: #eff6ff; color: #2563eb;">
+            <i class="fa-solid fa-file-signature"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+        <div>
+            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Work Pending</span>
+            <div style="font-size: 1.75rem; font-weight: 800; color: #b45309; margin-top: 4px;">{{ pending_count }}</div>
+        </div>
+        <div class="kpi-icon-wrap" style="background: #fef3c7; color: #b45309;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card" style="border-left: 4px solid var(--success, #10b981);">
+        <div>
+            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Work Done</span>
+            <div style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">{{ done_count }}</div>
+        </div>
+        <div class="kpi-icon-wrap" style="background: #dcfce7; color: #15803d;">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card-container" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+        <form method="GET" action="{% url 'admin_applied_gst' %}" id="filter-form">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" style="font-size: 0.825rem;">Search Query</label>
+                    <input type="text" name="search" class="form-control" placeholder="Search by name, phone, email, company..." value="{{ current_search }}">
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" style="font-size: 0.825rem;">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="">All Statuses</option>
+                        <option value="Work Pending" {% if current_status == 'Work Pending' %}selected{% endif %}>Work Pending</option>
+                        <option value="Work Done" {% if current_status == 'Work Done' %}selected{% endif %}>Work Done</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" style="font-size: 0.825rem;">Date Range</label>
+                    <select name="date_filter" id="date_filter_select" class="form-control">
+                        <option value="">All Dates</option>
+                        <option value="today" {% if current_date_filter == 'today' %}selected{% endif %}>Today</option>
+                        <option value="this_week" {% if current_date_filter == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="this_month" {% if current_date_filter == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="custom" {% if current_date_filter == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.55rem 1.25rem;">
+                        <i class="fa-solid fa-filter"></i> Search
+                    </button>
+                    <a href="{% url 'admin_applied_gst' %}" class="btn btn-secondary" title="Reset Filters">
+                        <i class="fa-solid fa-rotate"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Custom Date Row -->
+            <div id="custom-date-container" style="display: {% if current_date_filter == 'custom' %}grid{% else %}none{% endif %}; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border, #e2e8f0);">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table Container -->
+<div class="card-container">
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="data-table" style="width: 100%; margin: 0;">
+                <thead>
+                    <tr>
+                        <th style="padding: 12px 16px;">#</th>
+                        <th style="padding: 12px 16px;">Applicant Name</th>
+                        <th style="padding: 12px 16px;">Company</th>
+                        <th style="padding: 12px 16px;">Phone</th>
+                        <th style="padding: 12px 16px;">Email</th>
+                        <th style="padding: 12px 16px;">Status</th>
+                        <th style="padding: 12px 16px;">Submitted Date</th>
+                        <th style="padding: 12px 16px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if applications %}
+                        {% for app in applications %}
+                        <tr id="row-app-{{ app.id }}">
+                            <td style="padding: 14px 16px; font-weight: 600; color: var(--muted-foreground, #64748b);">#{{ app.id }}</td>
+                            <td style="padding: 14px 16px; font-weight: 700;">{{ app.full_name }}</td>
+                            <td style="padding: 14px 16px;">{{ app.company.name|default:"N/A" }}</td>
+                            <td style="padding: 14px 16px;">{{ app.phone_number }}</td>
+                            <td style="padding: 14px 16px;">{{ app.email }}</td>
+                            <td style="padding: 14px 16px;" id="status-badge-{{ app.id }}">
+                                {% if app.status == 'Work Done' %}
+                                    <span class="status-pill status-done"><i class="fa-solid fa-circle-check"></i> Work Done</span>
+                                {% else %}
+                                    <span class="status-pill status-pending"><i class="fa-solid fa-clock"></i> Work Pending</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 16px; color: var(--muted-foreground, #64748b); font-size: 0.85rem;">{{ app.created_at|date:"d M Y, h:i A" }}</td>
+                            <td style="padding: 14px 16px; text-align: center;">
+                                <div style="display: flex; justify-content: center; gap: 6px;">
+                                    <button type="button" class="btn btn-secondary" onclick="openViewModal({{ app.id }})" style="padding: 4px 10px; font-size: 0.8rem;" title="View Details">
+                                        <i class="fa-solid fa-eye"></i> View
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="openEditModal({{ app.id }})" style="padding: 4px 10px; font-size: 0.8rem;" title="Edit Application">
+                                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--muted-foreground, #64748b);">
+                                <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.4; display: block;"></i>
+                                <strong style="font-size: 1.05rem; display: block;">No GST applications found.</strong>
+                                <small>Try adjusting your search query or status filter.</small>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+            <div style="padding: 1rem; border-top: 1px solid var(--border, #e2e8f0);">
+                {% include 'common_pagination.html' %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- View Application Modal Overlay -->
+<div class="custom-modal-overlay" id="viewModalOverlay">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header">
+            <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-signature" style="color: var(--primary, #2563eb);"></i> GST Application Details
+            </h3>
+            <button type="button" class="close-modal-btn" onclick="closeViewModal()">&times;</button>
+        </div>
+        <div class="custom-modal-body" id="view-modal-content">
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary, #2563eb);"></i>
+                <p style="margin-top: 0.5rem; color: var(--muted-foreground, #64748b);">Loading details...</p>
+            </div>
+        </div>
+        <div class="custom-modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeViewModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Application Modal Overlay -->
+<div class="custom-modal-overlay" id="editModalOverlay">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header">
+            <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-pen-to-square" style="color: var(--primary, #2563eb);"></i> Edit GST Application
+            </h3>
+            <button type="button" class="close-modal-btn" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="edit-gst-form" novalidate>
+            <div class="custom-modal-body">
+                <input type="hidden" id="edit_app_id" name="app_id">
+
+                <div id="edit-error-alert" class="message-item error" style="display: none; margin-bottom: 1rem;">
+                    <span id="edit-error-msg"></span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="edit_full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number *</label>
+                        <input type="tel" class="form-control" id="edit_phone_number" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" class="form-control" id="edit_email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select class="form-control" id="edit_status" required style="font-weight: 700;">
+                            <option value="Work Pending">Work Pending</option>
+                            <option value="Work Done">Work Done</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <textarea class="form-control" id="edit_message" rows="3" style="resize: vertical;"></textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Admin Notes (Internal)</label>
+                    <textarea class="form-control" id="edit_admin_notes" rows="2" placeholder="Internal tracking notes..." style="resize: vertical;"></textarea>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" id="edit-submit-btn" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Update Application
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dateFilterSelect = document.getElementById('date_filter_select');
+    const customDateContainer = document.getElementById('custom-date-container');
+
+    if (dateFilterSelect && customDateContainer) {
+        dateFilterSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customDateContainer.style.display = 'grid';
+            } else {
+                customDateContainer.style.display = 'none';
+            }
+        });
+    }
+});
+
+function openViewModal(id) {
+    const overlay = document.getElementById('viewModalOverlay');
+    const body = document.getElementById('view-modal-content');
+    body.innerHTML = `
+        <div style="text-align: center; padding: 2rem;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary, #2563eb);"></i>
+            <p style="margin-top: 0.5rem; color: var(--muted-foreground, #64748b);">Loading details...</p>
+        </div>
+    `;
+    overlay.classList.add('active');
+
+    fetch(`/admin/applied-gst/${id}/detail/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const app = data.application;
+            const statusBadge = app.status === 'Work Done' 
+                ? `<span class="status-pill status-done"><i class="fa-solid fa-circle-check"></i> Work Done</span>`
+                : `<span class="status-pill status-pending"><i class="fa-solid fa-clock"></i> Work Pending</span>`;
+
+            body.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Applicant Name</span>
+                        <div style="font-weight: 700; font-size: 1rem; color: var(--foreground, #0f172a);">${escapeHtml(app.full_name)}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Company</span>
+                        <div style="font-weight: 700; font-size: 1rem; color: var(--foreground, #0f172a);">${escapeHtml(app.company_name)}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Phone Number</span>
+                        <div>${escapeHtml(app.phone_number)}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Email Address</span>
+                        <div>${escapeHtml(app.email)}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b); display: block; margin-bottom: 4px;">Current Status</span>
+                        <div>${statusBadge}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b);">Submitted Date</span>
+                        <div>${app.created_at}</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border, #e2e8f0);">
+                    <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b); display: block; margin-bottom: 4px;">Message / Requirements</span>
+                    <div style="background: var(--muted-bg, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 0.85rem; font-size: 0.9rem; white-space: pre-wrap;">${escapeHtml(app.message)}</div>
+                </div>
+
+                <div style="margin-top: 1rem;">
+                    <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground, #64748b); display: block; margin-bottom: 4px;">Admin Notes</span>
+                    <div style="background: var(--muted-bg, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 0.85rem; font-size: 0.9rem; min-height: 40px;">${escapeHtml(app.admin_notes || 'No admin notes recorded.')}</div>
+                </div>
+
+                <div style="margin-top: 1rem; text-align: right;">
+                    <small style="color: var(--muted-foreground, #64748b);">Last Updated: ${app.updated_at}</small>
+                </div>
+            `;
+        } else {
+            body.innerHTML = `<div class="message-item error">${escapeHtml(data.message || 'Unable to load details.')}</div>`;
+        }
+    })
+    .catch(err => {
+        body.innerHTML = `<div class="message-item error">Failed to communicate with server.</div>`;
+    });
+}
+
+function closeViewModal() {
+    document.getElementById('viewModalOverlay').classList.remove('active');
+}
+
+function openEditModal(id) {
+    document.getElementById('edit_app_id').value = id;
+    document.getElementById('edit-error-alert').style.display = 'none';
+
+    fetch(`/admin/applied-gst/${id}/detail/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const app = data.application;
+            document.getElementById('edit_full_name').value = app.full_name;
+            document.getElementById('edit_phone_number').value = app.phone_number;
+            document.getElementById('edit_email').value = app.email;
+            document.getElementById('edit_status').value = app.status;
+            document.getElementById('edit_message').value = app.message === 'N/A' ? '' : app.message;
+            document.getElementById('edit_admin_notes').value = app.admin_notes || '';
+            document.getElementById('editModalOverlay').classList.add('active');
+        } else {
+            alert(data.message || 'Error fetching application data');
+        }
+    })
+    .catch(err => {
+        alert('Network error occurred.');
+    });
+}
+
+function closeEditModal() {
+    document.getElementById('editModalOverlay').classList.remove('active');
+}
+
+document.getElementById('edit-gst-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit_app_id').value;
+    const submitBtn = document.getElementById('edit-submit-btn');
+    const errorAlert = document.getElementById('edit-error-alert');
+    const errorMsg = document.getElementById('edit-error-msg');
+
+    errorAlert.style.display = 'none';
+
+    const fullName = document.getElementById('edit_full_name').value.trim();
+    const phone = document.getElementById('edit_phone_number').value.trim();
+    const email = document.getElementById('edit_email').value.trim();
+    const status = document.getElementById('edit_status').value;
+    const message = document.getElementById('edit_message').value.trim();
+    const adminNotes = document.getElementById('edit_admin_notes').value.trim();
+
+    if (!fullName || !phone || !email || !status) {
+        errorMsg.innerText = 'Please fill out all required fields.';
+        errorAlert.style.display = 'flex';
+        return;
+    }
+
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+
+    const csrfToken = '{{ csrf_token }}';
+
+    fetch(`/admin/applied-gst/${id}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            full_name: fullName,
+            phone_number: phone,
+            email: email,
+            status: status,
+            message: message,
+            admin_notes: adminNotes
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+
+        if (data.success) {
+            closeEditModal();
+
+            // Update status badge realtime in table
+            const statusBadgeCell = document.getElementById(`status-badge-${id}`);
+            if (statusBadgeCell) {
+                if (status === 'Work Done') {
+                    statusBadgeCell.innerHTML = `<span class="status-pill status-done"><i class="fa-solid fa-circle-check"></i> Work Done</span>`;
+                } else {
+                    statusBadgeCell.innerHTML = `<span class="status-pill status-pending"><i class="fa-solid fa-clock"></i> Work Pending</span>`;
+                }
+            }
+
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message || 'GST application updated successfully.');
+            } else {
+                location.reload();
+            }
+        } else {
+            errorMsg.innerText = data.message || 'Unable to update application.';
+            errorAlert.style.display = 'flex';
+        }
+    })
+    .catch(err => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        errorMsg.innerText = 'Network error occurred. Please try again.';
+        errorAlert.style.display = 'flex';
+    });
+});
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

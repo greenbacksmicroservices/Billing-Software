@@ -327,7 +327,7 @@ def build_hsn_sac_tax_summary(items, company_state_code=None, pos_state_code=Non
     return summary_list, total_qty
 
 
-def recalculate_generic_document_totals(doc, items_queryset=None, company_state_code=None, pos_state_code=None):
+def recalculate_generic_document_totals(doc, items_queryset=None, company_state_code=None, pos_state_code=None, apply_round_off=None):
     """
     Generic recalculator for document totals. Updates line items and document headers.
     """
@@ -387,10 +387,23 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
         if hasattr(doc, 'igst_total'):
             doc.igst_total = quantize_amount(igst)
         calculated_grand = taxable_val + cgst + sgst + igst
-        rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
-        if hasattr(doc, 'round_off'):
-            doc.round_off = quantize_amount(rounded_grand - calculated_grand)
-        doc.grand_total = rounded_grand
+
+        should_round = False
+        if apply_round_off is not None:
+            should_round = bool(apply_round_off)
+        elif hasattr(doc, 'round_off') and doc.round_off != Decimal('0.00'):
+            should_round = True
+
+        if should_round:
+            rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+            if hasattr(doc, 'round_off'):
+                doc.round_off = quantize_amount(rounded_grand - calculated_grand)
+            doc.grand_total = rounded_grand
+        else:
+            if hasattr(doc, 'round_off'):
+                doc.round_off = Decimal('0.00')
+            doc.grand_total = quantize_amount(calculated_grand)
+
         doc.save()
         return doc
 
@@ -472,21 +485,33 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
     cs_tot = getattr(doc, 'cess_total', Decimal('0.00'))
 
     calculated_grand = taxable_val + c_tot + s_tot + i_tot + cs_tot
-    rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
-    
-    if hasattr(doc, 'round_off'):
-        doc.round_off = quantize_amount(rounded_grand - calculated_grand)
-    doc.grand_total = rounded_grand
+
+    should_round = False
+    if apply_round_off is not None:
+        should_round = bool(apply_round_off)
+    elif hasattr(doc, 'round_off') and doc.round_off != Decimal('0.00'):
+        should_round = True
+
+    if should_round:
+        rounded_grand = quantize_amount(calculated_grand.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+        if hasattr(doc, 'round_off'):
+            doc.round_off = quantize_amount(rounded_grand - calculated_grand)
+        doc.grand_total = rounded_grand
+    else:
+        if hasattr(doc, 'round_off'):
+            doc.round_off = Decimal('0.00')
+        doc.grand_total = quantize_amount(calculated_grand)
+
     doc.save()
     return doc
 
 
-def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=None, payment_percentage=None, advance_paid=None, payment_status=None):
+def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=None, payment_percentage=None, advance_paid=None, payment_status=None, apply_round_off=None):
     """
     Recalculates invoice totals, GST breakdowns, round off, and payment settlement fields.
     Updates invoice in-memory and database.
     """
-    recalculate_generic_document_totals(invoice)
+    recalculate_generic_document_totals(invoice, apply_round_off=apply_round_off)
 
     # --- Payment Details Calculation ---
     if advance_paid in (False, 'false', 'False', 'no', 'No', '0'):
@@ -564,49 +589,49 @@ def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=Non
     invoice.save()
 
 
-def recalculate_purchase_totals(bill):
+def recalculate_purchase_totals(bill, apply_round_off=None):
     """
     Recalculates all mathematical fields of a PurchaseBill from its items.
     """
-    return recalculate_generic_document_totals(bill)
+    return recalculate_generic_document_totals(bill, apply_round_off=apply_round_off)
 
 
-def recalculate_sales_order_totals(sales_order):
+def recalculate_sales_order_totals(sales_order, apply_round_off=None):
     """
     Recalculates all mathematical fields of a SalesOrder from its items.
     """
-    return recalculate_generic_document_totals(sales_order)
+    return recalculate_generic_document_totals(sales_order, apply_round_off=apply_round_off)
 
 
-def recalculate_purchase_order_totals(purchase_order):
+def recalculate_purchase_order_totals(purchase_order, apply_round_off=None):
     """
     Recalculates all mathematical fields of a PurchaseOrder from its items.
     """
     pos_code = purchase_order.state_code or purchase_order.supplier_state_code_snapshot or (purchase_order.supplier.state_code if purchase_order.supplier else purchase_order.company.state_code)
-    return recalculate_generic_document_totals(purchase_order, pos_state_code=pos_code)
+    return recalculate_generic_document_totals(purchase_order, pos_state_code=pos_code, apply_round_off=apply_round_off)
 
 
-def recalculate_credit_note_totals(credit_note):
+def recalculate_credit_note_totals(credit_note, apply_round_off=None):
     """
     Recalculates all mathematical fields of a CreditNote from its items.
     """
     pos_code = credit_note.invoice.place_of_supply_code if credit_note.invoice else credit_note.company.state_code
-    return recalculate_generic_document_totals(credit_note, pos_state_code=pos_code)
+    return recalculate_generic_document_totals(credit_note, pos_state_code=pos_code, apply_round_off=apply_round_off)
 
 
-def recalculate_debit_note_totals(debit_note):
+def recalculate_debit_note_totals(debit_note, apply_round_off=None):
     """
     Recalculates all mathematical fields of a DebitNote from its items.
     """
     pos_code = debit_note.purchase_bill.supplier.state_code if (debit_note.purchase_bill and debit_note.purchase_bill.supplier) else debit_note.company.state_code
-    return recalculate_generic_document_totals(debit_note, pos_state_code=pos_code)
+    return recalculate_generic_document_totals(debit_note, pos_state_code=pos_code, apply_round_off=apply_round_off)
 
 
-def recalculate_proforma_totals(proforma_invoice):
+def recalculate_proforma_totals(proforma_invoice, apply_round_off=None):
     """
     Recalculates all mathematical fields of a ProformaInvoice from its items.
     """
-    return recalculate_generic_document_totals(proforma_invoice)
+    return recalculate_generic_document_totals(proforma_invoice, apply_round_off=apply_round_off)
 
 
 
@@ -1195,11 +1220,11 @@ def get_or_create_predefined_quotation_terms(company=None):
     return existing.order_by('display_order', 'id')
 
 
-def recalculate_quotation_totals(quotation):
+def recalculate_quotation_totals(quotation, apply_round_off=None):
     """
     Recalculates all mathematical fields of a Quotation from its items.
     """
-    return recalculate_generic_document_totals(quotation)
+    return recalculate_generic_document_totals(quotation, apply_round_off=apply_round_off)
 
 
 

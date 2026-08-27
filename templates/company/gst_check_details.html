@@ -1,0 +1,194 @@
+{% extends 'base_company.html' %}
+
+{% block title %}Check GST Number Details - GST Billing System{% endblock %}
+{% block sub_gst_check_details %}sub-item-active{% endblock %}
+
+{% block content %}
+<style>
+    .gst-hero-card {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        border-radius: 16px;
+        color: #ffffff;
+        padding: 2.25rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+        margin-bottom: 2rem;
+    }
+    .gst-hero-card::before {
+        content: '\f002';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: -20px;
+        bottom: -35px;
+        font-size: 12rem;
+        opacity: 0.12;
+        color: #ffffff;
+        pointer-events: none;
+    }
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        padding: 5px 14px;
+        border-radius: 20px;
+        margin-bottom: 0.85rem;
+    }
+    .hero-title {
+        font-size: 1.85rem;
+        font-weight: 800;
+        margin: 0 0 0.5rem 0;
+        line-height: 1.2;
+    }
+    .hero-sub {
+        font-size: 1rem;
+        opacity: 0.92;
+        margin: 0;
+        max-width: 650px;
+        line-height: 1.5;
+    }
+
+    .notice-card {
+        background: var(--card, #ffffff);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 12px;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+    .notice-card-header {
+        padding: 1.15rem 1.5rem;
+        border-bottom: 1px solid var(--border, #e2e8f0);
+        background: var(--muted-bg, #f8fafc);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .notice-card-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--foreground, #0f172a);
+    }
+    .notice-card-body {
+        padding: 1.5rem;
+        font-size: 0.95rem;
+        color: var(--foreground, #334155);
+        line-height: 1.6;
+    }
+
+    .warning-box {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-left: 4px solid #f59e0b;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-top: 1.25rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 0.925rem;
+        color: #92400e;
+    }
+
+    .cta-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2.5rem 1.5rem;
+        background: var(--card, #ffffff);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    .btn-gst-portal {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff !important;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 0.85rem 2.25rem;
+        border-radius: 10px;
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-gst-portal:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.45);
+        color: #ffffff !important;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" style="margin: 0;">Check GST Number Details</h1>
+        <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: var(--muted-foreground, #64748b);">Verify GST Number details directly through the official GST Portal.</p>
+    </div>
+</div>
+
+<!-- Main Information Card -->
+<div class="notice-card">
+    <div class="notice-card-header">
+        <i class="fa-solid fa-shield-halved" style="color: var(--primary, #2563eb); font-size: 1.2rem;"></i>
+        <h3 class="notice-card-title">GST Number Verification</h3>
+    </div>
+    <div class="notice-card-body">
+        <p style="margin-top: 0; font-size: 1rem; font-weight: 500; color: #1e293b;">
+            GST Number verification is performed directly on the official GST Portal. This Billing Software does not process, store, modify, or control the verification information displayed on the external GST Portal.
+        </p>
+
+        <p style="margin-bottom: 0; color: var(--muted-foreground, #64748b);">
+            Please note: You will be leaving this Billing Software and will be redirected to an external official GST Portal. The verification service is provided by the GST Portal, not by this Billing Software.
+        </p>
+    </div>
+</div>
+
+<!-- External Website Notice Card -->
+<div class="notice-card">
+    <div class="notice-card-header" style="background: #fffbeb; border-bottom: 1px solid #fde68a;">
+        <i class="fa-solid fa-up-right-from-square" style="color: #d97706; font-size: 1.2rem;"></i>
+        <h3 class="notice-card-title" style="color: #92400e;">External Official GST Portal</h3>
+    </div>
+    <div class="notice-card-body">
+        <p style="margin-top: 0; font-size: 0.95rem;">
+            This button will open the official GST Portal in a new browser tab. The GST verification page is hosted and operated by the official GST Portal. Our Billing Software has no control over the external website or its content.
+        </p>
+
+        <div class="warning-box">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.3rem; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
+            <div>
+                <strong>External Website:</strong> Clicking the button below will open the official GST Portal in a new browser tab. The GST verification service is provided directly by the GST Portal and is separate from this Billing Software.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Button Section -->
+<div class="cta-container">
+    <a href="https://services.gst.gov.in/services/searchtp" target="_blank" rel="noopener noreferrer" class="btn-gst-portal">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Official GST Portal
+    </a>
+    
+    <p style="margin: 1rem 0 0 0; font-size: 0.85rem; color: var(--muted-foreground, #64748b);">
+        <i class="fa-solid fa-link me-1"></i> Clicking the button will open the official GST Portal in a new browser tab.
+    </p>
+    <small style="margin-top: 4px; font-size: 0.775rem; color: var(--muted-foreground, #94a3b8);">
+        External URL: <code>https://services.gst.gov.in/services/searchtp</code>
+    </small>
+</div>
+{% endblock %}

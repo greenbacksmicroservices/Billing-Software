@@ -27,7 +27,8 @@ from .models import (
     HSNSACMaster, Warehouse, StockMovement, Invoice, InvoiceItem, Quotation, QuotationItem,
     SalesOrder, SalesOrderItem, PurchaseOrder, PurchaseOrderItem, PurchaseBill, PurchaseBillItem, PurchaseBillDocument, CreditNote, CreditNoteItem,
     DebitNote, DebitNoteItem, Payment, Expense, ExpenseCategory, AuditLog, Notification,
-    SupportTicket, Announcement, GSTTransaction, CustomerLedger, SupplierLedger, PasswordResetOTP
+    SupportTicket, Announcement, GSTTransaction, CustomerLedger, SupplierLedger, PasswordResetOTP,
+    GSTApplication
 )
 from .forms import CompanyForm, ProductForm, CustomerForm, SupplierForm, WarehouseForm, PlanForm, ExpenseForm
 from .mixins import CompanyRequiredMixin, RoleRequiredMixin, CompanyQuerySetMixin, PaginationMixin, AjaxFormMixin
@@ -4634,13 +4635,16 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
             if created_items_count == 0:
                 raise ValueError("At least one valid item is required in the invoice.")
 
-            adv_paid = data.get('advance_paid')
-            adv_amt = data.get('advance_amount')
-            amt_now = data.get('amount_paid_now')
-            pmt_pct = data.get('payment_percentage')
-            pmt_status = data.get('payment_status')
+            apply_round_off = None
+            if 'round_off_applied' in data:
+                apply_round_off = bool(data.get('round_off_applied'))
+            elif 'round_off' in data:
+                try:
+                    apply_round_off = (Decimal(str(data.get('round_off') or 0)) != Decimal('0.00'))
+                except Exception:
+                    apply_round_off = False
 
-            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status)
+            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status, apply_round_off=apply_round_off)
             
             # Update customer receivable balance
             customer.outstanding_balance += invoice.balance_due
@@ -4805,13 +4809,16 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
                         )
                         update_product_stock(prod.id)
 
-            adv_paid = data.get('advance_paid')
-            adv_amt = data.get('advance_amount')
-            amt_now = data.get('amount_paid_now')
-            pmt_pct = data.get('payment_percentage')
-            pmt_status = data.get('payment_status')
+            apply_round_off = None
+            if 'round_off_applied' in data:
+                apply_round_off = bool(data.get('round_off_applied'))
+            elif 'round_off' in data:
+                try:
+                    apply_round_off = (Decimal(str(data.get('round_off') or 0)) != Decimal('0.00'))
+                except Exception:
+                    apply_round_off = False
 
-            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status)
+            recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status, apply_round_off=apply_round_off)
 
             if old_customer != invoice.customer:
                 old_customer.outstanding_balance -= old_balance_due
@@ -6170,6 +6177,10 @@ class ExpenseCreateView(CompanyRequiredMixin, CreateView):
 
 
 # --- GST REPORTS ---
+
+class GSTCheckDetailsView(CompanyRequiredMixin, TemplateView):
+    template_name = 'company/gst_check_details.html'
+
 
 class GSTDashboardView(CompanyRequiredMixin, TemplateView):
     template_name = 'company/gst_dashboard.html'
@@ -8318,6 +8329,314 @@ def api_payment_detail(request, pk):
         'created_at': pm.created_at.strftime('%d %b %Y %H:%M') if pm.created_at else '-'
     }
     return JsonResponse({'status': 'success', 'data': data})
+
+
+# --- APPLY GST & ADMIN APPLIED GST VIEWS ---
+
+class ApplyGSTView(CompanyRequiredMixin, View):
+    def get(self, request):
+        company = request.user.company
+        applications = GSTApplication.objects.filter(company=company).order_by('-created_at')
+        initial_name = request.user.get_full_name() or request.user.first_name or ''
+        initial_email = request.user.email or ''
+        initial_phone = getattr(company, 'phone', '') or getattr(request.user, 'mobile', '') or ''
+        
+        return render(request, 'company/apply_gst.html', {
+            'applications': applications,
+            'initial_name': initial_name,
+            'initial_email': initial_email,
+            'initial_phone': initial_phone,
+        })
+
+    @transaction.atomic
+    def post(self, request):
+        company = request.user.company
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            'application/json' in request.META.get('HTTP_ACCEPT', '') or
+            request.content_type == 'application/json'
+        )
+
+        try:
+            if request.content_type == 'application/json' and request.body:
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+        except Exception:
+            data = request.POST.dict()
+
+        full_name = (data.get('full_name') or '').strip()
+        phone_number = (data.get('phone_number') or '').strip()
+        email = (data.get('email') or '').strip()
+        message = (data.get('message') or '').strip()
+
+        if not full_name:
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please enter your full name.'}, status=400)
+            messages.error(request, 'Please enter your full name.')
+            return redirect('apply_gst')
+
+        if not phone_number:
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please enter a valid phone number.'}, status=400)
+            messages.error(request, 'Please enter a valid phone number.')
+            return redirect('apply_gst')
+        
+        cleaned_phone = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+        if len(cleaned_phone) < 10 or not cleaned_phone.isdigit():
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please enter a valid 10-digit phone number.'}, status=400)
+            messages.error(request, 'Please enter a valid 10-digit phone number.')
+            return redirect('apply_gst')
+
+        if not email or '@' not in email or '.' not in email:
+            if is_ajax:
+                return JsonResponse({'success': False, 'status': 'error', 'message': 'Please enter a valid email address.'}, status=400)
+            messages.error(request, 'Please enter a valid email address.')
+            return redirect('apply_gst')
+
+        app = GSTApplication.objects.create(
+            company=company,
+            user=request.user,
+            full_name=full_name,
+            phone_number=phone_number,
+            email=email,
+            message=message,
+            status='Work Pending'
+        )
+
+        log_action(request.user, 'APPLY_GST', 'GSTApplication', app.id, request=request)
+
+        # Send email notification to admin safely
+        try:
+            from django.core.mail import send_mail
+            from django.utils.html import strip_tags
+
+            admin_email = getattr(settings, 'BUSINESS_ADMIN_EMAIL', None) or getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'admin@example.com'
+            company_name = company.name if company else 'N/A'
+            created_str = app.created_at.strftime('%d %b %Y, %I:%M %p')
+
+            subject = f"New GST Application Received - {app.full_name}"
+            html_message = f"""
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                <div style="background-color: #1e3a8a; color: #ffffff; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 20px;">New GST Application Received</h2>
+                </div>
+                <div style="padding: 24px; color: #334155; line-height: 1.6;">
+                    <p style="font-size: 15px; margin-top: 0;">A new GST application has been submitted from the billing portal.</p>
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600; width: 140px;">Applicant Name:</td><td style="padding: 8px 0; font-weight: 700; color: #0f172a;">{app.full_name}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">Company:</td><td style="padding: 8px 0; font-weight: 700; color: #0f172a;">{company_name}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">Phone Number:</td><td style="padding: 8px 0; font-weight: 700; color: #0f172a;">{app.phone_number}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">Email Address:</td><td style="padding: 8px 0; font-weight: 700; color: #0f172a;">{app.email}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">Status:</td><td style="padding: 8px 0;"><span style="background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">Work Pending</span></td></tr>
+                        <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">Submitted At:</td><td style="padding: 8px 0; color: #475569;">{created_str}</td></tr>
+                    </table>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; margin-top: 15px;">
+                        <strong style="color: #475569; display: block; margin-bottom: 4px;">Message:</strong>
+                        <p style="margin: 0; color: #1e293b;">{app.message or 'No message provided.'}</p>
+                    </div>
+                </div>
+            </div>
+            """
+            plain_message = strip_tags(html_message)
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+                recipient_list=[admin_email],
+                html_message=html_message,
+                fail_silently=True
+            )
+        except Exception as e:
+            print("Failed to send admin email for GST application:", e)
+
+        msg_text = "Your GST application has been submitted successfully. Our team will contact you shortly."
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'status': 'success',
+                'message': msg_text,
+                'application': {
+                    'id': app.id,
+                    'full_name': app.full_name,
+                    'phone_number': app.phone_number,
+                    'email': app.email,
+                    'status': app.status,
+                    'created_at': app.created_at.strftime('%d %b %Y, %I:%M %p')
+                }
+            })
+        messages.success(request, msg_text)
+        return redirect('apply_gst')
+
+
+class AdminAppliedGSTListView(PaginationMixin, ListView):
+    model = GSTApplication
+    template_name = 'admin/applied_gst_list.html'
+    context_object_name = 'applications'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or (request.user.role != 'SUPERADMIN' and not request.user.is_superuser):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        qs = GSTApplication.objects.all().select_related('company', 'user')
+        
+        search = self.request.GET.get('search')
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(full_name__icontains=search) |
+                Q(phone_number__icontains=search) |
+                Q(email__icontains=search) |
+                Q(company__name__icontains=search) |
+                Q(message__icontains=search)
+            )
+
+        status_filter = self.request.GET.get('status')
+        if status_filter in ('Work Pending', 'Work Done'):
+            qs = qs.filter(status=status_filter)
+
+        date_filter = self.request.GET.get('date_filter')
+        today = date.today()
+        if date_filter == 'today':
+            qs = qs.filter(created_at__date=today)
+        elif date_filter == 'this_week':
+            start_week = today - timedelta(days=today.weekday())
+            qs = qs.filter(created_at__date__gte=start_week)
+        elif date_filter == 'this_month':
+            qs = qs.filter(created_at__year=today.year, created_at__month=today.month)
+        elif date_filter == 'custom':
+            date_from = self.request.GET.get('date_from')
+            date_to = self.request.GET.get('date_to')
+            if date_from:
+                qs = qs.filter(created_at__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(created_at__date__lte=date_to)
+
+        return qs.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        all_qs = GSTApplication.objects.all()
+        context['total_count'] = all_qs.count()
+        context['pending_count'] = all_qs.filter(status='Work Pending').count()
+        context['done_count'] = all_qs.filter(status='Work Done').count()
+        context['current_search'] = self.request.GET.get('search', '')
+        context['current_status'] = self.request.GET.get('status', '')
+        context['current_date_filter'] = self.request.GET.get('date_filter', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
+        return context
+
+
+def admin_gst_application_detail_api(request, pk):
+    if not request.user.is_authenticated or (request.user.role != 'SUPERADMIN' and not request.user.is_superuser):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+
+    app = get_object_or_404(GSTApplication.objects.select_related('company'), pk=pk)
+    return JsonResponse({
+        'success': True,
+        'application': {
+            'id': app.id,
+            'full_name': app.full_name,
+            'company_name': app.company.name if app.company else 'N/A',
+            'phone_number': app.phone_number,
+            'email': app.email,
+            'message': app.message or 'N/A',
+            'status': app.status,
+            'admin_notes': app.admin_notes or '',
+            'created_at': app.created_at.strftime('%d %b %Y, %I:%M %p'),
+            'updated_at': app.updated_at.strftime('%d %b %Y, %I:%M %p')
+        }
+    })
+
+
+@transaction.atomic
+def admin_gst_application_edit_api(request, pk):
+    if not request.user.is_authenticated or (request.user.role != 'SUPERADMIN' and not request.user.is_superuser):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+
+    app = get_object_or_404(GSTApplication, pk=pk)
+
+    try:
+        if request.content_type == 'application/json' and request.body:
+            data = json.loads(request.body)
+        else:
+            data = request.POST.dict()
+    except Exception:
+        data = request.POST.dict()
+
+    full_name = (data.get('full_name') or app.full_name).strip()
+    phone_number = (data.get('phone_number') or app.phone_number).strip()
+    email = (data.get('email') or app.email).strip()
+    message = data.get('message', app.message)
+    new_status = data.get('status', app.status)
+    admin_notes = data.get('admin_notes', app.admin_notes)
+
+    if new_status not in ('Work Pending', 'Work Done'):
+        return JsonResponse({'success': False, 'message': 'Invalid status choice.'}, status=400)
+
+    old_status = app.status
+
+    app.full_name = full_name
+    app.phone_number = phone_number
+    app.email = email
+    app.message = message
+    app.status = new_status
+    app.admin_notes = admin_notes
+    app.save()
+
+    # Send status update email if status changed to Work Done
+    if old_status != 'Work Done' and new_status == 'Work Done':
+        try:
+            from django.core.mail import send_mail
+            from django.utils.html import strip_tags
+
+            subject = "GST Application Status Updated"
+            html_message = f"""
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                <div style="background-color: #16a34a; color: #ffffff; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0; font-size: 20px;">GST Application Status Updated</h2>
+                </div>
+                <div style="padding: 24px; color: #334155; line-height: 1.6;">
+                    <p style="font-size: 15px; margin-top: 0;">Hello <strong>{app.full_name}</strong>,</p>
+                    <p style="font-size: 15px;">Your GST application status has been updated.</p>
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 16px; margin: 20px 0; text-align: center;">
+                        <span style="font-size: 14px; color: #166534; font-weight: 600; display: block; margin-bottom: 4px;">Current Status:</span>
+                        <strong style="font-size: 18px; color: #15803d;">Work Done</strong>
+                    </div>
+                    <p style="font-size: 14px; color: #64748b;">Thank you.<br><strong>Billing Software Team</strong></p>
+                </div>
+            </div>
+            """
+            plain_message = strip_tags(html_message)
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gblbilling.com'),
+                recipient_list=[app.email],
+                html_message=html_message,
+                fail_silently=True
+            )
+        except Exception as e:
+            print("Failed to send status update email:", e)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'GST application updated successfully.',
+        'application': {
+            'id': app.id,
+            'full_name': app.full_name,
+            'company_name': app.company.name if app.company else 'N/A',
+            'phone_number': app.phone_number,
+            'email': app.email,
+            'status': app.status,
+            'updated_at': app.updated_at.strftime('%d %b %Y, %I:%M %p')
+        }
+    })
+
 
 
 

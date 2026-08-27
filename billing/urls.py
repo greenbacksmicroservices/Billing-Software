@@ -170,7 +170,14 @@ urlpatterns = [
     path('api/company/expenses/<int:pk>/edit/', views.api_expense_edit, name='expense_edit_api'),
     path('api/company/products/<int:pk>/detail/', views.api_product_detail, name='product_detail_api'),
 
+    # Admin Applied GST
+    path('admin/applied-gst/', views.AdminAppliedGSTListView.as_view(), name='admin_applied_gst'),
+    path('admin/applied-gst/<int:pk>/detail/', views.admin_gst_application_detail_api, name='admin_applied_gst_detail'),
+    path('admin/applied-gst/<int:pk>/edit/', views.admin_gst_application_edit_api, name='admin_applied_gst_edit'),
+
     # GST Compliance
+    path('company/apply-gst/', views.ApplyGSTView.as_view(), name='apply_gst'),
+    path('company/gst/check-details/', views.GSTCheckDetailsView.as_view(), name='gst_check_details'),
     path('company/gst/dashboard/', views.GSTDashboardView.as_view(), name='gst_dashboard'),
     path('company/gst/gstr1/', views.GSTR1View.as_view(), name='gst_report_gstr1'),
     path('company/gst/gstr3b/', views.GSTR3BView.as_view(), name='gst_report_gstr3b'),

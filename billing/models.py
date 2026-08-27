@@ -1330,3 +1330,31 @@ class SupplierLedger(models.Model):
 
     def __str__(self):
         return f"{self.supplier.name} - {self.entry_type} - Debit: {self.debit} Credit: {self.credit}"
+
+
+# --- GST APPLICATIONS ---
+
+class GSTApplication(models.Model):
+    STATUS_CHOICES = [
+        ('Work Pending', 'Work Pending'),
+        ('Work Done', 'Work Done'),
+    ]
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='gst_applications', null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='gst_applications')
+    full_name = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=20)
+    email = models.EmailField()
+    message = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Work Pending')
+    admin_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        comp = self.company.name if self.company else 'N/A'
+        return f"{self.full_name} ({comp}) - {self.status}"
+

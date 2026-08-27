@@ -750,8 +750,19 @@ class PurchaseOrderService:
             cess_total += item['cess_amount']
 
         calculated_grand = taxable_amount + cgst_total + sgst_total + igst_total + cess_total
-        rounded_grand = quantize_amount(round(calculated_grand))
-        round_off = quantize_amount(rounded_grand - calculated_grand)
+        apply_round = data.get('round_off_applied')
+        if apply_round is None and 'round_off' in data:
+            try:
+                apply_round = (Decimal(str(data.get('round_off') or 0)) != Decimal('0.00'))
+            except Exception:
+                apply_round = False
+
+        if apply_round:
+            rounded_grand = quantize_amount(round(calculated_grand))
+            round_off = quantize_amount(rounded_grand - calculated_grand)
+        else:
+            rounded_grand = quantize_amount(calculated_grand)
+            round_off = Decimal('0.00')
 
         cleaned_data['subtotal'] = quantize_amount(subtotal)
         cleaned_data['discount_total'] = quantize_amount(discount_total)
@@ -825,8 +836,19 @@ class PurchaseOrderService:
             cess_total += item['cess_amount']
 
         calculated_grand = taxable_amount + cgst_total + sgst_total + igst_total + cess_total
-        rounded_grand = quantize_amount(round(calculated_grand))
-        round_off = quantize_amount(rounded_grand - calculated_grand)
+        apply_round = data.get('round_off_applied')
+        if apply_round is None and 'round_off' in data:
+            try:
+                apply_round = (Decimal(str(data.get('round_off') or 0)) != Decimal('0.00'))
+            except Exception:
+                apply_round = False
+
+        if apply_round:
+            rounded_grand = quantize_amount(round(calculated_grand))
+            round_off = quantize_amount(rounded_grand - calculated_grand)
+        else:
+            rounded_grand = quantize_amount(calculated_grand)
+            round_off = Decimal('0.00')
 
         cleaned_data['subtotal'] = quantize_amount(subtotal)
         cleaned_data['discount_total'] = quantize_amount(discount_total)
