@@ -5,6 +5,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.http import JsonResponse, Http404, HttpResponse, FileResponse
@@ -2152,7 +2153,12 @@ class CompanySettingsView(CompanyRequiredMixin, View):
         form = CompanyForm(instance=company)
         users = company.users.all()
         logs = AuditLog.objects.filter(company=company).order_by('-timestamp')[:30]
-        return render(request, 'company/settings.html', {'form': form, 'users': users, 'logs': logs})
+        categories = Category.objects.filter(company=company).annotate(product_count=Count('product')).order_by('name')
+        brands = Brand.objects.filter(company=company).annotate(product_count=Count('product')).order_by('name')
+        return render(request, 'company/settings.html', {
+            'form': form, 'users': users, 'logs': logs,
+            'categories': categories, 'brands': brands
+        })
 
     def post(self, request):
         company = request.user.company
@@ -2164,7 +2170,12 @@ class CompanySettingsView(CompanyRequiredMixin, View):
             return redirect('company_settings')
         users = company.users.all()
         logs = AuditLog.objects.filter(company=company).order_by('-timestamp')[:30]
-        return render(request, 'company/settings.html', {'form': form, 'users': users, 'logs': logs})
+        categories = Category.objects.filter(company=company).annotate(product_count=Count('product')).order_by('name')
+        brands = Brand.objects.filter(company=company).annotate(product_count=Count('product')).order_by('name')
+        return render(request, 'company/settings.html', {
+            'form': form, 'users': users, 'logs': logs,
+            'categories': categories, 'brands': brands
+        })
 
 
 # --- MASTERS: CUSTOMERS ---
@@ -2442,34 +2453,90 @@ def category_quick_add(request):
         return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
         
     company = request.user.company
-    name = request.POST.get('name', '').strip()
+    data = request.POST
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = request.POST
+
+    name = str(data.get('name', '')).strip()
+    description = str(data.get('description', '')).strip()
+
     if not name:
         return JsonResponse({'status': 'error', 'message': 'Category name is required.'}, status=400)
         
     existing = Category.objects.filter(company=company, name__iexact=name).first()
     if existing:
+        if description and not existing.description:
+            existing.description = description
+            existing.save()
         return JsonResponse({
             'status': 'success',
             'success': True,
             'id': existing.id,
             'name': existing.name,
+            'description': existing.description or '',
             'created': False,
-            'message': 'Category already exists.'
+            'message': f"Category '{name}' already exists."
         })
         
     try:
-        category = Category.objects.create(company=company, name=name)
+        category = Category.objects.create(company=company, name=name, description=description)
         log_action(request.user, 'CREATE_CATEGORY', 'CATEGORY', category.id, new_values={'name': name}, request=request)
         return JsonResponse({
             'status': 'success',
             'success': True,
             'id': category.id,
             'name': category.name,
+            'description': category.description or '',
             'created': True,
             'message': f"Category '{name}' created successfully."
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'success': False, 'message': f"Unable to create category: {str(e)}"}, status=400)
+
+
+@login_required
+def category_edit(request, pk):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    category = get_object_or_404(Category, id=pk, company=request.user.company)
+    if request.method == 'POST':
+        data = request.POST
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = request.POST
+        name = str(data.get('name', '')).strip()
+        description = str(data.get('description', '')).strip()
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Category name is required.'}, status=400)
+        
+        dup = Category.objects.filter(company=request.user.company, name__iexact=name).exclude(id=pk).first()
+        if dup:
+            return JsonResponse({'status': 'error', 'message': f"Category '{name}' already exists."}, status=400)
+            
+        category.name = name
+        category.description = description
+        category.save()
+        log_action(request.user, 'UPDATE_CATEGORY', 'CATEGORY', category.id, new_values={'name': name}, request=request)
+        return JsonResponse({'status': 'success', 'message': f"Category '{name}' updated successfully.", 'id': category.id, 'name': category.name, 'description': category.description or ''})
+    return JsonResponse({'status': 'error', 'message': 'POST required.'}, status=405)
+
+
+@login_required
+def category_delete(request, pk):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    category = get_object_or_404(Category, id=pk, company=request.user.company)
+    if request.method == 'POST':
+        name = category.name
+        category.delete()
+        log_action(request.user, 'DELETE_CATEGORY', 'CATEGORY', pk, old_values={'name': name}, request=request)
+        return JsonResponse({'status': 'success', 'message': f"Category '{name}' deleted successfully."})
+    return JsonResponse({'status': 'error', 'message': 'POST required.'}, status=405)
 
 
 def brand_search_api(request):
@@ -2497,34 +2564,90 @@ def brand_quick_add(request):
         return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
         
     company = request.user.company
-    name = request.POST.get('name', '').strip()
+    data = request.POST
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = request.POST
+
+    name = str(data.get('name', '')).strip()
+    description = str(data.get('description', '')).strip()
+
     if not name:
         return JsonResponse({'status': 'error', 'message': 'Brand name is required.'}, status=400)
         
     existing = Brand.objects.filter(company=company, name__iexact=name).first()
     if existing:
+        if description and not existing.description:
+            existing.description = description
+            existing.save()
         return JsonResponse({
             'status': 'success',
             'success': True,
             'id': existing.id,
             'name': existing.name,
+            'description': existing.description or '',
             'created': False,
-            'message': 'Brand already exists.'
+            'message': f"Brand '{name}' already exists."
         })
         
     try:
-        brand = Brand.objects.create(company=company, name=name)
+        brand = Brand.objects.create(company=company, name=name, description=description)
         log_action(request.user, 'CREATE_BRAND', 'BRAND', brand.id, new_values={'name': name}, request=request)
         return JsonResponse({
             'status': 'success',
             'success': True,
             'id': brand.id,
             'name': brand.name,
+            'description': brand.description or '',
             'created': True,
             'message': f"Brand '{name}' created successfully."
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'success': False, 'message': f"Unable to create brand: {str(e)}"}, status=400)
+
+
+@login_required
+def brand_edit(request, pk):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    brand = get_object_or_404(Brand, id=pk, company=request.user.company)
+    if request.method == 'POST':
+        data = request.POST
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = request.POST
+        name = str(data.get('name', '')).strip()
+        description = str(data.get('description', '')).strip()
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Brand name is required.'}, status=400)
+        
+        dup = Brand.objects.filter(company=request.user.company, name__iexact=name).exclude(id=pk).first()
+        if dup:
+            return JsonResponse({'status': 'error', 'message': f"Brand '{name}' already exists."}, status=400)
+
+        brand.name = name
+        brand.description = description
+        brand.save()
+        log_action(request.user, 'UPDATE_BRAND', 'BRAND', brand.id, new_values={'name': name}, request=request)
+        return JsonResponse({'status': 'success', 'message': f"Brand '{name}' updated successfully.", 'id': brand.id, 'name': brand.name, 'description': brand.description or ''})
+    return JsonResponse({'status': 'error', 'message': 'POST required.'}, status=405)
+
+
+@login_required
+def brand_delete(request, pk):
+    if not request.user.is_authenticated or not request.user.company:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required.'}, status=403)
+    brand = get_object_or_404(Brand, id=pk, company=request.user.company)
+    if request.method == 'POST':
+        name = brand.name
+        brand.delete()
+        log_action(request.user, 'DELETE_BRAND', 'BRAND', pk, old_values={'name': name}, request=request)
+        return JsonResponse({'status': 'success', 'message': f"Brand '{name}' deleted successfully."})
+    return JsonResponse({'status': 'error', 'message': 'POST required.'}, status=405)
 
 
 def indian_states_search_api(request):
@@ -4670,6 +4793,12 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
                 except Exception:
                     apply_round_off = False
 
+            adv_paid = data.get('advance_paid')
+            adv_amt = data.get('advance_amount')
+            amt_now = data.get('amount_paid_now')
+            pmt_pct = data.get('payment_percentage')
+            pmt_status = data.get('payment_status')
+
             recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status, apply_round_off=apply_round_off)
             
             # Update customer receivable balance
@@ -4843,6 +4972,12 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
                     apply_round_off = (Decimal(str(data.get('round_off') or 0)) != Decimal('0.00'))
                 except Exception:
                     apply_round_off = False
+
+            adv_paid = data.get('advance_paid')
+            adv_amt = data.get('advance_amount')
+            amt_now = data.get('amount_paid_now')
+            pmt_pct = data.get('payment_percentage')
+            pmt_status = data.get('payment_status')
 
             recalculate_invoice_totals(invoice, advance_amount=adv_amt, amount_paid_now=amt_now, payment_percentage=pmt_pct, advance_paid=adv_paid, payment_status=pmt_status, apply_round_off=apply_round_off)
 

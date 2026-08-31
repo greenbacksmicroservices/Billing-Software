@@ -274,6 +274,7 @@
 
 {% block extra_js %}
 <script>
+    let isRoundOffEnabled = false;
     let products = [];
     try {
         products = JSON.parse(document.getElementById('products-data').textContent || '[]');

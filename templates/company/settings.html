@@ -30,6 +30,14 @@
                 <i class="fa-solid fa-chevron-right nav-chevron"></i>
             </button>
 
+            <button type="button" class="settings-nav-btn" id="tab-btn-catalog" onclick="switchSettingsSection('catalog')">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-tags" style="width: 18px; text-align: center;"></i>
+                    <span>Categories & Brands</span>
+                </div>
+                <i class="fa-solid fa-chevron-right nav-chevron"></i>
+            </button>
+
             <button type="button" class="settings-nav-btn" id="tab-btn-users" onclick="switchSettingsSection('users')">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <i class="fa-solid fa-users-gear" style="width: 18px; text-align: center;"></i>
@@ -457,6 +465,213 @@
             </div>
         </div>
 
+        <!-- ==================== SECTION 4: CATEGORIES & BRANDS ==================== -->
+        <div id="section-catalog" class="settings-section" style="display: none;">
+            
+            <!-- Card 1: Categories Management -->
+            <div class="card-container" style="margin-bottom: 2rem; border-radius: 12px; border: 1px solid var(--border, #e2e8f0); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding: 1.25rem 1.5rem; background: var(--card, #ffffff); border-bottom: 1px solid var(--border, #e2e8f0);">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--primary-light, #eff6ff); color: var(--primary, #2563eb); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Product Categories</h3>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--muted-foreground);">Manage inventory item categories for organized cataloging.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="position: relative;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); font-size: 0.85rem;"></i>
+                            <input type="text" id="cat-search-input" class="form-control" style="padding: 0.4rem 0.75rem 0.4rem 2.2rem; font-size: 0.85rem; width: 220px; border-radius: 8px;" placeholder="Search categories..." onkeyup="filterCategoriesTable()">
+                        </div>
+                        <button type="button" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;" onclick="openCategoryModal()">
+                            <i class="fa-solid fa-plus"></i> Add Category
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive">
+                        <table class="table" id="categories-table" style="margin: 0; width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: var(--muted-bg, #f8fafc); border-bottom: 2px solid var(--border, #e2e8f0);">
+                                    <th style="width: 60px; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">#</th>
+                                    <th style="padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Category Name</th>
+                                    <th style="padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Description</th>
+                                    <th style="width: 140px; text-align: center; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Linked Products</th>
+                                    <th style="width: 130px; text-align: right; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categories-tbody">
+                                {% for cat in categories %}
+                                <tr id="cat-row-{{ cat.id }}" style="border-bottom: 1px solid var(--border, #f1f5f9); transition: background 0.15s ease-in-out;">
+                                    <td style="padding: 0.85rem 1.25rem; color: var(--muted-foreground); font-weight: 600; font-size: 0.85rem;">{{ forloop.counter }}</td>
+                                    <td style="padding: 0.85rem 1.25rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <i class="fa-solid fa-folder" style="color: var(--primary, #2563eb); font-size: 0.9rem;"></i>
+                                            <strong style="color: var(--foreground); font-size: 0.9rem;" class="cat-name-text">{{ cat.name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 0.85rem 1.25rem; color: var(--muted-foreground); font-size: 0.85rem;" class="cat-desc-text">{{ cat.description|default:"-" }}</td>
+                                    <td style="text-align: center; padding: 0.85rem 1.25rem;">
+                                        <span style="background: var(--primary-light, #eff6ff); color: var(--primary, #2563eb); font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0.65rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.35rem;">
+                                            <i class="fa-solid fa-box-open" style="font-size: 0.75rem;"></i> {{ cat.product_count }} products
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right; padding: 0.85rem 1.25rem;">
+                                        <div style="display: inline-flex; gap: 0.35rem;">
+                                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 6px;" title="Edit Category" onclick="editCategory('{{ cat.id }}', '{{ cat.name|escapejs }}', '{{ cat.description|default:''|escapejs }}')">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 6px;" title="Delete Category" onclick="deleteCategory('{{ cat.id }}', '{{ cat.name|escapejs }}')">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr id="no-categories-row">
+                                    <td colspan="5" style="text-align: center; color: var(--muted-foreground); padding: 3rem 1rem;">
+                                        <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; color: var(--border, #cbd5e1); margin-bottom: 0.75rem; display: block;"></i>
+                                        <p style="margin: 0; font-weight: 500;">No categories added yet.</p>
+                                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--muted-foreground);">Click "+ Add Category" to create your first product category.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Brands Management -->
+            <div class="card-container" style="border-radius: 12px; border: 1px solid var(--border, #e2e8f0); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding: 1.25rem 1.5rem; background: var(--card, #ffffff); border-bottom: 1px solid var(--border, #e2e8f0);">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                            <i class="fa-solid fa-copyright"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Product Brands</h3>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--muted-foreground);">Manage product brands and manufacturer labels.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="position: relative;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); font-size: 0.85rem;"></i>
+                            <input type="text" id="brand-search-input" class="form-control" style="padding: 0.4rem 0.75rem 0.4rem 2.2rem; font-size: 0.85rem; width: 220px; border-radius: 8px;" placeholder="Search brands..." onkeyup="filterBrandsTable()">
+                        </div>
+                        <button type="button" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;" onclick="openBrandModal()">
+                            <i class="fa-solid fa-plus"></i> Add Brand
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive">
+                        <table class="table" id="brands-table" style="margin: 0; width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: var(--muted-bg, #f8fafc); border-bottom: 2px solid var(--border, #e2e8f0);">
+                                    <th style="width: 60px; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">#</th>
+                                    <th style="padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Brand Name</th>
+                                    <th style="padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Description</th>
+                                    <th style="width: 140px; text-align: center; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Linked Products</th>
+                                    <th style="width: 130px; text-align: right; padding: 0.85rem 1.25rem; font-size: 0.75rem; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="brands-tbody">
+                                {% for br in brands %}
+                                <tr id="brand-row-{{ br.id }}" style="border-bottom: 1px solid var(--border, #f1f5f9); transition: background 0.15s ease-in-out;">
+                                    <td style="padding: 0.85rem 1.25rem; color: var(--muted-foreground); font-weight: 600; font-size: 0.85rem;">{{ forloop.counter }}</td>
+                                    <td style="padding: 0.85rem 1.25rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <i class="fa-solid fa-tag" style="color: #b45309; font-size: 0.9rem;"></i>
+                                            <strong style="color: var(--foreground); font-size: 0.9rem;" class="brand-name-text">{{ br.name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 0.85rem 1.25rem; color: var(--muted-foreground); font-size: 0.85rem;" class="brand-desc-text">{{ br.description|default:"-" }}</td>
+                                    <td style="text-align: center; padding: 0.85rem 1.25rem;">
+                                        <span style="background: #fef3c7; color: #b45309; font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0.65rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.35rem;">
+                                            <i class="fa-solid fa-box-open" style="font-size: 0.75rem;"></i> {{ br.product_count }} products
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right; padding: 0.85rem 1.25rem;">
+                                        <div style="display: inline-flex; gap: 0.35rem;">
+                                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 6px;" title="Edit Brand" onclick="editBrand('{{ br.id }}', '{{ br.name|escapejs }}', '{{ br.description|default:''|escapejs }}')">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 6px;" title="Delete Brand" onclick="deleteBrand('{{ br.id }}', '{{ br.name|escapejs }}')">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr id="no-brands-row">
+                                    <td colspan="5" style="text-align: center; color: var(--muted-foreground); padding: 3rem 1rem;">
+                                        <i class="fa-solid fa-tags" style="font-size: 2.5rem; color: var(--border, #cbd5e1); margin-bottom: 0.75rem; display: block;"></i>
+                                        <p style="margin: 0; font-weight: 500;">No brands added yet.</p>
+                                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--muted-foreground);">Click "+ Add Brand" to create your first brand.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- ==================== CATEGORY MODAL ==================== -->
+<div id="category-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #ffffff); border-radius: 12px; max-width: 480px; width: 90%; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 id="cat-modal-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Add New Category</h3>
+            <button type="button" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);" onclick="closeCategoryModal()">&times;</button>
+        </div>
+        <form id="category-form" onsubmit="saveCategorySubmit(event)">
+            <input type="hidden" id="cat-id-val" value="">
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600;">Category Name <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="cat-name-val" class="form-control" placeholder="e.g. Electronics, Clothing, Services" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Description (Optional)</label>
+                <textarea id="cat-desc-val" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+                <button type="submit" id="cat-save-btn" class="btn btn-primary">Save Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== BRAND MODAL ==================== -->
+<div id="brand-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #ffffff); border-radius: 12px; max-width: 480px; width: 90%; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 id="brand-modal-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Add New Brand</h3>
+            <button type="button" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);" onclick="closeBrandModal()">&times;</button>
+        </div>
+        <form id="brand-form" onsubmit="saveBrandSubmit(event)">
+            <input type="hidden" id="brand-id-val" value="">
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-weight: 600;">Brand Name <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="brand-name-val" class="form-control" placeholder="e.g. Samsung, Nike, Apple" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Description (Optional)</label>
+                <textarea id="brand-desc-val" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeBrandModal()">Cancel</button>
+                <button type="submit" id="brand-save-btn" class="btn btn-primary">Save Brand</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -493,7 +708,7 @@ function switchSettingsSection(sectionId) {
 // Restore section on page load
 document.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash.replace('#', '');
-    if (['profile', 'users', 'logs'].includes(hash)) {
+    if (['profile', 'users', 'logs', 'catalog'].includes(hash)) {
         switchSettingsSection(hash);
     } else {
         switchSettingsSection('profile');
@@ -516,6 +731,192 @@ function filterAuditLogsTable() {
     rows.forEach(row => {
         const text = row.innerText.toLowerCase();
         row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+function filterCategoriesTable() {
+    const query = document.getElementById('cat-search-input').value.toLowerCase();
+    const rows = document.querySelectorAll('#categories-table tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+function filterBrandsTable() {
+    const query = document.getElementById('brand-search-input').value.toLowerCase();
+    const rows = document.querySelectorAll('#brands-table tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+// --- CATEGORY MANAGEMENT LOGIC ---
+function openCategoryModal() {
+    document.getElementById('cat-id-val').value = '';
+    document.getElementById('cat-name-val').value = '';
+    document.getElementById('cat-desc-val').value = '';
+    document.getElementById('cat-modal-title').innerText = 'Add New Category';
+    document.getElementById('cat-save-btn').innerText = 'Save Category';
+    document.getElementById('category-modal').style.display = 'flex';
+}
+
+function editCategory(id, name, desc) {
+    document.getElementById('cat-id-val').value = id;
+    document.getElementById('cat-name-val').value = name;
+    document.getElementById('cat-desc-val').value = desc;
+    document.getElementById('cat-modal-title').innerText = 'Edit Category';
+    document.getElementById('cat-save-btn').innerText = 'Update Category';
+    document.getElementById('category-modal').style.display = 'flex';
+}
+
+function closeCategoryModal() {
+    document.getElementById('category-modal').style.display = 'none';
+}
+
+function saveCategorySubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('cat-id-val').value;
+    const name = document.getElementById('cat-name-val').value.trim();
+    const desc = document.getElementById('cat-desc-val').value.trim();
+    const btn = document.getElementById('cat-save-btn');
+    btn.disabled = true;
+
+    const url = id ? `/company/categories/${id}/edit/` : '{% url "category_quick_add" %}';
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ name: name, description: desc })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success' || data.success) {
+            closeCategoryModal();
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message || 'Category saved successfully.');
+            }
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error saving category.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        console.error(err);
+        alert('Network error while saving category.');
+    });
+}
+
+function deleteCategory(id, name) {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    fetch(`/company/categories/${id}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message);
+            }
+            const row = document.getElementById('cat-row-' + id);
+            if (row) row.remove();
+        } else {
+            alert(data.message || 'Error deleting category.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Network error while deleting category.');
+    });
+}
+
+// --- BRAND MANAGEMENT LOGIC ---
+function openBrandModal() {
+    document.getElementById('brand-id-val').value = '';
+    document.getElementById('brand-name-val').value = '';
+    document.getElementById('brand-desc-val').value = '';
+    document.getElementById('brand-modal-title').innerText = 'Add New Brand';
+    document.getElementById('brand-save-btn').innerText = 'Save Brand';
+    document.getElementById('brand-modal').style.display = 'flex';
+}
+
+function editBrand(id, name, desc) {
+    document.getElementById('brand-id-val').value = id;
+    document.getElementById('brand-name-val').value = name;
+    document.getElementById('brand-desc-val').value = desc;
+    document.getElementById('brand-modal-title').innerText = 'Edit Brand';
+    document.getElementById('brand-save-btn').innerText = 'Update Brand';
+    document.getElementById('brand-modal').style.display = 'flex';
+}
+
+function closeBrandModal() {
+    document.getElementById('brand-modal').style.display = 'none';
+}
+
+function saveBrandSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('brand-id-val').value;
+    const name = document.getElementById('brand-name-val').value.trim();
+    const desc = document.getElementById('brand-desc-val').value.trim();
+    const btn = document.getElementById('brand-save-btn');
+    btn.disabled = true;
+
+    const url = id ? `/company/brands/${id}/edit/` : '{% url "brand_quick_add" %}';
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ name: name, description: desc })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success' || data.success) {
+            closeBrandModal();
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message || 'Brand saved successfully.');
+            }
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error saving brand.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        console.error(err);
+        alert('Network error while saving brand.');
+    });
+}
+
+function deleteBrand(id, name) {
+    if (!confirm(`Are you sure you want to delete brand "${name}"?`)) return;
+    fetch(`/company/brands/${id}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message);
+            }
+            const row = document.getElementById('brand-row-' + id);
+            if (row) row.remove();
+        } else {
+            alert(data.message || 'Error deleting brand.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Network error while deleting brand.');
     });
 }
 

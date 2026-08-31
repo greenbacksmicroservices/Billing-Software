@@ -268,6 +268,9 @@
 {% block extra_js %}
 <script>
     let activeProductId = null;
+
+    function openAdjustModal(id, name, stock) {
+        activeProductId = id;
         document.getElementById('adjust-qty').value = '';
         document.getElementById('adjust-reason').value = '';
         document.getElementById('adjust-modal').style.display = 'flex';

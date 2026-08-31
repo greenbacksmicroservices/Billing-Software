@@ -120,6 +120,7 @@
 
 {% block extra_js %}
 <script>
+    let isRoundOffEnabled = false;
     let products = [];
     try {
         products = JSON.parse(document.getElementById('products-data').textContent || '[]');
@@ -265,7 +266,6 @@
 
         const grandTotal = taxable + cgstTotal + sgstTotal + igstTotal + cessTotal;
         if (grandEl) grandEl.innerText = window.formatIndianCurrency(grandTotal);
-    }
     }
 
     function submitOrder(e) {

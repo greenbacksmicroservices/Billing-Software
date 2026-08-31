@@ -51,17 +51,33 @@
                 <label class="form-label">Barcode (for scanner lookup)</label>
                 {{ form.barcode }}
             </div>
-            <div class="form-group" style="position: relative;">
-                <label class="form-label" for="category_search_input">Category</label>
-                <input type="text" id="category_search_input" class="form-control" placeholder="Type or search category" autocomplete="off" value="{{ object.category.name|default:'' }}">
-                <input type="hidden" name="category" id="id_category" value="{{ object.category.id|default:'' }}">
-                <div id="category_suggestions" class="autocomplete-suggestions-box" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 1050; background: var(--card, #ffffff); border: 1px solid var(--border, #ccc); border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 2px;"></div>
+            <div class="form-group">
+                <label class="form-label" for="id_category">Category</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select name="category" id="id_category" class="form-control" style="flex: 1;">
+                        <option value="">-- Select Category --</option>
+                        {% for cat in form.fields.category.queryset %}
+                            <option value="{{ cat.id }}" {% if form.category.value|stringformat:"s" == cat.id|stringformat:"s" or object.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; white-space: nowrap; font-size: 0.85rem;" onclick="openAddCategoryModalQuick()" title="Add New Category">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
             </div>
-            <div class="form-group" style="position: relative;">
-                <label class="form-label" for="brand_search_input">Brand</label>
-                <input type="text" id="brand_search_input" class="form-control" placeholder="Type or search brand" autocomplete="off" value="{{ object.brand.name|default:'' }}">
-                <input type="hidden" name="brand" id="id_brand" value="{{ object.brand.id|default:'' }}">
-                <div id="brand_suggestions" class="autocomplete-suggestions-box" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 1050; background: var(--card, #ffffff); border: 1px solid var(--border, #ccc); border-radius: 6px; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 2px;"></div>
+            <div class="form-group">
+                <label class="form-label" for="id_brand">Brand</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select name="brand" id="id_brand" class="form-control" style="flex: 1;">
+                        <option value="">-- Select Brand --</option>
+                        {% for br in form.fields.brand.queryset %}
+                            <option value="{{ br.id }}" {% if form.brand.value|stringformat:"s" == br.id|stringformat:"s" or object.brand.id == br.id %}selected{% endif %}>{{ br.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; white-space: nowrap; font-size: 0.85rem;" onclick="openAddBrandModalQuick()" title="Add New Brand">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -689,7 +705,158 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 });
+
+// --- QUICK ADD CATEGORY & BRAND FOR PRODUCT FORM ---
+function openAddCategoryModalQuick() {
+    document.getElementById('quick-cat-name').value = '';
+    document.getElementById('quick-cat-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('quick-cat-name').focus(), 100);
+}
+
+function closeQuickCategoryModalProduct() {
+    document.getElementById('quick-cat-modal').style.display = 'none';
+}
+
+function saveQuickCategoryProduct(e) {
+    e.preventDefault();
+    const name = document.getElementById('quick-cat-name').value.trim();
+    if (!name) return;
+    const btn = document.getElementById('quick-cat-save-btn');
+    btn.disabled = true;
+
+    fetch('{% url "category_quick_add" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ name: name })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success' || data.success) {
+            closeQuickCategoryModalProduct();
+            const selectEl = document.getElementById('id_category');
+            if (selectEl) {
+                let opt = Array.from(selectEl.options).find(o => o.value == data.id);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = data.id;
+                    opt.textContent = data.name;
+                    selectEl.appendChild(opt);
+                }
+                selectEl.value = data.id;
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message || 'Category added.');
+            }
+        } else {
+            alert(data.message || 'Error adding category.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        console.error(err);
+        alert('Network error adding category.');
+    });
+}
+
+function openAddBrandModalQuick() {
+    document.getElementById('quick-brand-name').value = '';
+    document.getElementById('quick-brand-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('quick-brand-name').focus(), 100);
+}
+
+function closeQuickBrandModalProduct() {
+    document.getElementById('quick-brand-modal').style.display = 'none';
+}
+
+function saveQuickBrandProduct(e) {
+    e.preventDefault();
+    const name = document.getElementById('quick-brand-name').value.trim();
+    if (!name) return;
+    const btn = document.getElementById('quick-brand-save-btn');
+    btn.disabled = true;
+
+    fetch('{% url "brand_quick_add" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ name: name })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success' || data.success) {
+            closeQuickBrandModalProduct();
+            const selectEl = document.getElementById('id_brand');
+            if (selectEl) {
+                let opt = Array.from(selectEl.options).find(o => o.value == data.id);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = data.id;
+                    opt.textContent = data.name;
+                    selectEl.appendChild(opt);
+                }
+                selectEl.value = data.id;
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', data.message || 'Brand added.');
+            }
+        } else {
+            alert(data.message || 'Error adding brand.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        console.error(err);
+        alert('Network error adding brand.');
+    });
+}
 </script>
+
+<!-- Quick Add Category Modal -->
+<div id="quick-cat-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #ffffff); border-radius: 12px; max-width: 420px; width: 90%; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Quick Add Category</h3>
+            <button type="button" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);" onclick="closeQuickCategoryModalProduct()">&times;</button>
+        </div>
+        <form onsubmit="saveQuickCategoryProduct(event)">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Category Name <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="quick-cat-name" class="form-control" placeholder="e.g. Electronics, Grocery" required>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeQuickCategoryModalProduct()">Cancel</button>
+                <button type="submit" id="quick-cat-save-btn" class="btn btn-primary">Save & Select</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Add Brand Modal -->
+<div id="quick-brand-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #ffffff); border-radius: 12px; max-width: 420px; width: 90%; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--foreground);">Quick Add Brand</h3>
+            <button type="button" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted-foreground);" onclick="closeQuickBrandModalProduct()">&times;</button>
+        </div>
+        <form onsubmit="saveQuickBrandProduct(event)">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600;">Brand Name <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="quick-brand-name" class="form-control" placeholder="e.g. Samsung, Nike" required>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeQuickBrandModalProduct()">Cancel</button>
+                <button type="submit" id="quick-brand-save-btn" class="btn btn-primary">Save & Select</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 

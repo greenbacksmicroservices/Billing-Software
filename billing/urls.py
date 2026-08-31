@@ -70,8 +70,12 @@ urlpatterns = [
     path('company/hsn-sac/search/', views.hsn_sac_search_api, name='hsn_sac_search_api'),
     path('company/categories/search/', views.category_search_api, name='category_search_api'),
     path('company/categories/quick-add/', views.category_quick_add, name='category_quick_add'),
+    path('company/categories/<int:pk>/edit/', views.category_edit, name='category_edit'),
+    path('company/categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
     path('company/brands/search/', views.brand_search_api, name='brand_search_api'),
     path('company/brands/quick-add/', views.brand_quick_add, name='brand_quick_add'),
+    path('company/brands/<int:pk>/edit/', views.brand_edit, name='brand_edit'),
+    path('company/brands/<int:pk>/delete/', views.brand_delete, name='brand_delete'),
     path('api/states/search/', views.indian_states_search_api, name='indian_states_search_api'),
 
     path('company/customers/quick-add/', views.customer_quick_add, name='customer_quick_add'),
