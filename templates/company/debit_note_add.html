@@ -85,15 +85,15 @@
                 },
                 body: formData
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success' || data.success) {
+            .then(async res => {
+                const data = await res.json().catch(() => null);
+                if (res.ok && (data?.status === 'success' || data?.success)) {
                     if (typeof window.showToast === 'function') {
-                        window.showToast('success', data.message || 'Debit note saved successfully');
+                        window.showToast('success', data?.message || 'Debit note saved successfully');
                     }
-                    window.location.href = data.redirect_url || '{% url "debit_note_list" %}';
+                    window.location.href = data?.redirect_url || '{% url "debit_note_list" %}';
                 } else {
-                    const msg = data.message || 'Unable to save debit note.';
+                    const msg = data?.message || data?.error || 'Unable to save debit note.';
                     window.setElementText('form-error-toast', msg);
                     window.setElementDisplay('form-error-toast', 'block');
                     if (typeof window.showToast === 'function') {

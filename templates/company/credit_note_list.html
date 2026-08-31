@@ -185,13 +185,17 @@
             const taxable = window.parseMoney(selected.getAttribute('data-taxable')) || 0;
             if (custName) custName.value = customer;
             if (subtotalEl) {
-                subtotalEl.placeholder = `Max: ${window.formatIndianCurrency(taxable)}`;
+                subtotalEl.placeholder = `Taxable Max: ${window.formatIndianCurrency(taxable)}`;
+                if (!subtotalEl.value) {
+                    subtotalEl.value = taxable ? taxable : '';
+                }
                 subtotalEl.dataset.max = taxable;
             }
         } else {
             if (custName) custName.value = '';
             if (subtotalEl) {
                 subtotalEl.placeholder = 'Max: ₹0.00';
+                subtotalEl.value = '';
                 delete subtotalEl.dataset.max;
             }
         }
@@ -269,16 +273,16 @@
             },
             body: JSON.stringify(payload)
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success' || data.success) {
+        .then(async res => {
+            const data = await res.json().catch(() => null);
+            if (res.ok && (data?.status === 'success' || data?.success)) {
                 if (typeof window.showToast === 'function') {
                     window.showToast('success', data.message || 'Credit note issued successfully.');
                 }
                 closeCreditNoteModal();
                 window.location.reload();
             } else {
-                const msg = data.message || "Unable to issue credit note.";
+                const msg = data?.message || data?.error || "Unable to issue credit note.";
                 window.setElementText('cn-error-msg', msg);
                 window.setElementDisplay('cn-error-msg', 'block');
                 if (typeof window.showToast === 'function') window.showToast('error', msg);

@@ -6512,7 +6512,7 @@ class CreditNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationM
             qs = qs.filter(
                 Q(note_number__icontains=search) |
                 Q(invoice__invoice_number__icontains=search) |
-                Q(customer__name__icontains=search)
+                Q(invoice__customer__name__icontains=search)
             )
         status = self.request.GET.get('status')
         if status:
@@ -6527,6 +6527,7 @@ class CreditNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationM
         CreditNoteForm = modelform_factory(CreditNote, fields=['invoice', 'note_number', 'note_date', 'reason', 'subtotal', 'notes'])
         form = CreditNoteForm()
         form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company, status='POSTED')
+        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value} | Total: ₹{obj.grand_total})"
         for name, field in form.fields.items():
             field.widget.attrs['class'] = 'form-control'
             field.widget.attrs['id'] = f'cn-{name}'
@@ -6606,6 +6607,7 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company, status='POSTED')
+        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value} | Total: ₹{obj.grand_total})"
         for name, field in form.fields.items():
             field.widget.attrs['class'] = 'form-control'
         return form
@@ -6616,12 +6618,19 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
         form.instance.company = company
         original_invoice = form.instance.invoice
         subtotal = form.instance.subtotal
-        
+
+        if subtotal <= Decimal('0.00'):
+            msg = "Credit note taxable value must be greater than ₹0.00."
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or self.request.content_type == 'application/json':
+                return JsonResponse({'success': False, 'status': 'error', 'message': msg})
+            form.add_error('subtotal', msg)
+            return self.form_invalid(form)
+
         # Validation: Amount must not exceed original invoice taxable value
         if subtotal > original_invoice.taxable_value:
             msg = f"Credit note taxable value (₹{subtotal}) cannot exceed original invoice taxable value (₹{original_invoice.taxable_value})."
             if self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or self.request.content_type == 'application/json':
-                return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                return JsonResponse({'success': False, 'status': 'error', 'message': msg})
             form.add_error('subtotal', msg)
             return self.form_invalid(form)
 
@@ -6699,7 +6708,7 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
             errors = []
             for field, errs in form.errors.items():
                 errors.append(f"{field.capitalize()}: {errs[0]}")
-            return JsonResponse({'success': False, 'status': 'error', 'message': ', '.join(errors)}, status=400, encoder=DjangoJSONEncoder)
+            return JsonResponse({'success': False, 'status': 'error', 'message': ', '.join(errors)}, encoder=DjangoJSONEncoder)
         return super().form_invalid(form)
 
 
@@ -6758,7 +6767,7 @@ class DebitNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMi
             qs = qs.filter(
                 Q(note_number__icontains=search) |
                 Q(purchase_bill__supplier_bill_no__icontains=search) |
-                Q(supplier__name__icontains=search)
+                Q(purchase_bill__supplier__name__icontains=search)
             )
         status = self.request.GET.get('status')
         if status:
@@ -6811,6 +6820,7 @@ class DebitNoteCreateView(CompanyRequiredMixin, CreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.fields['purchase_bill'].queryset = PurchaseBill.objects.filter(company=self.request.user.company, status='POSTED')
+        form.fields['purchase_bill'].label_from_instance = lambda obj: f"{obj.supplier_bill_no or obj.bill_number} - {obj.supplier.name} (Taxable: ₹{obj.taxable_value} | Total: ₹{obj.grand_total})"
         for name, field in form.fields.items():
             field.widget.attrs['class'] = 'form-control'
         return form
@@ -6821,6 +6831,20 @@ class DebitNoteCreateView(CompanyRequiredMixin, CreateView):
         form.instance.company = company
         bill = form.instance.purchase_bill
         subtotal = form.instance.subtotal
+
+        if subtotal <= Decimal('0.00'):
+            msg = "Debit note taxable value must be greater than ₹0.00."
+            if self.is_ajax():
+                return JsonResponse({'success': False, 'status': 'error', 'message': msg})
+            form.add_error('subtotal', msg)
+            return self.form_invalid(form)
+
+        if subtotal > bill.taxable_value:
+            msg = f"Debit note taxable value (₹{subtotal}) cannot exceed original purchase bill taxable value (₹{bill.taxable_value})."
+            if self.is_ajax():
+                return JsonResponse({'success': False, 'status': 'error', 'message': msg})
+            form.add_error('subtotal', msg)
+            return self.form_invalid(form)
         
         # Calculate GST rate from bill first item or default
         gst_rate = Decimal('18.00')
@@ -6893,7 +6917,7 @@ class DebitNoteCreateView(CompanyRequiredMixin, CreateView):
     def form_invalid(self, form):
         if self.is_ajax():
             errors = [f"{field.capitalize()}: {errs[0]}" for field, errs in form.errors.items()]
-            return JsonResponse({'success': False, 'status': 'error', 'message': ', '.join(errors)}, status=400, encoder=DjangoJSONEncoder)
+            return JsonResponse({'success': False, 'status': 'error', 'message': ', '.join(errors)}, encoder=DjangoJSONEncoder)
         return super().form_invalid(form)
 
 class DebitNoteDetailView(CompanyRequiredMixin, CompanyQuerySetMixin, DetailView):

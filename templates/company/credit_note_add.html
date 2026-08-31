@@ -94,15 +94,15 @@
                 },
                 body: formData
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success' || data.success) {
+            .then(async res => {
+                const data = await res.json().catch(() => null);
+                if (res.ok && (data?.status === 'success' || data?.success)) {
                     if (typeof window.showToast === 'function') {
-                        window.showToast('success', data.message || 'Credit note issued successfully');
+                        window.showToast('success', data?.message || 'Credit note issued successfully');
                     }
-                    window.location.href = data.redirect_url || '{% url "credit_note_list" %}';
+                    window.location.href = data?.redirect_url || '{% url "credit_note_list" %}';
                 } else {
-                    const msg = data.message || 'Unable to issue credit note.';
+                    const msg = data?.message || data?.error || 'Unable to issue credit note.';
                     window.setElementText('form-error-toast', msg);
                     window.setElementDisplay('form-error-toast', 'block');
                     if (typeof window.showToast === 'function') {
