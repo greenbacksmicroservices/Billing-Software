@@ -859,11 +859,16 @@
             const disc = window.parseMoney(discInput ? discInput.value : 0);
             const gstRate = window.parseMoney(gstInput ? gstInput.value : 0);
 
+            const prodSelect = tr.querySelector('.item-product');
+            const prodId = prodSelect ? prodSelect.value : null;
+            const prod = prodId ? products.find(p => p.id == prodId) : null;
+
             const gross = qty * rate;
-            const taxable = Math.max(0, gross - disc);
+            const taxable = (prod && prod.tax_inclusive) ? Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc) : Math.max(0, gross - disc);
             const taxVal = taxable * (gstRate / 100);
 
-            subtotal += gross;
+            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable + disc) : gross;
+            subtotal += lineSubtotal;
             discountTotal += disc;
             taxableTotal += taxable;
 

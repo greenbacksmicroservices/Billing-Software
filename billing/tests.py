@@ -1855,8 +1855,8 @@ class BillingSoftwareTests(TestCase):
         res_add_page = c.get('/company/products/add/')
         self.assertEqual(res_add_page.status_code, 200)
         html_add = res_add_page.content.decode('utf-8')
-        self.assertIn('id="hsn_search_input"', html_add)
-        self.assertIn('id="hsn_options_list"', html_add)
+        self.assertIn('id="hsn_sac_search_input"', html_add)
+        self.assertIn('id="hsn_sac_results_box"', html_add)
         self.assertIn('HSN/SAC Code Assignment', html_add)
 
         # 2. Add product with HSN/SAC assignment
@@ -1888,7 +1888,7 @@ class BillingSoftwareTests(TestCase):
         # 3. Product Edit page preloads selected HSN/SAC
         res_edit_page = c.get(f'/company/products/{prod.id}/edit/')
         self.assertEqual(res_edit_page.status_code, 200)
-        self.assertIn('id="hsn_search_input"', res_edit_page.content.decode('utf-8'))
+        self.assertIn('id="hsn_sac_search_input"', res_edit_page.content.decode('utf-8'))
 
         # 4. GST Dashboard cards visibility and links
         res_dash = c.get('/company/gst/dashboard/')

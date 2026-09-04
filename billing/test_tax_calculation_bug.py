@@ -187,3 +187,77 @@ class TaxCalculationBugTestCase(TestCase):
         self.assertEqual(res['line_taxable'], Decimal('1800.00'))
         self.assertEqual(res['igst_amount'], Decimal('324.00'))
         self.assertEqual(res['line_total'], Decimal('2124.00'))
+
+    def test_requirement_21_qty_progression_intrastate(self):
+        """
+        Req 21: Product Rate ₹300, GST 18%, Intra-state (27 to 27)
+        Qty 1: Subtotal ₹300, CGST ₹27, SGST ₹27, IGST ₹0, Grand Total ₹354
+        Qty 2: Subtotal ₹600, CGST ₹54, SGST ₹54, IGST ₹0, Grand Total ₹708
+        Qty 5: Subtotal ₹1500, CGST ₹135, SGST ₹135, IGST ₹0, Grand Total ₹1770
+        """
+        # Qty 1
+        r1 = calculate_line_item_financials(quantity=1, rate=300, discount=0, gst_rate=18, company_state_code="27", pos_state_code="27")
+        self.assertEqual(r1['line_subtotal'], Decimal('300.00'))
+        self.assertEqual(r1['cgst_amount'], Decimal('27.00'))
+        self.assertEqual(r1['sgst_amount'], Decimal('27.00'))
+        self.assertEqual(r1['igst_amount'], Decimal('0.00'))
+        self.assertEqual(r1['line_total'], Decimal('354.00'))
+
+        # Qty 2
+        r2 = calculate_line_item_financials(quantity=2, rate=300, discount=0, gst_rate=18, company_state_code="27", pos_state_code="27")
+        self.assertEqual(r2['line_subtotal'], Decimal('600.00'))
+        self.assertEqual(r2['cgst_amount'], Decimal('54.00'))
+        self.assertEqual(r2['sgst_amount'], Decimal('54.00'))
+        self.assertEqual(r2['igst_amount'], Decimal('0.00'))
+        self.assertEqual(r2['line_total'], Decimal('708.00'))
+
+        # Qty 5
+        r5 = calculate_line_item_financials(quantity=5, rate=300, discount=0, gst_rate=18, company_state_code="27", pos_state_code="27")
+        self.assertEqual(r5['line_subtotal'], Decimal('1500.00'))
+        self.assertEqual(r5['cgst_amount'], Decimal('135.00'))
+        self.assertEqual(r5['sgst_amount'], Decimal('135.00'))
+        self.assertEqual(r5['igst_amount'], Decimal('0.00'))
+        self.assertEqual(r5['line_total'], Decimal('1770.00'))
+
+    def test_requirement_22_interstate_calculation(self):
+        """
+        Req 22: Qty 5, Rate ₹300, GST 18%, Inter-state (27 to 24)
+        Gross Subtotal = ₹1500, IGST = ₹270, CGST = ₹0, SGST = ₹0, Grand Total = ₹1770
+        """
+        res = calculate_line_item_financials(quantity=5, rate=300, discount=0, gst_rate=18, company_state_code="27", pos_state_code="24")
+        self.assertEqual(res['line_subtotal'], Decimal('1500.00'))
+        self.assertEqual(res['cgst_amount'], Decimal('0.00'))
+        self.assertEqual(res['sgst_amount'], Decimal('0.00'))
+        self.assertEqual(res['igst_amount'], Decimal('270.00'))
+        self.assertEqual(res['line_total'], Decimal('1770.00'))
+
+    def test_requirement_23_multiple_products_aggregation(self):
+        """
+        Req 23: Multiple products with different GST rates.
+        Row 1: Charger Qty 3, Rate ₹300, GST 18% -> Gross ₹900, GST ₹162
+        Row 2: Kurkuri Qty 2, Rate ₹150, GST 5% -> Gross ₹300, GST ₹15
+        Row 3: Earphone Qty 1, Rate ₹1600, GST 18% -> Gross ₹1600, GST ₹288
+        Gross Subtotal = ₹2800, Total GST = ₹465, Grand Total = ₹3265
+        """
+        prod_charger = Product.objects.create(company=self.company, name="USE Charger", selling_price=Decimal('300.00'), hsn_sac=self.hsn_18)
+        prod_kurkuri = Product.objects.create(company=self.company, name="Kurkuri", selling_price=Decimal('150.00'), hsn_sac=self.hsn_5)
+        prod_earphone = Product.objects.create(company=self.company, name="Earphone", selling_price=Decimal('1600.00'), hsn_sac=self.hsn_18)
+
+        inv = Invoice.objects.create(
+            company=self.company,
+            customer=self.customer_inter,
+            invoice_number="INV-REQ-23",
+            invoice_date="2025-01-01",
+            due_date="2025-01-31",
+            place_of_supply="Gujarat",
+            place_of_supply_code="24"
+        )
+        InvoiceItem.objects.create(invoice=inv, product=prod_charger, quantity=Decimal('3.00'), rate=Decimal('300.00'), discount=Decimal('0.00'), taxable_value=Decimal('0.00'), gst_rate=Decimal('18.00'), total_amount=Decimal('0.00'))
+        InvoiceItem.objects.create(invoice=inv, product=prod_kurkuri, quantity=Decimal('2.00'), rate=Decimal('150.00'), discount=Decimal('0.00'), taxable_value=Decimal('0.00'), gst_rate=Decimal('5.00'), total_amount=Decimal('0.00'))
+        InvoiceItem.objects.create(invoice=inv, product=prod_earphone, quantity=Decimal('1.00'), rate=Decimal('1600.00'), discount=Decimal('0.00'), taxable_value=Decimal('0.00'), gst_rate=Decimal('18.00'), total_amount=Decimal('0.00'))
+
+        recalculate_invoice_totals(inv)
+
+        self.assertEqual(inv.subtotal, Decimal('2800.00'))
+        self.assertEqual(inv.igst_total, Decimal('465.00'))
+        self.assertEqual(inv.grand_total, Decimal('3265.00'))

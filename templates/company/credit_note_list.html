@@ -89,7 +89,7 @@
                 <select name="invoice" id="cn-invoice" class="form-control" onchange="onInvoiceChange()" required>
                     <option value="">-- Select Invoice --</option>
                     {% for inv in form.fields.invoice.queryset %}
-                        <option value="{{ inv.id }}" data-customer="{{ inv.customer.name }}" data-taxable="{{ inv.taxable_value }}">{{ inv.invoice_number }} (₹{{ inv.grand_total }})</option>
+                        <option value="{{ inv.id }}" data-customer="{{ inv.customer.name }}" data-taxable="{% if inv.taxable_value > 0 %}{{ inv.taxable_value }}{% elif inv.subtotal > 0 %}{{ inv.subtotal }}{% else %}{{ inv.grand_total }}{% endif %}">{{ inv.invoice_number }} - {{ inv.customer.name }} (Taxable: ₹{% if inv.taxable_value > 0 %}{{ inv.taxable_value }}{% elif inv.subtotal > 0 %}{{ inv.subtotal }}{% else %}{{ inv.grand_total }}{% endif %} | Total: ₹{{ inv.grand_total }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -147,7 +147,11 @@
         const custName = document.getElementById('cn-customer-name');
         if (custName) custName.value = '';
         const subtotal = document.getElementById('cn-subtotal');
-        if (subtotal) subtotal.value = '';
+        if (subtotal) {
+            subtotal.value = '';
+            subtotal.placeholder = 'Max: ₹0.00';
+            delete subtotal.dataset.max;
+        }
         const notes = document.getElementById('cn-notes');
         if (notes) notes.value = '';
         window.setElementDisplay('credit-note-modal', 'flex');
@@ -183,11 +187,11 @@
         if (selected && selected.value) {
             const customer = selected.getAttribute('data-customer');
             const taxable = window.parseMoney(selected.getAttribute('data-taxable')) || 0;
-            if (custName) custName.value = customer;
+            if (custName) custName.value = customer || '';
             if (subtotalEl) {
                 subtotalEl.placeholder = `Taxable Max: ${window.formatIndianCurrency(taxable)}`;
-                if (!subtotalEl.value) {
-                    subtotalEl.value = taxable ? taxable : '';
+                if (!subtotalEl.value || parseFloat(subtotalEl.value) === 0) {
+                    subtotalEl.value = taxable ? taxable.toFixed(2) : '';
                 }
                 subtotalEl.dataset.max = taxable;
             }

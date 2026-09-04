@@ -616,14 +616,15 @@
             const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            const taxable_item = Math.max(0, gross - disc);
+            const taxable_item = (prod && prod.tax_inclusive) ? Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc) : Math.max(0, gross - disc);
             const rowGst = taxable_item * (gstRate / 100);
             const rowCess = taxable_item * (cessRate / 100);
-            const rowTotal = taxable_item + rowGst + rowCess;
+            const rowTotal = (prod && prod.tax_inclusive) ? gross : (taxable_item + rowGst + rowCess);
             
             if (rowTotalEl) rowTotalEl.innerText = window.formatIndianCurrency(rowTotal);
             
-            subtotal += gross;
+            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable_item + disc) : gross;
+            subtotal += lineSubtotal;
             discTotal += disc;
             taxable += taxable_item;
             cessTotal += rowCess;
@@ -753,17 +754,19 @@
             const qtyEl = row.querySelector('.qty-input');
             const rateEl = row.querySelector('.rate-input');
             const discEl = row.querySelector('.disc-input');
+            const gstEl = row.querySelector('.gst-input');
             
             const pId = prodEl ? prodEl.value : '';
             const qty = qtyEl ? window.parseMoney(qtyEl.value) : 0;
             const rate = rateEl ? window.parseMoney(rateEl.value) : 0;
             const disc = discEl ? window.parseMoney(discEl.value) : 0;
+            const gstRate = gstEl ? window.parseMoney(gstEl.value) : 0;
             
             if (pId) {
                 if (qty <= 0 || rate < 0) {
                     hasIncompleteRow = true;
                 } else {
-                    items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc });
+                    items.push({ product_id: parseInt(pId), quantity: qty, rate: rate, discount: disc, gst_rate: gstRate });
                 }
             }
         });

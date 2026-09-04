@@ -4599,7 +4599,7 @@ class SalesOrderCreateView(CompanyRequiredMixin, View):
                     continue
 
                 taxable = (qty * rate) - disc
-                rate_gst = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
+                rate_gst = parse_money(item.get('gst_rate', prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('18.00')))
                 cgst, sgst, igst, tot_gst = calculate_item_gst(company.state_code, customer.billing_state_code or company.state_code, taxable, rate_gst)
                 tot = taxable + tot_gst
                 
@@ -4856,7 +4856,7 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
                         raise ValueError(f"Insufficient stock for product '{prod.name}' (Available: {prod.current_stock}, Requested: {qty})")
                 
                 hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
-                gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
+                gst_rate = parse_money(item.get('gst_rate', prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('18.00')))
                 InvoiceItem.objects.create(
                     invoice=invoice, product=prod, quantity=qty, rate=rate,
                     discount=disc, taxable_value=Decimal('0.00'), hsn_sac_code=hsn_code,
@@ -5041,7 +5041,7 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
                             raise ValueError(f"Insufficient stock for product '{prod.name}' (Available: {prod.current_stock}, Requested: {qty})")
 
                     hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
-                    gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
+                    gst_rate = parse_money(item.get('gst_rate', prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('18.00')))
                     InvoiceItem.objects.create(
                         invoice=invoice, product=prod, quantity=qty, rate=rate,
                         discount=disc, taxable_value=Decimal('0.00'), hsn_sac_code=hsn_code,
@@ -5816,7 +5816,7 @@ class PurchaseBillCreateView(CompanyRequiredMixin, View):
                     continue
 
                 hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
-                gst_rate = prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('0.00')
+                gst_rate = parse_money(item.get('gst_rate', prod.hsn_sac.gst_rate if prod.hsn_sac else Decimal('18.00')))
                 PurchaseBillItem.objects.create(
                     purchase_bill=bill, product=prod, quantity=qty, rate=rate,
                     discount=disc, taxable_value=Decimal('0.00'), hsn_sac_code=hsn_code,
@@ -6618,8 +6618,8 @@ class CreditNoteListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationM
         from django.forms import modelform_factory
         CreditNoteForm = modelform_factory(CreditNote, fields=['invoice', 'note_number', 'note_date', 'reason', 'subtotal', 'notes'])
         form = CreditNoteForm()
-        form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company, status='POSTED')
-        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value} | Total: ₹{obj.grand_total})"
+        form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company).exclude(status='CANCELLED')
+        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value if obj.taxable_value > 0 else (obj.subtotal if obj.subtotal > 0 else obj.grand_total)} | Total: ₹{obj.grand_total})"
         for name, field in form.fields.items():
             field.widget.attrs['class'] = 'form-control'
             field.widget.attrs['id'] = f'cn-{name}'
@@ -6698,8 +6698,8 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company, status='POSTED')
-        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value} | Total: ₹{obj.grand_total})"
+        form.fields['invoice'].queryset = Invoice.objects.filter(company=self.request.user.company).exclude(status='CANCELLED')
+        form.fields['invoice'].label_from_instance = lambda obj: f"{obj.invoice_number} - {obj.customer.name} (Taxable: ₹{obj.taxable_value if obj.taxable_value > 0 else (obj.subtotal if obj.subtotal > 0 else obj.grand_total)} | Total: ₹{obj.grand_total})"
         for name, field in form.fields.items():
             field.widget.attrs['class'] = 'form-control'
         return form
@@ -6718,9 +6718,11 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
             form.add_error('subtotal', msg)
             return self.form_invalid(form)
 
+        max_allowed = original_invoice.taxable_value if original_invoice.taxable_value > Decimal('0.00') else (original_invoice.subtotal if original_invoice.subtotal > Decimal('0.00') else original_invoice.grand_total)
+
         # Validation: Amount must not exceed original invoice taxable value
-        if subtotal > original_invoice.taxable_value:
-            msg = f"Credit note taxable value (₹{subtotal}) cannot exceed original invoice taxable value (₹{original_invoice.taxable_value})."
+        if subtotal > max_allowed:
+            msg = f"Credit note taxable value (₹{subtotal}) cannot exceed original invoice limit (₹{max_allowed})."
             if self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or self.request.content_type == 'application/json':
                 return JsonResponse({'success': False, 'status': 'error', 'message': msg})
             form.add_error('subtotal', msg)
@@ -6753,6 +6755,36 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
         
         response = super().form_valid(form)
         note = self.object
+
+        ratio = subtotal / max_allowed if max_allowed > Decimal('0.00') else Decimal('1.00')
+        if ratio > Decimal('1.00'):
+            ratio = Decimal('1.00')
+
+        if original_invoice.items.exists():
+            for inv_item in original_invoice.items.all():
+                item_qty = quantize_amount(inv_item.quantity * ratio)
+                item_taxable = quantize_amount(inv_item.taxable_value * ratio)
+                c, s, i, _ = calculate_item_gst(
+                    company.state_code,
+                    original_invoice.place_of_supply_code,
+                    item_taxable,
+                    inv_item.gst_rate
+                )
+                CreditNoteItem.objects.create(
+                    credit_note=note,
+                    product=inv_item.product,
+                    quantity=item_qty if item_qty > Decimal('0.00') else Decimal('1.00'),
+                    rate=inv_item.rate,
+                    discount=quantize_amount(inv_item.discount * ratio),
+                    taxable_value=item_taxable,
+                    gst_rate=inv_item.gst_rate,
+                    cgst_amount=c,
+                    sgst_amount=s,
+                    igst_amount=i,
+                    cess_amount=Decimal('0.00'),
+                    total_amount=quantize_amount(item_taxable + c + s + i)
+                )
+
         recalculate_credit_note_totals(note)
         
         # Adjust customer receivable outstanding balance
@@ -6762,7 +6794,6 @@ class CreditNoteCreateView(CompanyRequiredMixin, CreateView):
         
         # Adjust stock if Sales Return
         if note.reason == 'SALES_RETURN':
-            ratio = subtotal / original_invoice.taxable_value if original_invoice.taxable_value > 0 else Decimal('1')
             wh = Warehouse.objects.filter(company=company, is_active=True).first() or Warehouse.objects.filter(company=company).first()
             for item in original_invoice.items.all():
                 returned_qty = quantize_amount(item.quantity * ratio)

@@ -616,6 +616,8 @@ def recalculate_credit_note_totals(credit_note, apply_round_off=None):
     """
     Recalculates all mathematical fields of a CreditNote from its items.
     """
+    if not credit_note.items.exists():
+        return credit_note
     pos_code = credit_note.invoice.place_of_supply_code if credit_note.invoice else credit_note.company.state_code
     return recalculate_generic_document_totals(credit_note, pos_state_code=pos_code, apply_round_off=apply_round_off)
 
@@ -624,6 +626,8 @@ def recalculate_debit_note_totals(debit_note, apply_round_off=None):
     """
     Recalculates all mathematical fields of a DebitNote from its items.
     """
+    if not debit_note.items.exists():
+        return debit_note
     pos_code = debit_note.purchase_bill.supplier.state_code if (debit_note.purchase_bill and debit_note.purchase_bill.supplier) else debit_note.company.state_code
     return recalculate_generic_document_totals(debit_note, pos_state_code=pos_code, apply_round_off=apply_round_off)
 

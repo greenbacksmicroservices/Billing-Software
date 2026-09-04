@@ -136,6 +136,8 @@ class QuotationService:
                 if disc > gross:
                     row_errs['discount'] = 'Discount cannot exceed line item total.'
 
+                gst_rate = parse_money(item_raw.get('gst_rate', prod.hsn_sac.gst_rate if (prod and prod.hsn_sac) else Decimal('18.00')))
+
                 if row_errs:
                     item_errors[str(idx)] = row_errs
                 elif prod:
@@ -143,7 +145,8 @@ class QuotationService:
                         'product': prod,
                         'quantity': qty,
                         'rate': rate,
-                        'discount': disc
+                        'discount': disc,
+                        'gst_rate': gst_rate
                     })
 
             if item_errors:

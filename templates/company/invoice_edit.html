@@ -515,7 +515,8 @@
             
             if (rowTotalEl) rowTotalEl.innerText = window.formatIndianCurrency(rowTotal);
             
-            subtotal += gross;
+            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable + disc) : gross;
+            subtotal += lineSubtotal;
             discountTotal += disc;
             taxableTotal += taxable;
             cessTotal += rowCess;
@@ -594,6 +595,9 @@
             const rateEl = row.querySelector('.rate-input');
             const discEl = row.querySelector('.disc-input');
 
+            const gstEl = row.querySelector('.gst-input');
+            const gstRate = gstEl ? window.parseMoney(gstEl.value) : 18;
+
             const prodId = prodEl ? prodEl.value : '';
             const qty = qtyEl ? window.parseMoney(qtyEl.value) : 0;
             const rate = rateEl ? window.parseMoney(rateEl.value) : 0;
@@ -607,7 +611,8 @@
                         product_id: parseInt(prodId),
                         quantity: qty,
                         rate: rate,
-                        discount: disc
+                        discount: disc,
+                        gst_rate: gstRate
                     });
                 }
             }
@@ -656,7 +661,7 @@
             return;
         }
 
-        if ((advance + paidNow) > grandTotal) {
+        if (Math.round((advance + paidNow) * 100) > Math.round(grandTotal * 100)) {
             const msg = "Payment amount cannot exceed the invoice total.";
             window.setElementText('form-error-toast', msg);
             window.setElementDisplay('form-error-toast', 'block');
