@@ -125,7 +125,10 @@ def calculate_gst(hsn_sac_code, taxable_value, supplier_state_code, place_of_sup
     if not hsn_obj:
         raise ValueError(f"GST rate is not configured for HSN/SAC code '{hsn_sac_code}'.")
         
-    gst_rate = hsn_obj.gst_rate
+    # A classification code may exist before its tax rate is configured.
+    # Treat that code as zero tax in calculations; the administrator can add
+    # the applicable rate later from Assignment Master.
+    gst_rate = hsn_obj.gst_rate if hsn_obj.gst_rate is not None else Decimal('0.00')
     cess_rate = hsn_obj.cess_rate
     
     # Standardize codes
@@ -1223,6 +1226,5 @@ def recalculate_quotation_totals(quotation, apply_round_off=None):
     Recalculates all mathematical fields of a Quotation from its items.
     """
     return recalculate_generic_document_totals(quotation, apply_round_off=apply_round_off)
-
 
 

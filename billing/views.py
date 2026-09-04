@@ -1387,7 +1387,7 @@ class AdminHSNSACListView(PaginationMixin, ListView):
                     item.description,
                     item.category or '',
                     item.sub_category or '',
-                    float(item.gst_rate),
+                    float(item.gst_rate or 0),
                     float(item.get_cgst_rate()),
                     float(item.get_sgst_rate()),
                     float(item.get_igst_rate()),
@@ -1454,7 +1454,7 @@ def admin_hsn_sac_detail(request, pk):
             'description': obj.description,
             'category': obj.category or '',
             'sub_category': obj.sub_category or '',
-            'gst_rate': str(obj.gst_rate),
+            'gst_rate': str(obj.gst_rate) if obj.gst_rate is not None else '',
             'cgst_rate': str(obj.get_cgst_rate()),
             'sgst_rate': str(obj.get_sgst_rate()),
             'igst_rate': str(obj.get_igst_rate()),
@@ -1492,7 +1492,7 @@ def admin_hsn_sac_add(request):
         description = data.get('description', '').strip()
         category = data.get('category', '').strip() or None
         sub_category = data.get('sub_category', '').strip() or None
-        gst_rate = Decimal(str(data.get('gst_rate', '18.00')))
+        gst_rate = Decimal(str(data.get('gst_rate'))) if data.get('gst_rate') not in [None, ''] else None
         cess_rate = Decimal(str(data.get('cess_rate', '0.00'))) if data.get('cess_rate') not in [None, ''] else Decimal('0.00')
         uqc = data.get('uqc', 'PCS').strip().upper() or 'PCS'
         is_active = str(data.get('is_active', 'true')).lower() in ['true', '1', 'active']
@@ -1513,8 +1513,8 @@ def admin_hsn_sac_add(request):
         if HSNSACMaster.objects.filter(company__isnull=True, type=code_type, code=code).exists():
             return JsonResponse({'status': 'error', 'message': 'HSN/SAC code already exists.'}, status=400)
 
-        cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
-        sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else ((gst_rate / Decimal('2.00')).quantize(Decimal('0.01')) if gst_rate is not None else None)
+        sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else ((gst_rate / Decimal('2.00')).quantize(Decimal('0.01')) if gst_rate is not None else None)
         igst = Decimal(str(data.get('igst_rate'))) if data.get('igst_rate') not in [None, ''] else gst_rate
 
         eff_from = datetime.strptime(data.get('effective_from'), '%Y-%m-%d').date() if data.get('effective_from') else None
@@ -1541,8 +1541,27 @@ def admin_hsn_sac_add(request):
 
         log_action(request.user, 'CREATE_HSN_SAC', 'HSN_SAC', obj.id, new_values={'code': code, 'type': code_type, 'gst_rate': str(gst_rate)}, request=request)
         if hasattr(request, '_messages'):
-            messages.success(request, f"HSN/SAC code added successfully.")
-        return JsonResponse({'status': 'success', 'message': f"HSN/SAC code added successfully."})
+            messages.success(request, f"HSN/SAC code '{code}' added successfully.")
+
+        summary = HSNSACMaster.objects.filter(company__isnull=True).aggregate(
+            total_codes=Count('id'),
+            active_codes=Count('id', filter=Q(is_active=True)),
+            inactive_codes=Count('id', filter=Q(is_active=False)),
+            hsn_codes=Count('id', filter=Q(type='HSN')),
+            sac_codes=Count('id', filter=Q(type='SAC'))
+        )
+        return JsonResponse({
+            'status': 'success',
+            'message': f"HSN/SAC code '{code}' added successfully.",
+            'data': {
+                'id': obj.id, 'type': obj.type, 'code': obj.code, 'description': obj.description,
+                'category': obj.category or '', 'sub_category': obj.sub_category or '',
+            'gst_rate': str(obj.gst_rate) if obj.gst_rate is not None else '', 'cgst_rate': str(obj.get_cgst_rate()) if obj.gst_rate is not None else '',
+                'sgst_rate': str(obj.get_sgst_rate()), 'igst_rate': str(obj.get_igst_rate()),
+                'cess_rate': str(obj.cess_rate), 'uqc': obj.uqc or 'PCS', 'is_active': obj.is_active
+            },
+            'summary': summary
+        })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Invalid HSN/SAC data: {str(e)}'}, status=400)
 
@@ -1564,7 +1583,7 @@ def admin_hsn_sac_edit(request, pk):
                 'description': obj.description,
                 'category': obj.category or '',
                 'sub_category': obj.sub_category or '',
-                'gst_rate': str(obj.gst_rate),
+                'gst_rate': str(obj.gst_rate) if obj.gst_rate is not None else '',
                 'cgst_rate': str(obj.get_cgst_rate()),
                 'sgst_rate': str(obj.get_sgst_rate()),
                 'igst_rate': str(obj.get_igst_rate()),
@@ -1585,7 +1604,8 @@ def admin_hsn_sac_edit(request, pk):
         description = data.get('description', obj.description).strip()
         category = data.get('category', '').strip() or None
         sub_category = data.get('sub_category', '').strip() or None
-        gst_rate = Decimal(str(data.get('gst_rate', obj.gst_rate)))
+        gst_value = data.get('gst_rate', obj.gst_rate)
+        gst_rate = Decimal(str(gst_value)) if gst_value not in [None, ''] else None
         cess_rate = Decimal(str(data.get('cess_rate', obj.cess_rate))) if data.get('cess_rate') not in [None, ''] else Decimal('0.00')
         uqc = data.get('uqc', 'PCS').strip().upper() or 'PCS'
         is_active = str(data.get('is_active', obj.is_active)).lower() in ['true', '1', 'active']
@@ -1606,8 +1626,8 @@ def admin_hsn_sac_edit(request, pk):
         if HSNSACMaster.objects.filter(company__isnull=True, type=code_type, code=code).exclude(id=obj.id).exists():
             return JsonResponse({'status': 'error', 'message': 'HSN/SAC code already exists.'}, status=400)
 
-        cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
-        sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else (gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        cgst = Decimal(str(data.get('cgst_rate'))) if data.get('cgst_rate') not in [None, ''] else ((gst_rate / Decimal('2.00')).quantize(Decimal('0.01')) if gst_rate is not None else None)
+        sgst = Decimal(str(data.get('sgst_rate'))) if data.get('sgst_rate') not in [None, ''] else ((gst_rate / Decimal('2.00')).quantize(Decimal('0.01')) if gst_rate is not None else None)
         igst = Decimal(str(data.get('igst_rate'))) if data.get('igst_rate') not in [None, ''] else gst_rate
 
         eff_from = datetime.strptime(data.get('effective_from'), '%Y-%m-%d').date() if data.get('effective_from') else None
@@ -1630,9 +1650,28 @@ def admin_hsn_sac_edit(request, pk):
         obj.save()
 
         log_action(request.user, 'UPDATE_HSN_SAC', 'HSN_SAC', obj.id, new_values={'code': code, 'type': code_type, 'gst_rate': str(gst_rate)}, request=request)
-        return JsonResponse({'status': 'success', 'message': f"HSN/SAC code updated successfully."})
+
+        summary = HSNSACMaster.objects.filter(company__isnull=True).aggregate(
+            total_codes=Count('id'),
+            active_codes=Count('id', filter=Q(is_active=True)),
+            inactive_codes=Count('id', filter=Q(is_active=False)),
+            hsn_codes=Count('id', filter=Q(type='HSN')),
+            sac_codes=Count('id', filter=Q(type='SAC'))
+        )
+        return JsonResponse({
+            'status': 'success',
+            'message': f"HSN/SAC classification code '{code}' updated successfully.",
+            'data': {
+                'id': obj.id, 'type': obj.type, 'code': obj.code, 'description': obj.description,
+                'category': obj.category or '', 'sub_category': obj.sub_category or '',
+                'gst_rate': str(obj.gst_rate) if obj.gst_rate is not None else '', 'cgst_rate': str(obj.get_cgst_rate()) if obj.gst_rate is not None else '',
+                'sgst_rate': str(obj.get_sgst_rate()), 'igst_rate': str(obj.get_igst_rate()),
+                'cess_rate': str(obj.cess_rate), 'uqc': obj.uqc or 'PCS', 'is_active': obj.is_active
+            },
+            'summary': summary
+        })
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': 'Invalid HSN/SAC data.'}, status=400)
+        return JsonResponse({'status': 'error', 'message': f'Invalid HSN/SAC data: {str(e)}'}, status=400)
 
 
 @transaction.atomic
@@ -1646,8 +1685,24 @@ def admin_hsn_sac_status_change(request, pk, status):
     obj.save()
 
     log_action(request.user, 'STATUS_HSN_SAC', 'HSN_SAC', obj.id, new_values={'is_active': is_active}, request=request)
+    msg = f"HSN/SAC Code '{obj.code}' status changed to {'Active' if is_active else 'Inactive'}."
     if hasattr(request, '_messages'):
-        messages.success(request, f"HSN/SAC Code '{obj.code}' status changed to {'Active' if is_active else 'Inactive'}.")
+        messages.success(request, msg)
+
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        'application/json' in request.META.get('HTTP_ACCEPT', '') or
+        request.content_type == 'application/json'
+    )
+    if is_ajax:
+        summary = HSNSACMaster.objects.filter(company__isnull=True).aggregate(
+            total_codes=Count('id'),
+            active_codes=Count('id', filter=Q(is_active=True)),
+            inactive_codes=Count('id', filter=Q(is_active=False)),
+            hsn_codes=Count('id', filter=Q(type='HSN')),
+            sac_codes=Count('id', filter=Q(type='SAC'))
+        )
+        return JsonResponse({'status': 'success', 'message': msg, 'summary': summary, 'is_active': is_active})
     return redirect('admin_hsn_sac_list')
 
 
@@ -1669,11 +1724,19 @@ def admin_hsn_sac_delete(request, pk):
         GSTTransaction.objects.filter(hsn_sac_code=obj.code).exists()
     )
 
+    summary = HSNSACMaster.objects.filter(company__isnull=True).aggregate(
+        total_codes=Count('id'),
+        active_codes=Count('id', filter=Q(is_active=True)),
+        inactive_codes=Count('id', filter=Q(is_active=False)),
+        hsn_codes=Count('id', filter=Q(type='HSN')),
+        sac_codes=Count('id', filter=Q(type='SAC'))
+    )
+
     if is_referenced:
         obj.is_active = False
         obj.save()
         log_action(request.user, 'DEACTIVATE_HSN_SAC', 'HSN_SAC', obj.id, request=request)
-        msg = f"HSN/SAC code deactivated because it is referenced in billing records."
+        msg = f"HSN/SAC code '{obj.code}' deactivated because it is referenced in billing records."
         if hasattr(request, '_messages'):
             messages.warning(request, msg)
         return JsonResponse({
@@ -1681,13 +1744,14 @@ def admin_hsn_sac_delete(request, pk):
             'status': 'warning',
             'action': 'deactivated',
             'message': msg,
-            'id': int(pk)
+            'id': int(pk),
+            'summary': summary
         })
 
     code = obj.code
     obj.delete()
     log_action(request.user, 'DELETE_HSN_SAC', 'HSN_SAC', pk, request=request)
-    msg = f"HSN/SAC code deleted successfully."
+    msg = f"HSN/SAC code '{code}' deleted successfully."
     if hasattr(request, '_messages'):
         messages.success(request, msg)
     return JsonResponse({
@@ -1695,7 +1759,8 @@ def admin_hsn_sac_delete(request, pk):
         'status': 'success',
         'action': 'deleted',
         'message': msg,
-        'id': int(pk)
+        'id': int(pk),
+        'summary': summary
     })
 
 
@@ -1739,16 +1804,24 @@ def admin_hsn_sac_bulk_preview(request):
         elif filename.endswith('.xlsx'):
             import openpyxl
             wb = openpyxl.load_workbook(uploaded_file, data_only=True)
-            sheet = wb.active
-            header = None
-            for row in sheet.iter_rows(values_only=True):
-                if not row or not any(row):
-                    continue
-                row_vals = [str(c).strip() if c is not None else '' for c in row]
-                if header is None:
-                    header = [c.lower() for c in row_vals]
-                    continue
-                rows_data.append(dict(zip(header, row_vals)))
+            # The official CBIC workbook has separate HSN_MSTR and SAC_MSTR
+            # sheets.  Read every sheet and infer the type from its name when
+            # the sheet does not contain a Type column.
+            for sheet in wb.worksheets:
+                header = None
+                sheet_type = 'SAC' if 'SAC' in sheet.title.upper() else 'HSN'
+                for row in sheet.iter_rows(values_only=True):
+                    if not row or not any(value is not None and str(value).strip() for value in row):
+                        continue
+                    row_vals = [str(c).strip() if c is not None else '' for c in row]
+                    if header is None:
+                        header = [c.lower() for c in row_vals]
+                        continue
+                    row_data = dict(zip(header, row_vals))
+                    # Keep the inferred type available to the normal field
+                    # mapper below, while still allowing a Type column to win.
+                    row_data.setdefault('__sheet_type', sheet_type)
+                    rows_data.append(row_data)
         else:
             return JsonResponse({'status': 'error', 'message': 'Unsupported file format. Please upload a .csv or .xlsx file.'}, status=400)
     except Exception as e:
@@ -1772,9 +1845,9 @@ def admin_hsn_sac_bulk_preview(request):
                 val = str(v).strip() if v is not None else ''
                 if clean_k in ['code type', 'type', 'item type', 'hsn/sac type', 'hsn type', 'sac type']:
                     norm['type'] = val
-                elif clean_k in ['hsn/sac code', 'hsn code', 'sac code', 'hsn / sac code', 'hsn_sac_code', 'code', 'hsn', 'sac']:
+                elif clean_k in ['hsn/sac code', 'hsn code', 'sac code', 'hsn / sac code', 'hsn_sac_code', 'code', 'hsn', 'sac', 'hsn cd', 'sac cd']:
                     norm['code'] = val
-                elif clean_k in ['description', 'desc', 'hsn description', 'sac description', 'details', 'item description']:
+                elif clean_k in ['description', 'desc', 'hsn description', 'sac description', 'details', 'item description', 'hsn description', 'sac description']:
                     norm['description'] = val
                 elif clean_k in ['category', 'cat']:
                     norm['category'] = val
@@ -1799,12 +1872,17 @@ def admin_hsn_sac_bulk_preview(request):
             return norm
 
         row_map = extract_hsn_row_data(raw)
-        code_type = (row_map.get('type') or '').upper()
+        code_type = (row_map.get('type') or raw.get('__sheet_type') or '').upper()
         if 'GOOD' in code_type: code_type = 'HSN'
         if 'SERV' in code_type: code_type = 'SAC'
         if not code_type: code_type = 'HSN'
 
         code = row_map.get('code', '').strip()
+        # Excel commonly exposes numeric SAC codes as 99.0.  Remove only the
+        # artificial integral suffix; never cast text codes so leading zeroes
+        # in HSN values remain intact.
+        if code.endswith('.0') and code[:-2].isdigit():
+            code = code[:-2]
         description = row_map.get('description', '').strip()
         category = row_map.get('category', '').strip()
         sub_category = row_map.get('sub_category', '').strip()
@@ -1829,9 +1907,11 @@ def admin_hsn_sac_bulk_preview(request):
         if not description:
             errors.append("Missing Description")
 
-        gst_rate = Decimal('18.00')
+        gst_rate = None
         if not gst_str:
-            errors.append("GST rate is not configured")
+            # The CBIC classification directory contains code/description
+            # only.  Keep the model's standard default GST rate for such rows.
+            pass
         else:
             try:
                 gst_rate = Decimal(gst_str)
@@ -1881,10 +1961,10 @@ def admin_hsn_sac_bulk_preview(request):
             'description': description,
             'category': category,
             'sub_category': sub_category,
-            'gst_rate': str(gst_rate),
-            'cgst_rate': cgst_rate or str((gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))),
-            'sgst_rate': sgst_rate or str((gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))),
-            'igst_rate': igst_rate or str(gst_rate),
+            'gst_rate': str(gst_rate) if gst_rate is not None else '',
+            'cgst_rate': cgst_rate or (str((gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))) if gst_rate is not None else ''),
+            'sgst_rate': sgst_rate or (str((gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))) if gst_rate is not None else ''),
+            'igst_rate': igst_rate or (str(gst_rate) if gst_rate is not None else ''),
             'uqc': uqc,
             'effective_from': eff_from,
             'effective_to': eff_to,
@@ -1935,10 +2015,16 @@ def admin_hsn_sac_bulk_import(request):
                 obj.description = row.get('description', obj.description)
                 obj.category = row.get('category') or None
                 obj.sub_category = row.get('sub_category') or None
-                obj.gst_rate = Decimal(str(row.get('gst_rate', '18.00')))
-                obj.cgst_rate = Decimal(str(row.get('cgst_rate'))) if row.get('cgst_rate') else None
-                obj.sgst_rate = Decimal(str(row.get('sgst_rate'))) if row.get('sgst_rate') else None
-                obj.igst_rate = Decimal(str(row.get('igst_rate'))) if row.get('igst_rate') else None
+                # A classification-only workbook has no tax columns.  Do not
+                # erase a rate that was already configured manually.
+                if row.get('gst_rate') not in [None, '']:
+                    obj.gst_rate = Decimal(str(row.get('gst_rate')))
+                if row.get('cgst_rate') not in [None, '']:
+                    obj.cgst_rate = Decimal(str(row.get('cgst_rate')))
+                if row.get('sgst_rate') not in [None, '']:
+                    obj.sgst_rate = Decimal(str(row.get('sgst_rate')))
+                if row.get('igst_rate') not in [None, '']:
+                    obj.igst_rate = Decimal(str(row.get('igst_rate')))
                 obj.uqc = row.get('uqc', 'PCS')
                 obj.is_active = row.get('is_active', True)
                 if row.get('effective_from'):
@@ -1966,7 +2052,7 @@ def admin_hsn_sac_bulk_import(request):
                     description=row.get('description', ''),
                     category=row.get('category') or None,
                     sub_category=row.get('sub_category') or None,
-                    gst_rate=Decimal(str(row.get('gst_rate', '18.00'))),
+                    gst_rate=Decimal(str(row.get('gst_rate'))) if row.get('gst_rate') not in [None, ''] else None,
                     cgst_rate=Decimal(str(row.get('cgst_rate'))) if row.get('cgst_rate') else None,
                     sgst_rate=Decimal(str(row.get('sgst_rate'))) if row.get('sgst_rate') else None,
                     igst_rate=Decimal(str(row.get('igst_rate'))) if row.get('igst_rate') else None,
@@ -2414,7 +2500,7 @@ def hsn_sac_search_api(request):
             'code': h.code,
             'description': h.description,
             'type': h.type,
-            'gst_rate': str(h.gst_rate),
+            'gst_rate': str(h.gst_rate) if h.gst_rate is not None else '',
             'cgst_rate': str(h.get_cgst_rate()),
             'sgst_rate': str(h.get_sgst_rate()),
             'igst_rate': str(h.get_igst_rate()),
@@ -3287,7 +3373,7 @@ def product_scan_barcode(request):
 
 def hsn_lookup(request):
     code = request.GET.get('code')
-    company = request.user.company
+    company = getattr(request.user, 'company', None)
     hsn = HSNSACMaster.objects.filter(Q(company=company) | Q(company__isnull=True), code=code, is_active=True).first()
     if hsn:
         return JsonResponse({
@@ -3295,8 +3381,14 @@ def hsn_lookup(request):
             'hsn': {
                 'id': hsn.id,
                 'code': hsn.code,
-                'gst_rate': str(hsn.gst_rate),
-                'cess_rate': str(hsn.cess_rate)
+                'type': hsn.type,
+                'description': hsn.description,
+                'gst_rate': str(hsn.gst_rate) if hsn.gst_rate is not None else '',
+                'cgst_rate': str(hsn.get_cgst_rate()),
+                'sgst_rate': str(hsn.get_sgst_rate()),
+                'igst_rate': str(hsn.get_igst_rate()),
+                'cess_rate': str(hsn.cess_rate),
+                'uqc': hsn.uqc or 'PCS'
             }
         })
     return JsonResponse({'status': 'error', 'message': 'HSN/SAC not found'}, status=404)
@@ -4163,7 +4255,7 @@ class QuotationUpdateView(CompanyRequiredMixin, View):
                 'quantity': float(item.quantity),
                 'rate': float(item.rate),
                 'discount': float(item.discount),
-                'gst_rate': float(item.gst_rate),
+            'gst_rate': float(item.gst_rate or 0),
                 'taxable_value': float(item.taxable_value),
                 'total_amount': float(item.total_amount)
             })
@@ -5298,7 +5390,7 @@ class PurchaseOrderUpdateView(CompanyRequiredMixin, View):
                 'rate': float(item.rate),
                 'discount': float(item.discount),
                 'taxable_amount': float(item.taxable_amount),
-                'gst_rate': float(item.gst_rate),
+            'gst_rate': float(item.gst_rate or 0),
                 'cgst_amount': float(item.cgst_amount),
                 'sgst_amount': float(item.sgst_amount),
                 'igst_amount': float(item.igst_amount),
@@ -8409,6 +8501,10 @@ def api_product_detail(request, pk):
         'brand': prod.brand.name if prod.brand else '-',
         'hsn_sac': prod.hsn_sac.code if prod.hsn_sac else '-',
         'gst_rate': str(prod.hsn_sac.gst_rate) if prod.hsn_sac else '0.00',
+        'cgst_rate': str(prod.hsn_sac.get_cgst_rate()) if prod.hsn_sac else '0.00',
+        'sgst_rate': str(prod.hsn_sac.get_sgst_rate()) if prod.hsn_sac else '0.00',
+        'igst_rate': str(prod.hsn_sac.get_igst_rate()) if prod.hsn_sac else '0.00',
+        'cess_rate': str(prod.hsn_sac.cess_rate) if prod.hsn_sac else '0.00',
         'unit': prod.unit.name if prod.unit else 'PCS',
         'purchase_price': str(prod.purchase_price),
         'selling_price': str(prod.selling_price),

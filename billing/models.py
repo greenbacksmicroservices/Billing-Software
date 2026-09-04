@@ -11,7 +11,9 @@ class SubscriptionPlan(models.Model):
     description = models.TextField(blank=True, null=True)
     monthly_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     yearly_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('18.00'))
+    # Classification directories do not always provide tax rates.  Keep the
+    # rate empty until an administrator configures it manually.
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, default=None)
     
     # Limits
     user_limit = models.IntegerField(default=5)
@@ -286,17 +288,32 @@ class HSNSACMaster(models.Model):
     def get_cgst_rate(self):
         if self.cgst_rate is not None:
             return self.cgst_rate
-        return (self.gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        rate = self.gst_rate if self.gst_rate is not None else Decimal('18.00')
+        return (rate / Decimal('2.00')).quantize(Decimal('0.01'))
 
     def get_sgst_rate(self):
         if self.sgst_rate is not None:
             return self.sgst_rate
-        return (self.gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        rate = self.gst_rate if self.gst_rate is not None else Decimal('18.00')
+        return (rate / Decimal('2.00')).quantize(Decimal('0.01'))
 
     def get_igst_rate(self):
         if self.igst_rate is not None:
             return self.igst_rate
-        return self.gst_rate
+        return self.gst_rate if self.gst_rate is not None else Decimal('18.00')
+
+    def save(self, *args, **kwargs):
+        if self.gst_rate is None:
+            self.gst_rate = Decimal('18.00')
+        if self.cgst_rate is None:
+            self.cgst_rate = (self.gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        if self.sgst_rate is None:
+            self.sgst_rate = (self.gst_rate / Decimal('2.00')).quantize(Decimal('0.01'))
+        if self.igst_rate is None:
+            self.igst_rate = self.gst_rate
+        if self.cess_rate is None:
+            self.cess_rate = Decimal('0.00')
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'HSN/SAC Master'
@@ -315,7 +332,8 @@ class HSNSACMaster(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.code} - {self.description[:30]} ({self.gst_rate}%)"
+        rate = f"{self.gst_rate}%" if self.gst_rate is not None else "GST not configured"
+        return f"{self.code} - {self.description[:30]} ({rate})"
 
 
 class Product(models.Model):
@@ -1357,4 +1375,3 @@ class GSTApplication(models.Model):
     def __str__(self):
         comp = self.company.name if self.company else 'N/A'
         return f"{self.full_name} ({comp}) - {self.status}"
-

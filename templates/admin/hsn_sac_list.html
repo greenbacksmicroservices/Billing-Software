@@ -85,6 +85,91 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         overflow: hidden;
     }
+
+    /* Premium High-Contrast HSN / SAC Code Filter Tabs */
+    .hsn-tab-group {
+        display: inline-flex;
+        background: var(--card, #ffffff);
+        padding: 5px;
+        border-radius: 12px;
+        border: 2px solid var(--border, #cbd5e1);
+        gap: 6px;
+        flex-wrap: wrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .hsn-tab-btn {
+        padding: 0.55rem 1.25rem;
+        border-radius: 8px;
+        border: 1px solid var(--border, #cbd5e1);
+        background: var(--card, #ffffff);
+        color: var(--foreground, #0f172a) !important;
+        font-weight: 700;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .hsn-tab-btn:hover {
+        background: var(--muted, #f1f5f9);
+        color: var(--foreground, #0f172a) !important;
+        border-color: #94a3b8;
+    }
+
+    .hsn-tab-btn.active-all-tab {
+        background: #1d4ed8 !important;
+        color: #ffffff !important;
+        border-color: #1e40af !important;
+        box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+    }
+
+    .hsn-tab-btn.active-hsn-tab {
+        background: #7e22ce !important;
+        color: #ffffff !important;
+        border-color: #6b21a8 !important;
+        box-shadow: 0 4px 14px rgba(126, 34, 206, 0.35);
+    }
+
+    .hsn-tab-btn.active-sac-tab {
+        background: #0991b1 !important;
+        color: #ffffff !important;
+        border-color: #0e7490 !important;
+        box-shadow: 0 4px 14px rgba(9, 145, 177, 0.35);
+    }
+
+    .hsn-tab-badge {
+        font-size: 0.78rem;
+        padding: 0.2rem 0.65rem;
+        border-radius: 9999px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        display: inline-block;
+        line-height: 1.2;
+    }
+
+    .hsn-tab-btn:not(.active-hsn-tab):not(.active-sac-tab):not(.active-all-tab) .hsn-tab-badge {
+        background: var(--muted, #e2e8f0) !important;
+        color: var(--foreground, #0f172a) !important;
+        border: 1px solid var(--border, #cbd5e1);
+    }
+
+    .hsn-tab-btn.active-all-tab .hsn-tab-badge {
+        background: #ffffff !important;
+        color: #1d4ed8 !important;
+    }
+
+    .hsn-tab-btn.active-hsn-tab .hsn-tab-badge {
+        background: #ffffff !important;
+        color: #7e22ce !important;
+    }
+
+    .hsn-tab-btn.active-sac-tab .hsn-tab-badge {
+        background: #ffffff !important;
+        color: #0991b1 !important;
+    }
 </style>
 
 <div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -139,12 +224,12 @@
 <!-- Filters Panel -->
 <div class="card-container" style="margin-bottom: 1.5rem;">
     <div class="card-body" style="padding: 1.25rem;">
-        <form method="GET" action="{% url 'admin_hsn_sac_list' %}" id="filter-form" style="display: flex; flex-direction: column; gap: 1rem;">
+        <form method="GET" action="{% url 'admin_hsn_sac_list' %}" id="filter-form" onsubmit="event.preventDefault(); loadHsnSacTableAjax();" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; gap: 0.85rem; flex-wrap: wrap; align-items: flex-end;">
                 <!-- Code Type -->
                 <div style="flex: 1; min-width: 120px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Type</label>
-                    <select name="type" class="form-control" onchange="this.form.submit()">
+                    <select name="type" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All Types</option>
                         <option value="HSN" {% if request.GET.type == 'HSN' %}selected{% endif %}>HSN (Goods)</option>
                         <option value="SAC" {% if request.GET.type == 'SAC' %}selected{% endif %}>SAC (Services)</option>
@@ -154,7 +239,7 @@
                 <!-- GST Rate -->
                 <div style="flex: 1; min-width: 120px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">GST Rate</label>
-                    <select name="gst_rate" class="form-control" onchange="this.form.submit()">
+                    <select name="gst_rate" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All Rates</option>
                         <option value="0.00" {% if request.GET.gst_rate == '0.00' %}selected{% endif %}>0%</option>
                         <option value="5.00" {% if request.GET.gst_rate == '5.00' %}selected{% endif %}>5%</option>
@@ -168,7 +253,7 @@
                 <!-- Status -->
                 <div style="flex: 1; min-width: 120px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Status</label>
-                    <select name="status" class="form-control" onchange="this.form.submit()">
+                    <select name="status" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All Statuses</option>
                         <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
                         <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
@@ -178,7 +263,7 @@
                 <!-- Category -->
                 <div style="flex: 1; min-width: 140px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Category</label>
-                    <select name="category" class="form-control" onchange="this.form.submit()">
+                    <select name="category" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All Categories</option>
                         {% for cat in categories %}
                             <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat|truncatechars:25 }}</option>
@@ -189,7 +274,7 @@
                 <!-- Sub Category -->
                 <div style="flex: 1; min-width: 140px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Sub Category</label>
-                    <select name="sub_category" class="form-control" onchange="this.form.submit()">
+                    <select name="sub_category" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All Sub Categories</option>
                         {% for subcat in sub_categories %}
                             <option value="{{ subcat }}" {% if request.GET.sub_category == subcat %}selected{% endif %}>{{ subcat|truncatechars:25 }}</option>
@@ -200,7 +285,7 @@
                 <!-- UQC -->
                 <div style="flex: 1; min-width: 110px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">UQC</label>
-                    <select name="uqc" class="form-control" onchange="this.form.submit()">
+                    <select name="uqc" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="">All UQCs</option>
                         {% for u in uqcs %}
                             <option value="{{ u }}" {% if request.GET.uqc == u %}selected{% endif %}>{{ u }}</option>
@@ -211,7 +296,7 @@
                 <!-- Page Size -->
                 <div style="flex: 1; min-width: 110px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Per Page</label>
-                    <select name="entries" class="form-control" onchange="this.form.submit()">
+                    <select name="entries" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="10" {% if entries == '10' %}selected{% endif %}>10 / page</option>
                         <option value="25" {% if entries == '25' %}selected{% endif %}>25 / page</option>
                         <option value="50" {% if entries == '50' %}selected{% endif %}>50 / page</option>
@@ -222,7 +307,7 @@
                 <!-- Sort Order -->
                 <div style="flex: 1; min-width: 140px;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block;">Sort By</label>
-                    <select name="sort_by" class="form-control" onchange="this.form.submit()">
+                    <select name="sort_by" class="form-control" onchange="loadHsnSacTableAjax()">
                         <option value="code_asc" {% if request.GET.sort_by == 'code_asc' or not request.GET.sort_by %}selected{% endif %}>Code ↑</option>
                         <option value="code_desc" {% if request.GET.sort_by == 'code_desc' %}selected{% endif %}>Code ↓</option>
                         <option value="desc_asc" {% if request.GET.sort_by == 'desc_asc' %}selected{% endif %}>Description A-Z</option>
@@ -248,12 +333,22 @@
 
 <!-- AJAX Container Wrapper -->
 <div class="table-container-ajax" id="table-container">
-    <!-- Export Actions Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <div style="font-size: 0.95rem; font-weight: 700; color: var(--foreground);">
-            HSN/SAC Classification Registry
+    <!-- Export Actions & HSN/SAC Toggle Buttons Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+        <!-- Separate HSN Code and SAC Code Toggle Buttons -->
+        <div class="hsn-tab-group">
+            <button type="button" class="hsn-tab-btn {% if not request.GET.type %}active-all-tab{% endif %}" onclick="switchCodeType('')" title="Show All Codes">
+                <i class="fa-solid fa-layer-group"></i> All Codes
+            </button>
+            <button type="button" class="hsn-tab-btn {% if request.GET.type == 'HSN' %}active-hsn-tab{% endif %}" onclick="switchCodeType('HSN')" title="Show HSN Goods Codes Only">
+                <i class="fa-solid fa-boxes-stacked"></i> HSN Code (Goods)
+            </button>
+            <button type="button" class="hsn-tab-btn {% if request.GET.type == 'SAC' %}active-sac-tab{% endif %}" onclick="switchCodeType('SAC')" title="Show SAC Services Codes Only">
+                <i class="fa-solid fa-briefcase"></i> SAC Code (Services)
+            </button>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
+
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button type="button" class="btn btn-secondary" onclick="exportData('excel')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-regular fa-file-excel" style="color: #10b981; margin-right: 0.25rem;"></i> Export Excel</button>
             <button type="button" class="btn btn-secondary" onclick="exportData('csv')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-solid fa-file-csv" style="color: #3b82f6; margin-right: 0.25rem;"></i> Export CSV</button>
             <button type="button" class="btn btn-secondary" onclick="exportData('print')" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;"><i class="fa-solid fa-print" style="margin-right: 0.25rem;"></i> Print</button>
@@ -292,10 +387,12 @@
                             <td style="max-width: 220px;" title="{{ item.description }}">{{ item.description|truncatechars:55 }}</td>
                             <td style="max-width: 130px; font-size: 0.8rem; color: var(--muted-foreground);" title="{{ item.category|default:'' }}">{{ item.category|default:"—"|truncatechars:20 }}</td>
                             <td style="max-width: 120px; font-size: 0.8rem; color: var(--muted-foreground);" title="{{ item.sub_category|default:'' }}">{{ item.sub_category|default:"—"|truncatechars:18 }}</td>
-                            <td style="text-align: right; font-weight: 700; color: var(--primary);">{{ item.gst_rate }}%</td>
-                            <td style="text-align: right;"><small>{{ item.get_cgst_rate }}%</small></td>
-                            <td style="text-align: right;"><small>{{ item.get_sgst_rate }}%</small></td>
-                            <td style="text-align: right;"><small>{{ item.get_igst_rate }}%</small></td>
+                            <td style="text-align: right; font-weight: 700; color: var(--primary);">
+                                {% if item.gst_rate is not None %}{{ item.gst_rate }}%{% else %}<span title="GST rate must be added manually" style="color: var(--muted-foreground); font-weight: 600;">Not configured</span>{% endif %}
+                            </td>
+                            <td style="text-align: right;"><small>{% if item.gst_rate is not None %}{{ item.get_cgst_rate }}%{% else %}—{% endif %}</small></td>
+                            <td style="text-align: right;"><small>{% if item.gst_rate is not None %}{{ item.get_sgst_rate }}%{% else %}—{% endif %}</small></td>
+                            <td style="text-align: right;"><small>{% if item.gst_rate is not None %}{{ item.get_igst_rate }}%{% else %}—{% endif %}</small></td>
                             <td>
                                 {% if item.uqc %}
                                     <code>{{ item.uqc }}</code>
@@ -395,20 +492,20 @@
             <!-- PART 14: GST Auto Calculation -->
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; background: var(--background); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
                 <div>
-                    <label class="form-label" style="font-weight: 600; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">GST Rate *</label>
-                    <input type="number" step="0.01" id="form_gst_rate" name="gst_rate" class="form-control" value="18.00" oninput="autoCalculateGst()" required>
+                    <label class="form-label" style="font-weight: 600; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">GST Rate (optional)</label>
+                    <input type="number" step="0.01" id="form_gst_rate" name="gst_rate" class="form-control" value="" placeholder="Add manually if applicable" oninput="autoCalculateGst()">
                 </div>
                 <div>
                     <label class="form-label" style="font-weight: 500; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">CGST Rate</label>
-                    <input type="number" step="0.01" id="form_cgst_rate" name="cgst_rate" class="form-control" value="9.00">
+                    <input type="number" step="0.01" id="form_cgst_rate" name="cgst_rate" class="form-control" value="">
                 </div>
                 <div>
                     <label class="form-label" style="font-weight: 500; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">SGST Rate</label>
-                    <input type="number" step="0.01" id="form_sgst_rate" name="sgst_rate" class="form-control" value="9.00">
+                    <input type="number" step="0.01" id="form_sgst_rate" name="sgst_rate" class="form-control" value="">
                 </div>
                 <div>
                     <label class="form-label" style="font-weight: 500; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">IGST Rate</label>
-                    <input type="number" step="0.01" id="form_igst_rate" name="igst_rate" class="form-control" value="18.00">
+                    <input type="number" step="0.01" id="form_igst_rate" name="igst_rate" class="form-control" value="">
                 </div>
                 <div>
                     <label class="form-label" style="font-weight: 500; font-size: 0.7rem; margin-bottom: 0.25rem; display: block;">Cess Rate</label>
@@ -537,7 +634,14 @@
 
 <script>
     function autoCalculateGst() {
-        const gstVal = parseFloat(document.getElementById('form_gst_rate').value) || 0;
+        const gstInput = document.getElementById('form_gst_rate').value.trim();
+        if (!gstInput) {
+            document.getElementById('form_cgst_rate').value = '';
+            document.getElementById('form_sgst_rate').value = '';
+            document.getElementById('form_igst_rate').value = '';
+            return;
+        }
+        const gstVal = parseFloat(gstInput);
         document.getElementById('form_cgst_rate').value = (gstVal / 2).toFixed(2);
         document.getElementById('form_sgst_rate').value = (gstVal / 2).toFixed(2);
         document.getElementById('form_igst_rate').value = gstVal.toFixed(2);
@@ -561,10 +665,10 @@
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Description</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.description}</td></tr>
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Category</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.category || '—'}</td></tr>
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Sub Category</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.sub_category || '—'}</td></tr>
-                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">GST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);"><strong style="color: var(--primary);">${d.gst_rate}%</strong></td></tr>
-                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">CGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.cgst_rate}%</td></tr>
-                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">SGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.sgst_rate}%</td></tr>
-                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">IGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.igst_rate}%</td></tr>
+                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">GST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);"><strong style="color: var(--primary);">${d.gst_rate ? d.gst_rate + '%' : 'Not configured'}</strong></td></tr>
+                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">CGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.gst_rate ? d.cgst_rate + '%' : '—'}</td></tr>
+                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">SGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.gst_rate ? d.sgst_rate + '%' : '—'}</td></tr>
+                            <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">IGST Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.gst_rate ? d.igst_rate + '%' : '—'}</td></tr>
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Cess Rate</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.cess_rate}%</td></tr>
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">UQC Unit</th><td style="padding: 8px; border-bottom: 1px solid var(--border);">${d.uqc ? `<code>${d.uqc}</code>` : '—'}</td></tr>
                             <tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Status</th><td style="padding: 8px; border-bottom: 1px solid var(--border);"><span class="badge ${d.is_active ? 'badge-success' : 'badge-danger'}">${d.is_active ? 'Active' : 'Inactive'}</span></td></tr>
@@ -590,7 +694,10 @@
         document.getElementById('modalTitle').innerText = 'Add HSN/SAC Code';
         document.getElementById('hsn_id').value = '';
         document.getElementById('hsnForm').reset();
-        document.getElementById('form_gst_rate').value = '18.00';
+        document.getElementById('form_gst_rate').value = '';
+        document.getElementById('form_cgst_rate').value = '';
+        document.getElementById('form_sgst_rate').value = '';
+        document.getElementById('form_igst_rate').value = '';
         document.getElementById('form_cess_rate').value = '0.00';
         autoCalculateGst();
         document.getElementById('formErrorAlert').style.display = 'none';
@@ -612,10 +719,10 @@
                     document.getElementById('form_description').value = data.description;
                     document.getElementById('form_category').value = data.category;
                     document.getElementById('form_sub_category').value = data.sub_category;
-                    document.getElementById('form_gst_rate').value = data.gst_rate;
-                    document.getElementById('form_cgst_rate').value = data.cgst_rate;
-                    document.getElementById('form_sgst_rate').value = data.sgst_rate;
-                    document.getElementById('form_igst_rate').value = data.igst_rate;
+                    document.getElementById('form_gst_rate').value = data.gst_rate || '';
+                    document.getElementById('form_cgst_rate').value = data.gst_rate ? data.cgst_rate : '';
+                    document.getElementById('form_sgst_rate').value = data.gst_rate ? data.sgst_rate : '';
+                    document.getElementById('form_igst_rate').value = data.gst_rate ? data.igst_rate : '';
                     document.getElementById('form_cess_rate').value = data.cess_rate || '0.00';
                     document.getElementById('form_uqc').value = data.uqc || 'PCS';
                     document.getElementById('form_effective_from').value = data.effective_from || '';
@@ -632,11 +739,101 @@
         document.getElementById('hsnModal').style.display = 'none';
     }
 
+    function switchCodeType(typeVal) {
+        const typeSelect = document.querySelector('#filter-form select[name="type"]');
+        if (typeSelect) {
+            typeSelect.value = typeVal;
+        }
+        loadHsnSacTableAjax();
+    }
+
+    function showHsnToast(msg, type = 'success') {
+        let toast = document.getElementById('hsn-toast-notification');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'hsn-toast-notification';
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 9999;
+                padding: 0.9rem 1.35rem; border-radius: 10px; font-weight: 700; font-size: 0.875rem;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.25); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex; align-items: center; gap: 0.65rem; color: #ffffff;
+            `;
+            document.body.appendChild(toast);
+        }
+        if (type === 'success') {
+            toast.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="font-size: 1.25rem;"></i> <span>${msg}</span>`;
+        } else if (type === 'warning') {
+            toast.style.background = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
+            toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size: 1.25rem;"></i> <span>${msg}</span>`;
+        } else {
+            toast.style.background = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+            toast.innerHTML = `<i class="fa-solid fa-circle-xmark" style="font-size: 1.25rem;"></i> <span>${msg}</span>`;
+        }
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+        }, 4000);
+    }
+
+    function loadHsnSacTableAjax(customUrl = null) {
+        const form = document.getElementById('filter-form');
+        let url = customUrl;
+        if (!url) {
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            url = form.action + '?' + params.toString();
+        }
+
+        const container = document.getElementById('table-container');
+        if (container) container.style.opacity = '0.5';
+
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newSummary = doc.querySelector('.hsn-summary-grid');
+            const currentSummary = document.querySelector('.hsn-summary-grid');
+            if (newSummary && currentSummary) {
+                currentSummary.innerHTML = newSummary.innerHTML;
+            }
+
+            const newTable = doc.querySelector('#table-container');
+            if (newTable && container) {
+                container.innerHTML = newTable.innerHTML;
+                container.style.opacity = '1';
+            }
+
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, '', url);
+            }
+        })
+        .catch(err => {
+            if (container) container.style.opacity = '1';
+            console.error('Failed to load real-time HSN/SAC table:', err);
+        });
+    }
+
+    // Intercept pagination link clicks dynamically
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('#table-container .pagination a, #table-container a.page-link');
+        if (link && link.href) {
+            e.preventDefault();
+            loadHsnSacTableAjax(link.href);
+        }
+    });
+
     function submitHsnForm(e) {
         e.preventDefault();
         const id = document.getElementById('hsn_id').value;
         const url = id ? `/admin/hsn-sac-codes/${id}/edit/` : '/admin/hsn-sac-codes/add/';
-        
+
         const payload = {
             type: document.getElementById('form_type').value,
             code: document.getElementById('form_code').value,
@@ -654,7 +851,9 @@
         };
 
         const saveBtn = document.getElementById('saveHsnBtn');
+        const origText = saveBtn.innerText;
         saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Realtime...';
 
         fetch(url, {
             method: 'POST',
@@ -667,9 +866,11 @@
         .then(res => res.json())
         .then(data => {
             saveBtn.disabled = false;
+            saveBtn.innerText = origText;
             if (data.status === 'success') {
                 closeHsnModal();
-                window.location.reload();
+                loadHsnSacTableAjax();
+                showHsnToast(data.message || 'HSN/SAC Classification updated successfully in real-time!', 'success');
             } else {
                 const alertBox = document.getElementById('formErrorAlert');
                 alertBox.innerText = data.message;
@@ -678,27 +879,31 @@
         })
         .catch(err => {
             saveBtn.disabled = false;
-            alert('An unexpected error occurred.');
+            saveBtn.innerText = origText;
+            showHsnToast('An unexpected error occurred.', 'danger');
         });
     }
 
     function deleteCode(id, code) {
         if (!confirm(`Are you sure you want to delete / deactivate HSN/SAC code '${code}'?`)) return;
-        
+
         fetch(`/admin/hsn-sac-codes/${id}/delete/`, {
             method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success' || data.success) {
-                alert(data.message);
-                window.location.reload();
+                loadHsnSacTableAjax();
+                showHsnToast(data.message || `HSN/SAC code '${code}' updated.`, data.status === 'warning' ? 'warning' : 'success');
             } else {
-                alert(data.message || 'Operation failed.');
+                showHsnToast(data.message || 'Operation failed.', 'danger');
             }
         })
-        .catch(err => alert('Failed to process delete request.'));
+        .catch(err => showHsnToast('Failed to process delete request.', 'danger'));
     }
 
     // Bulk Upload Functions
@@ -835,16 +1040,16 @@
             confirmBtn.innerHTML = 'Confirm Import';
             if (data.status === 'success') {
                 closeBulkModal();
-                alert(data.message);
-                window.location.reload();
+                loadHsnSacTableAjax();
+                showHsnToast(data.message || 'Bulk import completed successfully!', 'success');
             } else {
-                alert(data.message);
+                showHsnToast(data.message || 'Bulk import failed.', 'danger');
             }
         })
         .catch(err => {
             confirmBtn.disabled = false;
             confirmBtn.innerHTML = 'Confirm Import';
-            alert('Import failed.');
+            showHsnToast('Import failed due to an unexpected error.', 'danger');
         });
     }
 
