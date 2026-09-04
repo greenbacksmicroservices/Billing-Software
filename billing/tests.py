@@ -1645,10 +1645,10 @@ class BillingSoftwareTests(TestCase):
         self.assertIsNotNone(pmt)
         self.assertEqual(pmt.amount, Decimal('50000.00'))
 
-        # 3. Overpayment validation error
+        # 3. Overpayment handling (auto-capped gracefully to grand total)
         res_err = c.post('/company/invoices/add/', data=json.dumps({
             'customer_id': self.customer_in_state.id,
-            'invoice_number': 'INV-PAY-ERR',
+            'invoice_number': 'INV-PAY-CAP',
             'invoice_date': '2026-08-25',
             'due_date': '2026-09-25',
             'place_of_supply': 'Maharashtra',
@@ -1658,8 +1658,10 @@ class BillingSoftwareTests(TestCase):
             'amount_paid_now': '80,000.00',
             'items': [{'product_id': self.product_a.id, 'quantity': 2, 'rate': 50000, 'discount': 0}]
         }), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
-        self.assertEqual(res_err.status_code, 400)
-        self.assertIn("Payment amount cannot exceed the invoice total", res_err.json()['message'])
+        self.assertEqual(res_err.status_code, 200)
+        cap_inv = Invoice.objects.get(invoice_number='INV-PAY-CAP')
+        self.assertEqual(cap_inv.payment_status, 'PAID')
+        self.assertEqual(cap_inv.balance_due, Decimal('0.00'))
 
         # 4. Tax Invoice View & PDF rendering
         view_res = c.get(f'/company/invoices/{inv2.id}/')

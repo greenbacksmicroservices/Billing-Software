@@ -60,8 +60,17 @@
             </thead>
             <tbody>
                 {% for inv in invoices %}
-                    <tr>
-                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                    <tr {% if inv.status == 'CANCELLED' %}style="background-color: #fef2f2;"{% endif %}>
+                        <td>
+                            {% if inv.status == 'CANCELLED' %}
+                                <strong style="color: #dc2626; font-size: 0.95rem;">{{ inv.invoice_number }}</strong>
+                                <div style="color: #dc2626; font-size: 0.78rem; font-weight: 600; margin-top: 3px;">
+                                    [Cancel Tax Invoice]
+                                </div>
+                            {% else %}
+                                <strong>{{ inv.invoice_number }}</strong>
+                            {% endif %}
+                        </td>
                         <td>{{ inv.customer.name }}</td>
                         <td>{{ inv.invoice_date|date:"d M Y" }}</td>
                         <td>{{ inv.grand_total|indian_currency }}</td>
@@ -77,15 +86,19 @@
                                 <a href="{% url 'invoice_view' inv.id %}" class="btn-action-view" title="View Details">
                                     <i class="fa-regular fa-eye"></i> View
                                 </a>
-                                <a href="{% url 'invoice_edit' inv.id %}" class="btn-action-edit" title="Edit Invoice">
-                                    <i class="fa-regular fa-pen-to-square"></i> Edit
-                                </a>
+                                {% if inv.status != 'CANCELLED' %}
+                                    <a href="{% url 'invoice_edit' inv.id %}" class="btn-action-edit" title="Edit Invoice">
+                                        <i class="fa-regular fa-pen-to-square"></i> Edit
+                                    </a>
+                                {% endif %}
                                 <a href="{% url 'invoice_pdf' inv.id %}" target="_blank" class="btn-action-pdf" title="Print PDF">
                                     <i class="fa-solid fa-print"></i> PDF
                                 </a>
-                                <button type="button" onclick="triggerGlobalDelete('/api/delete/invoice/{{ inv.id }}/', '{{ inv.invoice_number }}')" class="btn-action-delete" title="Delete / Cancel Invoice">
-                                    <i class="fa-regular fa-trash-can"></i> Delete
-                                </button>
+                                {% if inv.status != 'CANCELLED' %}
+                                    <button type="button" onclick="triggerGlobalDelete('/api/delete/invoice/{{ inv.id }}/', '{{ inv.invoice_number }}')" class="btn-action-delete" title="Delete / Cancel Invoice">
+                                        <i class="fa-regular fa-trash-can"></i> Delete
+                                    </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

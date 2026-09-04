@@ -107,8 +107,9 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
             <div>
                 <div class="form-group">
-                    <label class="form-label" for="notes">Terms / Notes</label>
-                    <textarea id="notes" class="form-control" rows="3" placeholder="Enter notes visible on invoice..."></textarea>
+                    <label class="form-label" for="notes">Notes</label>
+                    <textarea id="notes" class="form-control" rows="4" placeholder="Enter custom notes visible on invoice..."></textarea>
+                    <input type="hidden" id="terms-input" name="terms" value="">
                 </div>
             </div>
             
@@ -202,6 +203,41 @@
             </div>
         </div>
 
+        <!-- 5. Interactive Terms & Conditions Section -->
+        <div style="margin-top: 2rem; border-top: 2px solid var(--border); padding-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-file-contract"></i> Terms & Conditions Checklist
+                </h4>
+                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;" onclick="showAddCustomTermModal()">
+                    <i class="fa-solid fa-plus"></i> Add Custom Term
+                </button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: var(--muted-foreground); margin-top: 0; margin-bottom: 1rem;">
+                Select terms to include in this invoice. Unchecked terms will not be displayed on the invoice document or PDF.
+            </p>
+
+            <div id="terms-list-container" style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem;">
+                {% for pt in predefined_terms %}
+                    <div class="term-checkbox-item" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--muted-bg, #f8fafc); border: 1px solid var(--border);">
+                        <input type="checkbox" class="invoice-term-checkbox" id="term_pred_{{ pt.id }}" data-term-text="{{ pt.term_text }}" style="margin-top: 0.2rem; cursor: pointer; width: 16px; height: 16px;" onchange="syncTermsToTermsField()" checked>
+                        <label for="term_pred_{{ pt.id }}" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--foreground); flex: 1; line-height: 1.4;">{{ pt.term_text }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Custom Term Form Box -->
+            <div id="add-custom-term-box" style="display: none; margin-bottom: 1.25rem; padding: 1rem; border: 1px dashed var(--primary); border-radius: 6px; background: var(--card);">
+                <h5 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: 600; color: var(--foreground);">Add Custom Term & Condition:</h5>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <input type="text" id="custom-term-input" class="form-control" placeholder="Type custom term & condition here..." style="flex: 1; min-width: 250px;">
+                    <button type="button" class="btn btn-primary" onclick="confirmAddCustomTerm()">Add</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideAddCustomTermModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem;">
             <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Cancel</a>
             <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
@@ -226,6 +262,60 @@
     const companyStateCode = "{{ request.user.company.state_code }}";
     let isUpdatingFromDropdown = false;
 
+    function syncTermsToTermsField() {
+        const checkboxes = document.querySelectorAll('.invoice-term-checkbox');
+        const selectedTerms = [];
+        let num = 1;
+        checkboxes.forEach((cb) => {
+            if (cb.checked) {
+                const text = cb.getAttribute('data-term-text') || '';
+                if (text) {
+                    selectedTerms.push(`${num}. ${text}`);
+                    num++;
+                }
+            }
+        });
+        const termsInput = document.getElementById('terms-input');
+        if (termsInput) {
+            termsInput.value = selectedTerms.join('\n');
+        }
+    }
+
+    function showAddCustomTermModal() {
+        const box = document.getElementById('add-custom-term-box');
+        if (box) box.style.display = 'block';
+        const input = document.getElementById('custom-term-input');
+        if (input) input.focus();
+    }
+
+    function hideAddCustomTermModal() {
+        const box = document.getElementById('add-custom-term-box');
+        if (box) box.style.display = 'none';
+        const input = document.getElementById('custom-term-input');
+        if (input) input.value = '';
+    }
+
+    function confirmAddCustomTerm() {
+        const input = document.getElementById('custom-term-input');
+        const text = input ? input.value.trim() : '';
+        if (!text) return;
+        
+        const container = document.getElementById('terms-list-container');
+        const termId = 'term_custom_' + Date.now();
+        const escText = text.replace(/"/g, '&quot;');
+        const itemHtml = `
+            <div class="term-checkbox-item" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--muted-bg, #f8fafc); border: 1px solid var(--border);">
+                <input type="checkbox" class="invoice-term-checkbox" id="${termId}" data-term-text="${escText}" style="margin-top: 0.2rem; cursor: pointer; width: 16px; height: 16px;" onchange="syncTermsToTermsField()" checked>
+                <label for="${termId}" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--foreground); flex: 1; line-height: 1.4;">${text}</label>
+            </div>
+        `;
+        if (container) {
+            container.insertAdjacentHTML('beforeend', itemHtml);
+        }
+        syncTermsToTermsField();
+        hideAddCustomTermModal();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const invDateInput = document.getElementById('invoice-date');
         const dueDateInput = document.getElementById('due-date');
@@ -244,6 +334,9 @@
             const f_dd = String(future.getDate()).padStart(2, '0');
             dueDateInput.value = `${f_yyyy}-${f_mm}-${f_dd}`;
         }
+
+        // Initialize terms
+        syncTermsToTermsField();
 
         // Add initial row
         addRow();
@@ -646,13 +739,15 @@
             return;
         }
 
-        if (Math.round((advance + paidNow) * 100) > Math.round(grandTotal * 100)) {
-            const msg = "Payment amount cannot exceed the invoice total.";
-            window.setElementText('form-error-toast', msg);
-            window.setElementDisplay('form-error-toast', 'block');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            if (typeof window.showToast === 'function') window.showToast('error', msg);
-            return;
+        let safeAdvance = advance;
+        let safePaidNow = paidNow;
+        if (grandTotal > 0 && Math.round((safeAdvance + safePaidNow) * 100) > Math.round(grandTotal * 100)) {
+            if (safeAdvance > grandTotal) {
+                safeAdvance = grandTotal;
+                safePaidNow = 0;
+            } else {
+                safePaidNow = Math.max(0, grandTotal - safeAdvance);
+            }
         }
 
         const hiddenItemsInput = document.getElementById('items-json-input');
@@ -663,6 +758,9 @@
         const pmtStatusSelect = document.getElementById('payment-status-select');
         const pmtStatus = pmtStatusSelect ? pmtStatusSelect.value : 'UNPAID';
 
+        const termsInputEl = document.getElementById('terms-input');
+        const terms = termsInputEl ? termsInputEl.value : '';
+
         const payload = {
             customer_id: parseInt(customerId),
             invoice_number: invNo,
@@ -672,11 +770,12 @@
             place_of_supply_code: posCode,
             warehouse_id: parseInt(whId),
             reverse_charge: reverse,
+            terms: terms,
             notes: notes,
             items: items,
             advance_paid: isAdvYes,
-            advance_amount: advance,
-            amount_paid_now: paidNow,
+            advance_amount: safeAdvance,
+            amount_paid_now: safePaidNow,
             payment_status: pmtStatus,
             round_off_applied: isRoundOffEnabled
         };

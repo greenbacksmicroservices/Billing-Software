@@ -1,4 +1,5 @@
 {% extends 'base_company.html' %}
+{% load indian_numbers %}
 
 {% block title %}Tax Invoice {{ invoice.invoice_number }}{% endblock %}
 {% block sub_invoices %}sub-item-active{% endblock %}
@@ -31,13 +32,26 @@
                 <i class="fa-solid fa-cloud-arrow-up"></i> Post Invoice
             </a>
         {% endif %}
-        {% if invoice.status != 'CANCELLED' and invoice.status != 'PAID' and invoice.status != 'DRAFT' %}
-            <a href="{% url 'invoice_cancel' invoice.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this posted financial invoice? This will restore customer balance and return items back to inventory.');">
-                <i class="fa-solid fa-ban"></i> Cancel Invoice
+        {% if invoice.status != 'CANCELLED' %}
+            <a href="{% url 'invoice_cancel' invoice.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this Tax Invoice? This will restore customer balance, remove GST entries, and return items back to inventory stock.');">
+                <i class="fa-solid fa-ban"></i> Cancel Tax Invoice
             </a>
+        {% else %}
+            <span class="badge badge-danger" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-ban"></i> Cancelled Invoice
+            </span>
         {% endif %}
     </div>
 </div>
+
+{% if invoice.status == 'CANCELLED' %}
+<div class="message-item error" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; padding: 1rem; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; color: #991b1b;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.25rem;"></i>
+    <div>
+        <strong>This Tax Invoice is CANCELLED.</strong> Product stock items have been returned to inventory, customer ledger has been updated, and GST transaction records are marked as cancelled.
+    </div>
+</div>
+{% endif %}
 
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
     <!-- Invoice Details and Items -->
@@ -86,6 +100,16 @@
                                     State Name: <strong>{{ invoice.company.state }}</strong>, Code: <strong>{{ invoice.company.state_code }}</strong><br>
                                     Contact: {{ invoice.company.mobile }} | Email: {{ invoice.company.email }}<br>
                                     GSTIN/UIN: <strong>{{ invoice.company.gstin }}</strong> | PAN: <strong>{{ invoice.company.pan }}</strong>
+                                    {% if invoice.company.website or invoice.company.other_website %}
+                                        <br>
+                                        {% if invoice.company.website %}
+                                            My Website: <strong>{{ invoice.company.website }}</strong>
+                                        {% endif %}
+                                        {% if invoice.company.website and invoice.company.other_website %} | {% endif %}
+                                        {% if invoice.company.other_website %}
+                                            Other Website: <strong>{{ invoice.company.other_website }}</strong>
+                                        {% endif %}
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -220,7 +244,7 @@
 
             <!-- Chargeable Words -->
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 6px 10px; font-size: 9.5px; background: #fafafa; color: #000; margin-bottom: 8px;">
-                <div>Amount Chargeable (in words): INR <strong id="amount-in-words" style="text-transform: capitalize;"></strong> Rupees Only.</div>
+                <div>Amount Chargeable (in words): INR <strong id="amount-in-words" style="text-transform: capitalize;"></strong></div>
                 <div style="font-weight: 700; font-style: italic;">E. & O.E</div>
             </div>
 
@@ -277,7 +301,7 @@
                             <td class="p-text-right">₹{{ invoice.sgst_total }}</td>
                         {% endif %}
                         <td class="p-text-right p-bold">
-                            ₹{% widthratio invoice.cgst_total|add:invoice.sgst_total|add:invoice.igst_total 1 1 %}
+                            ₹{{ invoice.total_tax|indian_number:2 }}
                         </td>
                     </tr>
                 </tbody>
@@ -285,7 +309,7 @@
 
             <!-- Tax Words -->
             <div style="border-bottom: 1px solid #000; padding: 6px 10px; font-size: 9.5px; background: #fafafa; color: #000; margin-bottom: 8px;">
-                Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong> Rupees Only.
+                Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong>
             </div>
 
             <!-- PAYMENT DETAILS PREVIEW TABLE -->
@@ -312,10 +336,20 @@
                     <td style="width: 50%; padding: 8px; font-size: 9px; line-height: 1.45; color: #000;" class="p-border-right">
                         <strong>Declaration:</strong><br>
                         We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-                        {% if invoice.terms %}
+                        {% if invoice.notes or invoice.terms %}
                             <div style="margin-top: 6px;">
-                                <strong>Terms & Conditions:</strong><br>
-                                {{ invoice.terms|linebreaksbr }}
+                                {% if invoice.notes %}
+                                    <div style="margin-bottom: 4px;">
+                                        <strong>Note:</strong><br>
+                                        {{ invoice.notes|linebreaksbr }}
+                                    </div>
+                                {% endif %}
+                                {% if invoice.terms %}
+                                    <div>
+                                        <strong>Terms & Conditions:</strong><br>
+                                        {{ invoice.terms|linebreaksbr }}
+                                    </div>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </td>
@@ -339,7 +373,7 @@
             <table style="width: 100%;" class="preview-invoice-table">
                 <tr>
                     <td style="width: 50%; padding: 8px; vertical-align: bottom; font-size: 8.5px; color: #444;">
-                        <strong>SUBJECT TO MUMBAI JURISDICTION</strong><br>
+                        <strong>SUBJECT TO {{ invoice.company.state|default:invoice.company.city|default:'LOCAL'|upper }} JURISDICTION</strong><br>
                         This is a computer-generated tax invoice and requires no physical signature under GST regulations.
                     </td>
                     <td style="width: 50%; text-align: right; padding: 8px; position: relative;">
@@ -363,13 +397,34 @@
             </table>
         </div>
 
-        <!-- Notes display -->
-        {% if invoice.notes %}
-            <div class="card-container" style="margin-bottom: 1.5rem;">
-                <div class="card-body">
-                    <strong>Invoice Notes / Comments:</strong>
-                    <p style="color: var(--muted-foreground); font-size: 0.9rem; margin-top: 0.25rem;">{{ invoice.notes }}</p>
-                </div>
+        <!-- Note & Terms & Conditions display cards -->
+        {% if invoice.notes or invoice.terms %}
+            <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem;">
+                {% if invoice.notes %}
+                    <div class="card-container">
+                        <div class="card-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border);">
+                            <h3 class="card-title" style="font-size: 0.95rem; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                                <i class="fa-solid fa-sticky-note"></i> Note
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 1rem 1.25rem;">
+                            <div style="color: var(--foreground); font-size: 0.9rem; line-height: 1.5; white-space: pre-line;">{{ invoice.notes }}</div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if invoice.terms %}
+                    <div class="card-container">
+                        <div class="card-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border);">
+                            <h3 class="card-title" style="font-size: 0.95rem; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                                <i class="fa-solid fa-file-contract"></i> Terms & Conditions
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 1rem 1.25rem;">
+                            <div style="color: var(--foreground); font-size: 0.9rem; line-height: 1.6; white-space: pre-line;">{{ invoice.terms }}</div>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         {% endif %}
     </div>
@@ -469,12 +524,12 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-    // Number to Words converter
-    function numToWords(num) {
+    // Number to Words converter supporting Rupees and Paise
+    function convertIntegerToWords(num) {
         const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
         const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
-        num = Math.round(parseFloat(num));
+        num = Math.floor(num);
         if (num === 0) return 'zero';
         if (num.toString().length > 9) return 'overflow';
         
@@ -487,6 +542,30 @@
         str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'hundred ' : '';
         str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
         return str.trim();
+    }
+
+    function numToWords(num) {
+        let val = parseFloat(num);
+        if (isNaN(val) || val === 0) return 'Zero Rupees Only';
+        
+        let isNegative = val < 0;
+        val = Math.abs(val);
+        
+        let fixed = val.toFixed(2);
+        let parts = fixed.split('.');
+        let rupees = parseInt(parts[0], 10);
+        let paise = parseInt(parts[1], 10);
+        
+        let words = [];
+        if (rupees > 0) {
+            words.push(convertIntegerToWords(rupees) + (rupees === 1 ? ' Rupee' : ' Rupees'));
+        }
+        if (paise > 0) {
+            words.push(convertIntegerToWords(paise) + (paise === 1 ? ' Paise' : ' Paise'));
+        }
+        
+        let result = words.join(' and ') + ' Only';
+        return isNegative ? 'Minus ' + result : result;
     }
 
     document.addEventListener('DOMContentLoaded', () => {

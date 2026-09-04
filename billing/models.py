@@ -68,7 +68,8 @@ class Company(models.Model):
     pan = models.CharField(max_length=10, blank=True, null=True)
     email = models.EmailField()
     mobile = models.CharField(max_length=15)
-    website = models.URLField(blank=True, null=True)
+    website = models.CharField(max_length=255, blank=True, null=True)
+    other_website = models.CharField(max_length=255, blank=True, null=True)
     
     # Address
     address = models.TextField()
@@ -602,6 +603,10 @@ class Invoice(models.Model):
         if self.balance_due is not None and self.balance_due > Decimal('0.00'):
             return self.balance_due
         return max(Decimal('0.00'), self.grand_total - self.paid_amount)
+
+    @property
+    def total_tax(self):
+        return (self.cgst_total or Decimal('0.00')) + (self.sgst_total or Decimal('0.00')) + (self.igst_total or Decimal('0.00')) + (self.cess_total or Decimal('0.00'))
 
     def __str__(self):
         return f"{self.invoice_number} - {self.customer.name} (Total: {self.grand_total})"

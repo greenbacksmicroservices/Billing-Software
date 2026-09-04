@@ -412,8 +412,18 @@
                             {% endif %}
                             <div class="company-meta">
                                 {{ company.address }}, {{ company.city }}, {{ company.state }} - {{ company.pincode }}<br>
-                                Contact: <strong>{{ company.mobile }}</strong> | Email: <strong>{{ company.email }}</strong>{% if company.website %} | Web: <strong>{{ company.website }}</strong>{% endif %}<br>
+                                Contact: <strong>{{ company.mobile }}</strong> | Email: <strong>{{ company.email }}</strong><br>
                                 GSTIN: <strong style="color: #1e3a8a;">{{ company.gstin|default:"N/A" }}</strong> | State Code: <strong>{{ company.state_code }}</strong>
+                                {% if company.website or company.other_website %}
+                                    <br>
+                                    {% if company.website %}
+                                        My Website: <strong>{{ company.website }}</strong>
+                                    {% endif %}
+                                    {% if company.website and company.other_website %} | {% endif %}
+                                    {% if company.other_website %}
+                                        Other Website: <strong>{{ company.other_website }}</strong>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -593,7 +603,7 @@
 
         <!-- 5. AMOUNT IN WORDS -->
         <div class="amount-in-words-box">
-            Amount Chargeable (in words): <strong>INR <span id="amount-in-words" style="text-transform: capitalize;"></span> Rupees Only</strong>
+            Amount Chargeable (in words): <strong>INR <span id="amount-in-words" style="text-transform: capitalize;"></span></strong>
         </div>
 
         <!-- 6. HSN/SAC TAX SUMMARY TABLE -->
@@ -759,11 +769,11 @@
 
     <!-- Number to Words Script -->
     <script>
-        function numToWords(num) {
+        function convertIntegerToWords(num) {
             const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
             const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
-            num = Math.round(parseFloat(num));
+            num = Math.floor(num);
             if (num === 0) return 'zero';
             if (num.toString().length > 9) return 'overflow';
             
@@ -776,6 +786,30 @@
             str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'hundred ' : '';
             str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
             return str.trim();
+        }
+
+        function numToWords(num) {
+            let val = parseFloat(num);
+            if (isNaN(val) || val === 0) return 'Zero Rupees Only';
+            
+            let isNegative = val < 0;
+            val = Math.abs(val);
+            
+            let fixed = val.toFixed(2);
+            let parts = fixed.split('.');
+            let rupees = parseInt(parts[0], 10);
+            let paise = parseInt(parts[1], 10);
+            
+            let words = [];
+            if (rupees > 0) {
+                words.push(convertIntegerToWords(rupees) + (rupees === 1 ? ' Rupee' : ' Rupees'));
+            }
+            if (paise > 0) {
+                words.push(convertIntegerToWords(paise) + (paise === 1 ? ' Paise' : ' Paise'));
+            }
+            
+            let result = words.join(' and ') + ' Only';
+            return isNegative ? 'Minus ' + result : result;
         }
         
         document.addEventListener('DOMContentLoaded', () => {

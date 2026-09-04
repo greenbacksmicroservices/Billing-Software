@@ -59,15 +59,21 @@ class CompanyForm(MoneyModelForm):
         model = Company
         fields = [
             'name', 'trade_name', 'business_type', 'gst_status', 'gstin', 'pan',
-            'email', 'mobile', 'website', 'address', 'city', 'state', 'state_code', 'pincode',
+            'email', 'mobile', 'website', 'other_website', 'address', 'city', 'state', 'state_code', 'pincode',
             'logo', 'bank_name', 'account_holder', 'account_number', 'ifsc', 'branch', 'upi_id',
             'invoice_prefix', 'invoice_next_number', 'invoice_padding', 'financial_year',
             'terms_and_conditions', 'authorized_signature_name', 'signature', 'stamp'
         ]
+        labels = {
+            'website': 'My Website',
+            'other_website': 'Other Website',
+        }
         widgets = {
             'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'terms_and_conditions': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'state_code': forms.Select(choices=STATE_CHOICES, attrs={'class': 'form-control state-code-select'}),
+            'website': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. www.mywebsite.com'}),
+            'other_website': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. www.otherwebsite.com'}),
         }
 
     def __init__(self, *args, **kwargs):

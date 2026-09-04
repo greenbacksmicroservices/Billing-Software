@@ -4731,8 +4731,6 @@ class InvoiceListView(CompanyRequiredMixin, CompanyQuerySetMixin, PaginationMixi
         status = self.request.GET.get('status')
         if status:
             qs = qs.filter(status=status)
-        else:
-            qs = qs.exclude(status='CANCELLED')
         return qs
 
 
@@ -4747,12 +4745,16 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
         count = Invoice.objects.filter(company=company).count() + 1
         inv_no = f"{company.invoice_prefix}{company.financial_year}-{str(count).zfill(company.invoice_padding)}"
         
+        from .utils import get_or_create_predefined_invoice_terms
+        predefined_terms = get_or_create_predefined_invoice_terms(company)
+
         return render(request, 'company/invoice_add.html', {
             'customers': customers,
             'products': products,
             'products_json': build_products_json(products),
             'warehouses': warehouses,
-            'invoice_number': inv_no
+            'invoice_number': inv_no,
+            'predefined_terms': predefined_terms,
         })
 
     @transaction.atomic
@@ -4804,8 +4806,10 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
 
             place_of_supply = (data.get('place_of_supply') or customer.billing_state or company.state or 'Maharashtra').strip()
             place_of_supply_code = (data.get('place_of_supply_code') or customer.billing_state_code or company.state_code or '27').strip().zfill(2)
-            reverse_charge = bool(data.get('reverse_charge', False))
+            reverse_charge_raw = data.get('reverse_charge')
+            reverse_charge = str(reverse_charge_raw).lower() in ['true', '1', 'on', 'yes'] if reverse_charge_raw is not None else False
             notes = (data.get('notes') or '').strip()
+            terms = (data.get('terms') or company.terms_and_conditions or '').strip()
             
             items_data = data.get('items', [])
             if isinstance(items_data, str):
@@ -4834,7 +4838,7 @@ class InvoiceCreateView(CompanyRequiredMixin, View):
                 company=company, customer=customer, invoice_number=inv_no,
                 invoice_date=inv_date, due_date=due_date,
                 place_of_supply=place_of_supply, place_of_supply_code=place_of_supply_code,
-                reverse_charge=reverse_charge, status='POSTED', notes=notes, terms=company.terms_and_conditions
+                reverse_charge=reverse_charge, status='POSTED', notes=notes, terms=terms
             )
             
             created_items_count = 0
@@ -4939,12 +4943,16 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
         products = Product.objects.filter(company=company, is_active=True)
         warehouses = Warehouse.objects.filter(company=company, is_active=True)
         
+        from .utils import get_or_create_predefined_invoice_terms
+        predefined_terms = get_or_create_predefined_invoice_terms(company)
+
         return render(request, 'company/invoice_edit.html', {
             'invoice': invoice,
             'customers': customers,
             'products': products,
             'products_json': build_products_json(products),
             'warehouses': warehouses,
+            'predefined_terms': predefined_terms,
         })
 
     @transaction.atomic
@@ -5004,6 +5012,8 @@ class InvoiceUpdateView(CompanyRequiredMixin, View):
                 invoice.reverse_charge = bool(data.get('reverse_charge'))
             if 'notes' in data:
                 invoice.notes = (data.get('notes') or '').strip()
+            if 'terms' in data:
+                invoice.terms = (data.get('terms') or '').strip()
 
             items_data = data.get('items', [])
             if isinstance(items_data, str):
@@ -5187,16 +5197,18 @@ def invoice_cancel(request, pk):
         
     # Rebalance customer ledger
     customer = invoice.customer
-    customer.outstanding_balance -= invoice.grand_total
-    customer.save()
+    if invoice.balance_due > Decimal('0.00'):
+        customer.outstanding_balance = max(Decimal('0.00'), customer.outstanding_balance - invoice.balance_due)
+        customer.save()
     
     cancel_invoice_accounting(invoice)
     
     invoice.status = 'CANCELLED'
+    invoice.balance_due = Decimal('0.00')
     invoice.save()
     
     log_action(request.user, 'CANCEL_INVOICE', 'INVOICE', invoice.id, request=request)
-    messages.success(request, f"Invoice {invoice.invoice_number} cancelled and customer balance restored.")
+    messages.success(request, f"Invoice {invoice.invoice_number} cancelled successfully. Stock, GST entries, and balance updated.")
     return redirect('invoice_view', pk=invoice.id)
 
 

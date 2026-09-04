@@ -1,4 +1,4 @@
-{% load static %}
+{% load static indian_numbers %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -174,6 +174,16 @@
                                 State Name: <strong>{{ invoice.company.state }}</strong>, Code: <strong>{{ invoice.company.state_code }}</strong><br>
                                 Contact: {{ invoice.company.mobile }} | Email: {{ invoice.company.email }}<br>
                                 GSTIN/UIN: <strong>{{ invoice.company.gstin }}</strong> | PAN: <strong>{{ invoice.company.pan }}</strong>
+                                {% if invoice.company.website or invoice.company.other_website %}
+                                    <br>
+                                    {% if invoice.company.website %}
+                                        My Website: <strong>{{ invoice.company.website }}</strong>
+                                    {% endif %}
+                                    {% if invoice.company.website and invoice.company.other_website %} | {% endif %}
+                                    {% if invoice.company.other_website %}
+                                        Other Website: <strong>{{ invoice.company.other_website }}</strong>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -312,7 +322,7 @@
 
         <!-- Chargeable words layout -->
         <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 6px 10px; font-size: 9.5px; background: #fafafa;">
-            <div>Amount Chargeable (in words): INR <strong id="amount-in-words" style="text-transform: capitalize;"></strong> Rupees Only.</div>
+            <div>Amount Chargeable (in words): INR <strong id="amount-in-words" style="text-transform: capitalize;"></strong></div>
             <div style="font-weight: 700; font-style: italic;">E. & O.E</div>
         </div>
 
@@ -377,7 +387,7 @@
                         <td></td>
                     {% endif %}
                     <td class="text-right bold">
-                        ₹{{ invoice.cgst_total|add:invoice.sgst_total|add:invoice.igst_total }}
+                        ₹{{ invoice.total_tax|indian_number:2 }}
                     </td>
                 </tr>
             </tbody>
@@ -385,7 +395,7 @@
 
         <!-- Tax words layout -->
         <div style="border-bottom: 1px solid #000; padding: 6px 10px; font-size: 9.5px; background: #fafafa;">
-            Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong> Rupees Only.
+            Tax Amount (in words): INR <strong id="tax-in-words" style="text-transform: capitalize;"></strong>
         </div>
 
         <!-- PAYMENT DETAILS TABLE -->
@@ -411,10 +421,16 @@
                 <td style="width: 50%; padding: 8px; font-size: 9px; line-height: 1.45;" class="border-right">
                     <strong>Declaration:</strong><br>
                     We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-                    {% if invoice.terms %}
+                    {% if invoice.notes or invoice.terms %}
                         <div style="margin-top: 6px;">
-                            <strong>Terms & Conditions:</strong><br>
-                            {{ invoice.terms|linebreaksbr }}
+                            <strong>Terms / Notes:</strong><br>
+                            {% if invoice.notes %}
+                                {{ invoice.notes|linebreaksbr }}
+                            {% endif %}
+                            {% if invoice.terms and invoice.terms != invoice.notes %}
+                                {% if invoice.notes %}<br>{% endif %}
+                                {{ invoice.terms|linebreaksbr }}
+                            {% endif %}
                         </div>
                     {% endif %}
                 </td>
@@ -438,7 +454,7 @@
         <table style="width: 100%;">
             <tr>
                 <td style="width: 50%; padding: 8px; vertical-align: bottom; font-size: 8.5px; color: #444;">
-                    <strong>SUBJECT TO MUMBAI JURISDICTION</strong><br>
+                    <strong>SUBJECT TO {{ invoice.company.state|default:invoice.company.city|default:'LOCAL'|upper }} JURISDICTION</strong><br>
                     This is a computer-generated tax invoice and requires no physical signature under GST regulations.
                 </td>
                 <td style="width: 50%; text-align: right; padding: 8px; position: relative;">
@@ -465,12 +481,12 @@
     <!-- Scripts for Number-to-Words & QR Codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        // Number to Words converter
-        function numToWords(num) {
+        // Number to Words converter supporting Rupees and Paise
+        function convertIntegerToWords(num) {
             const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
             const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
-            num = Math.round(parseFloat(num));
+            num = Math.floor(num);
             if (num === 0) return 'zero';
             if (num.toString().length > 9) return 'overflow';
             
@@ -483,6 +499,30 @@
             str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'hundred ' : '';
             str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
             return str.trim();
+        }
+
+        function numToWords(num) {
+            let val = parseFloat(num);
+            if (isNaN(val) || val === 0) return 'Zero Rupees Only';
+            
+            let isNegative = val < 0;
+            val = Math.abs(val);
+            
+            let fixed = val.toFixed(2);
+            let parts = fixed.split('.');
+            let rupees = parseInt(parts[0], 10);
+            let paise = parseInt(parts[1], 10);
+            
+            let words = [];
+            if (rupees > 0) {
+                words.push(convertIntegerToWords(rupees) + (rupees === 1 ? ' Rupee' : ' Rupees'));
+            }
+            if (paise > 0) {
+                words.push(convertIntegerToWords(paise) + (paise === 1 ? ' Paise' : ' Paise'));
+            }
+            
+            let result = words.join(' and ') + ' Only';
+            return isNegative ? 'Minus ' + result : result;
         }
         
         document.addEventListener('DOMContentLoaded', () => {

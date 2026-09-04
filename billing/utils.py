@@ -557,7 +557,12 @@ def recalculate_invoice_totals(invoice, advance_amount=None, amount_paid_now=Non
 
     total_rec = quantize_amount(adv_val + paid_now_val)
     if total_rec > invoice.grand_total:
-        raise ValueError("Payment amount cannot exceed the invoice total.")
+        if adv_val > invoice.grand_total:
+            adv_val = invoice.grand_total
+            paid_now_val = Decimal('0.00')
+        else:
+            paid_now_val = max(Decimal('0.00'), invoice.grand_total - adv_val)
+        total_rec = invoice.grand_total
 
     bal_due = quantize_amount(max(Decimal('0.00'), invoice.grand_total - total_rec))
 
@@ -1223,6 +1228,29 @@ def get_or_create_predefined_quotation_terms(company=None):
             is_active=True
         )
     return existing.order_by('display_order', 'id')
+
+
+DEFAULT_PREDEFINED_INVOICE_TERMS = [
+    "Goods once sold will not be taken back or exchanged.",
+    "Payment is due within the stipulated due date from the invoice date.",
+    "Interest @ 18% per annum will be charged on delayed payments beyond due date.",
+    "All disputes are subject to local jurisdiction only.",
+    "Warranty of products is covered directly by respective manufacturers as per their policy.",
+    "Please check all items at the time of delivery; no claims will be entertained thereafter.",
+    "Title to goods remains with the seller until full payment is received.",
+    "E. & O.E. (Errors and Omissions Excepted).",
+    "Payment subject to realization of cheque or digital transfer."
+]
+
+def get_or_create_predefined_invoice_terms(company=None):
+    terms_list = []
+    for idx, text in enumerate(DEFAULT_PREDEFINED_INVOICE_TERMS, start=1):
+        terms_list.append({
+            'id': idx,
+            'term_text': text
+        })
+    return terms_list
+
 
 
 def recalculate_quotation_totals(quotation, apply_round_off=None):
