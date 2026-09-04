@@ -616,15 +616,15 @@
             const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            const taxable_item = (prod && prod.tax_inclusive) ? Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc) : Math.max(0, gross - disc);
+            const netInc = Math.max(0, gross - disc);
+            const taxable_item = (prod && prod.tax_inclusive) ? (netInc / (1.00 + (gstRate / 100.00))) : netInc;
             const rowGst = taxable_item * (gstRate / 100);
             const rowCess = taxable_item * (cessRate / 100);
-            const rowTotal = (prod && prod.tax_inclusive) ? gross : (taxable_item + rowGst + rowCess);
+            const rowTotal = (prod && prod.tax_inclusive) ? netInc : (taxable_item + rowGst + rowCess);
             
             if (rowTotalEl) rowTotalEl.innerText = window.formatIndianCurrency(rowTotal);
             
-            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable_item + disc) : gross;
-            subtotal += lineSubtotal;
+            subtotal += gross;
             discTotal += disc;
             taxable += taxable_item;
             cessTotal += rowCess;
@@ -639,6 +639,7 @@
 
         const subtotalEl = document.getElementById('summary-subtotal');
         const discountEl = document.getElementById('summary-discount');
+        const taxableEl = document.getElementById('summary-taxable');
         const cgstEl = document.getElementById('summary-cgst');
         const sgstEl = document.getElementById('summary-sgst');
         const igstEl = document.getElementById('summary-igst');
@@ -648,6 +649,7 @@
 
         if (subtotalEl) subtotalEl.innerText = window.formatIndianCurrency(subtotal);
         if (discountEl) discountEl.innerText = window.formatIndianCurrency(discTotal);
+        if (taxableEl) taxableEl.innerText = window.formatIndianCurrency(taxable);
         if (cgstEl) cgstEl.innerText = window.formatIndianCurrency(cgstTotal);
         if (sgstEl) sgstEl.innerText = window.formatIndianCurrency(sgstTotal);
         if (igstEl) igstEl.innerText = window.formatIndianCurrency(igstTotal);

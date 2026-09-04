@@ -214,9 +214,14 @@ class QuotationService:
             disc = item_data['discount']
 
             gross = qty * rate
-            taxable_item = quantize_amount(gross - disc)
             gst_rate = parse_money(item_data.get('gst_rate', (prod.hsn_sac.gst_rate if prod and prod.hsn_sac else Decimal('18.00'))))
             cess_rate = prod.hsn_sac.cess_rate if (prod and prod.hsn_sac) else Decimal('0.00')
+            is_tax_inc = getattr(prod, 'tax_inclusive', False) if prod else False
+            if is_tax_inc:
+                net_inc = max(Decimal('0.00'), gross - disc)
+                taxable_item = quantize_amount(net_inc / (Decimal('1.00') + (gst_rate / Decimal('100.00'))))
+            else:
+                taxable_item = quantize_amount(gross - disc)
 
             cgst_item, sgst_item, igst_item, total_gst_item = calculate_item_gst(
                 company_state_code,
@@ -225,7 +230,7 @@ class QuotationService:
                 gst_rate
             )
             cess_item = quantize_amount(taxable_item * (cess_rate / Decimal('100.00')))
-            tot = quantize_amount(taxable_item + cgst_item + sgst_item + igst_item + cess_item)
+            tot = quantize_amount(gross - disc) if is_tax_inc else quantize_amount(taxable_item + cgst_item + sgst_item + igst_item + cess_item)
             hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
 
             QuotationItem.objects.create(
@@ -361,9 +366,14 @@ class QuotationService:
             disc = item_data['discount']
 
             gross = qty * rate
-            taxable_item = quantize_amount(gross - disc)
             gst_rate = parse_money(item_data.get('gst_rate', (prod.hsn_sac.gst_rate if prod and prod.hsn_sac else Decimal('18.00'))))
             cess_rate = prod.hsn_sac.cess_rate if (prod and prod.hsn_sac) else Decimal('0.00')
+            is_tax_inc = getattr(prod, 'tax_inclusive', False) if prod else False
+            if is_tax_inc:
+                net_inc = max(Decimal('0.00'), gross - disc)
+                taxable_item = quantize_amount(net_inc / (Decimal('1.00') + (gst_rate / Decimal('100.00'))))
+            else:
+                taxable_item = quantize_amount(gross - disc)
 
             cgst_item, sgst_item, igst_item, total_gst_item = calculate_item_gst(
                 company_state_code,
@@ -372,7 +382,7 @@ class QuotationService:
                 gst_rate
             )
             cess_item = quantize_amount(taxable_item * (cess_rate / Decimal('100.00')))
-            tot = quantize_amount(taxable_item + cgst_item + sgst_item + igst_item + cess_item)
+            tot = quantize_amount(gross - disc) if is_tax_inc else quantize_amount(taxable_item + cgst_item + sgst_item + igst_item + cess_item)
             hsn_code = prod.hsn_sac.code if prod.hsn_sac else ''
 
             QuotationItem.objects.create(
@@ -690,14 +700,20 @@ class PurchaseOrderService:
                 if row_errs:
                     item_errors[str(idx)] = row_errs
                 else:
-                    taxable_item = quantize_amount(gross - disc)
+                    is_tax_inc = getattr(prod, 'tax_inclusive', False) if prod else False
+                    if is_tax_inc:
+                        net_inc = max(Decimal('0.00'), gross - disc)
+                        taxable_item = quantize_amount(net_inc / (Decimal('1.00') + (gst_rate / Decimal('100.00'))))
+                    else:
+                        taxable_item = quantize_amount(gross - disc)
+
                     cgst_item, sgst_item, igst_item, _ = calculate_item_gst(
                         company_state_code,
                         supplier_state_code,
                         taxable_item,
                         gst_rate
                     )
-                    line_total = quantize_amount(taxable_item + cgst_item + sgst_item + igst_item)
+                    line_total = quantize_amount(gross - disc) if is_tax_inc else quantize_amount(taxable_item + cgst_item + sgst_item + igst_item)
 
                     cleaned_items.append({
                         'product': prod,
@@ -743,6 +759,7 @@ class PurchaseOrderService:
         igst_total = Decimal('0.00')
         cess_total = Decimal('0.00')
 
+        calculated_grand = Decimal('0.00')
         for item in items:
             subtotal += item['quantity'] * item['rate']
             discount_total += item['discount']
@@ -751,8 +768,8 @@ class PurchaseOrderService:
             sgst_total += item['sgst_amount']
             igst_total += item['igst_amount']
             cess_total += item['cess_amount']
+            calculated_grand += item['total_amount']
 
-        calculated_grand = taxable_amount + cgst_total + sgst_total + igst_total + cess_total
         apply_round = data.get('round_off_applied')
         if apply_round is None and 'round_off' in data:
             try:

@@ -531,14 +531,18 @@
         const prodId = row.querySelector('.prod-select').value;
         const prod = products.find(p => p.id == prodId);
         
-        // Remove old warnings if any
+        // Remove old warnings and badges if any
         const oldWarning = row.querySelector('.hsn-warning');
         if (oldWarning) oldWarning.remove();
+        const oldBadge = row.querySelector('.tax-mode-badge');
+        if (oldBadge) oldBadge.remove();
         
         if (prod) {
             row.querySelector('.rate-input').value = prod.price.toFixed(2);
             row.querySelector('.gst-input').value = prod.gst_rate.toFixed(2);
             row.querySelector('.hsn-input').value = prod.hsn_code || '';
+            const modeText = prod.tax_inclusive ? 'GST Inclusive' : 'GST Exclusive';
+            row.querySelector('.prod-select').insertAdjacentHTML('afterend', `<small class="tax-mode-badge" style="display: block; font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.25rem;">Mode: <strong>${modeText}</strong></small>`);
             
             if (!prod.hsn_code) {
                 row.querySelector('.hsn-input').insertAdjacentHTML('afterend', '<small class="hsn-warning" style="color: var(--destructive); display: block; font-size: 0.75rem; margin-top: 0.25rem;">GST rate is not configured.</small>');
@@ -581,20 +585,16 @@
             const cessRate = prod ? window.parseMoney(prod.cess_rate || 0) : 0;
             
             const gross = qty * rate;
-            let taxable = Math.max(0, gross - disc);
-            
-            if (prod && prod.tax_inclusive) {
-                taxable = Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc);
-            }
+            const netInc = Math.max(0, gross - disc);
+            let taxable = (prod && prod.tax_inclusive) ? (netInc / (1.00 + (gstRate / 100.00))) : netInc;
             
             let rowGst = taxable * (gstRate / 100.00);
             let rowCess = taxable * (cessRate / 100.00);
-            let rowTotal = taxable + rowGst + rowCess;
+            let rowTotal = (prod && prod.tax_inclusive) ? (netInc + rowCess) : (taxable + rowGst + rowCess);
             
             if (rowTotalEl) rowTotalEl.innerText = window.formatIndianCurrency(rowTotal);
             
-            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable + disc) : gross;
-            subtotal += lineSubtotal;
+            subtotal += gross;
             discountTotal += disc;
             taxableTotal += taxable;
             cessTotal += rowCess;
@@ -609,6 +609,7 @@
 
         const subtotalEl = document.getElementById('summary-subtotal');
         const discountEl = document.getElementById('summary-discount');
+        const taxableEl = document.getElementById('summary-taxable');
         const cgstEl = document.getElementById('summary-cgst');
         const sgstEl = document.getElementById('summary-sgst');
         const igstEl = document.getElementById('summary-igst');
@@ -618,6 +619,7 @@
 
         if (subtotalEl) subtotalEl.innerText = window.formatIndianCurrency(subtotal);
         if (discountEl) discountEl.innerText = window.formatIndianCurrency(discountTotal);
+        if (taxableEl) taxableEl.innerText = window.formatIndianCurrency(taxableTotal);
         if (cgstEl) cgstEl.innerText = window.formatIndianCurrency(cgstTotal);
         if (sgstEl) sgstEl.innerText = window.formatIndianCurrency(sgstTotal);
         if (igstEl) igstEl.innerText = window.formatIndianCurrency(igstTotal);

@@ -974,11 +974,11 @@
             const prod = prodId ? products.find(p => p.id == prodId) : null;
 
             const gross = qty * rate;
-            const taxable = (prod && prod.tax_inclusive) ? Math.max(0, gross / (1.00 + (gstRate / 100.00)) - disc) : Math.max(0, gross - disc);
+            const netInc = Math.max(0, gross - disc);
+            const taxable = (prod && prod.tax_inclusive) ? (netInc / (1.00 + (gstRate / 100.00))) : netInc;
             const taxVal = taxable * (gstRate / 100);
 
-            const lineSubtotal = (prod && prod.tax_inclusive) ? (taxable + disc) : gross;
-            subtotal += lineSubtotal;
+            subtotal += gross;
             discountTotal += disc;
             taxableTotal += taxable;
 
@@ -1001,6 +1001,7 @@
 
         const subtotalEl = document.getElementById('summary-subtotal');
         const discountEl = document.getElementById('summary-discount');
+        const taxableEl = document.getElementById('summary-taxable');
         const cgstSumEl = document.getElementById('summary-cgst');
         const sgstSumEl = document.getElementById('summary-sgst');
         const igstSumEl = document.getElementById('summary-igst');
@@ -1010,6 +1011,7 @@
 
         if (subtotalEl) subtotalEl.innerText = window.formatIndianCurrency(subtotal);
         if (discountEl) discountEl.innerText = window.formatIndianCurrency(discountTotal);
+        if (taxableEl) taxableEl.innerText = window.formatIndianCurrency(taxableTotal);
         if (cgstSumEl) cgstSumEl.innerText = window.formatIndianCurrency(cgstTotal);
         if (sgstSumEl) sgstSumEl.innerText = window.formatIndianCurrency(sgstTotal);
         if (igstSumEl) igstSumEl.innerText = window.formatIndianCurrency(igstTotal);

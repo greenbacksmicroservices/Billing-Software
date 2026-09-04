@@ -239,8 +239,8 @@ def calculate_line_item_financials(quantity, rate, discount=Decimal('0.00'), gst
 
     if is_tax_inclusive:
         g_rate = parse_money(gst_rate)
-        taxable_raw = gross / (Decimal('1.00') + (g_rate / Decimal('100.00')))
-        line_taxable = quantize_amount(taxable_raw - line_discount)
+        net_inclusive = max(Decimal('0.00'), gross - line_discount)
+        line_taxable = quantize_amount(net_inclusive / (Decimal('1.00') + (g_rate / Decimal('100.00'))))
     else:
         line_taxable = quantize_amount(gross - line_discount)
 
@@ -256,7 +256,11 @@ def calculate_line_item_financials(quantity, rate, discount=Decimal('0.00'), gst
     c_rate = parse_money(cess_rate)
     cess_amt = quantize_amount(line_taxable * (c_rate / Decimal('100.00')))
 
-    line_total = quantize_amount(line_taxable + cgst + sgst + igst + cess_amt)
+    if is_tax_inclusive:
+        net_inclusive = max(Decimal('0.00'), gross - line_discount)
+        line_total = quantize_amount(net_inclusive + cess_amt)
+    else:
+        line_total = quantize_amount(line_taxable + cgst + sgst + igst + cess_amt)
 
     return {
         'quantity': qty,
@@ -414,6 +418,7 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
     sgst_total = Decimal('0.00')
     igst_total = Decimal('0.00')
     cess_total = Decimal('0.00')
+    calculated_grand = Decimal('0.00')
 
     for item in items:
         qty = item.quantity
@@ -460,6 +465,7 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
         sgst_total += res['sgst_amount']
         igst_total += res['igst_amount']
         cess_total += res['cess_amount']
+        calculated_grand += res['line_total']
 
     doc.subtotal = quantize_amount(subtotal)
     if hasattr(doc, 'discount_total'):
@@ -480,14 +486,6 @@ def recalculate_generic_document_totals(doc, items_queryset=None, company_state_
         doc.igst_total = quantize_amount(igst_total)
     if hasattr(doc, 'cess_total'):
         doc.cess_total = quantize_amount(cess_total)
-
-    taxable_val = getattr(doc, 'taxable_value', getattr(doc, 'taxable_amount', Decimal('0.00')))
-    c_tot = getattr(doc, 'cgst_total', Decimal('0.00'))
-    s_tot = getattr(doc, 'sgst_total', Decimal('0.00'))
-    i_tot = getattr(doc, 'igst_total', Decimal('0.00'))
-    cs_tot = getattr(doc, 'cess_total', Decimal('0.00'))
-
-    calculated_grand = taxable_val + c_tot + s_tot + i_tot + cs_tot
 
     should_round = False
     if apply_round_off is not None:
@@ -642,6 +640,14 @@ def recalculate_proforma_totals(proforma_invoice, apply_round_off=None):
     Recalculates all mathematical fields of a ProformaInvoice from its items.
     """
     return recalculate_generic_document_totals(proforma_invoice, apply_round_off=apply_round_off)
+
+
+def recalculate_quotation_totals(quotation, apply_round_off=None):
+    """
+    Recalculates all mathematical fields of a Quotation from its items.
+    """
+    return recalculate_generic_document_totals(quotation, apply_round_off=apply_round_off)
+
 
 
 
